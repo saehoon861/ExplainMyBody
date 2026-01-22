@@ -1,0 +1,4 @@
+python-dotenv>=1.0,<2.0 #.env 파일에 있는 환경 변수를 자동으로 로드
+pydantic>=2.6,<3.0 #데이터 검증 + 타입 보장
+pydantic-settings>=2.2,<3.0
+numpy>=1.26,<3.0
