@@ -1,5 +1,0 @@
-paddlepaddle==3.2.2
-paddleocr==3.3.2
-opencv-python>=4.9,<5.0
-pillow>=10.0,<13.0
-pypdfium2>=4.30,<6.0

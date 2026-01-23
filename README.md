@@ -12,7 +12,7 @@
 
 
 
-# 경로 :  \\ExplainMyBody_backup\experiments\llm
+# 경로 :  \\llm 폴더
          
          => LLM모델 실행 명령어.md 및 README.md 파일 확인
 
