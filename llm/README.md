@@ -1,3 +1,44 @@
+### 현재 실행폴더 확인 방법 ###
+
+
+
+# 현재 작업 내용 경로 : \\outputs 폴더 안에 각 모델 및 LLM ai 생성 프롬프트 별 결과물 존재
+        
+         => 폴더명 : 운동계획 or 주간피드백 , 실행모델 , 프롬프트 생성한 ai 순으로 표시됩니다. 
+
+
+
+# 각 모델마다 10명의 출력결과가 있는데, 신체정보 sample은 sample_profiles.json 에서 확인 가능.
+
+
+
+# 경로 :  \\llm 폴더
+         
+         => LLM모델 실행 명령어.md 및 README.md 파일 확인
+
+
+
+
+# 폴더 내 파일들 설명
+
+claude_client.py, ollama_client.py, openai_client.py : 클로드, 챗지피티, ollama LLM 모델 클라이언트 설정 파일
+
+models.py                                            : pydantic 적용을 위한 타입 지정 및 pydantic 자체 설정 파일
+
+prompt_generator_claude.py, prompt_generator_gpt.py  : 클로드, 챗지피티 로 생성된 prompt를 LLM 모델에 넣는 실제 명령어 파일
+
+rulebase.py, rulebase_wrapper.py                     : 규칙 기반 알고리즘 관련 파일
+
+run_pipeline_claude.py, run_pipeline_gpt.py, run_pipeline.py : 실제 구동 파일. claude 실행시 claude prompt, gpt 실행시 gpt prompt (LLM 모델 실행용 파일)
+
+클로드 코드로 생성한 프롬프트는 prompt_generator_claude.py안에서 확인가능하며 run_pipeline_claude.py로 구동해 LLM 실행 합니다. 
+gpt 동일.
+
+
+# 각 모델마다 10명의 출력결과가 있는데, 신체정보 sample은 sample_profiles.json 에서 확인 가능.
+
+
+
 # ExplainMyBody
 
 InBody 검사 결과지를 기반으로 한 체형 분석 및 맞춤 운동·식단 추천 챗봇

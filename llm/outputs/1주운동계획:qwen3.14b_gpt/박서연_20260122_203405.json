@@ -1,0 +1,42 @@
+{
+  "profile": {
+    "name": "박서연",
+    "sex": "여자",
+    "age": 40,
+    "height_cm": 158.0,
+    "weight_kg": 70.0
+  },
+  "analysis": {
+    "basic_info": {
+      "sex": "여자",
+      "age": 40,
+      "weight_kg": 70.0
+    },
+    "stage1_2": {
+      "bmi": 28.0,
+      "bmi_category": "비만1단계",
+      "fat_category": "비만",
+      "smm_ratio": 0.3,
+      "muscle_level": "근육 적음",
+      "stage1_type": "비만형",
+      "stage2_type": "비만형"
+    },
+    "muscle_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준이상",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "fat_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "stage3": "표준형"
+  },
+  "recommendations": "See: 박서연_20260122_203405_recommendations.md",
+  "generated_at": "2026-01-22T20:34:05.092545"
+}
