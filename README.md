@@ -1,3 +1,14 @@
+### 현재 실행폴더 확인 방법 ###
+
+*경로 :  \\ExplainMyBody_backup\experiments\llm
+         => LLM모델 실행 명령어.md 및 README.md 파일 확인
+
+*현재 작업 내용 경로 : \\ExplainMyBody_backup\experiments\llm\outputs
+         => 운동계획 or 주간피드백 , 실행모델 , 프롬프트 생성한 ai
+
+####
+
+
 # ExplainMyBody
 
 InBody 검사 결과지를 기반으로 한 체형 분석 및 맞춤 운동·식단 추천 챗봇
