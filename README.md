@@ -1,12 +1,22 @@
 ### 현재 실행폴더 확인 방법 ###
 
+
+
+# 현재 작업 내용 경로 : \\outputs 폴더 안에 각 모델 및 LLM ai 생성 프롬프트 별 결과물 존재
+        
+         => 폴더명 : 운동계획 or 주간피드백 , 실행모델 , 프롬프트 생성한 ai 순으로 표시됩니다. 
+
+
+
+# 각 모델마다 10명의 출력결과가 있는데, 신체정보 sample은 sample_profiles.json 에서 확인 가능.
+
+
+
 # 경로 :  \\ExplainMyBody_backup\experiments\llm
          
          => LLM모델 실행 명령어.md 및 README.md 파일 확인
 
-# 현재 작업 내용 경로 : \\ExplainMyBody_backup\experiments\llm\outputs
-        
-         => 운동계획 or 주간피드백 , 실행모델 , 프롬프트 생성한 ai
+
 
 
 # 폴더 내 파일들 설명
@@ -25,7 +35,7 @@ run_pipeline_claude.py, run_pipeline_gpt.py, run_pipeline.py : 실제 구동 파
 gpt 동일.
 
 
-# 자세한 output 파일들은 outputs 폴더 안에 있습니다. 각 모델마다 10명의 출력결과가 있는데, 신체정보 sample은 sample_profiles.json 에서 확인 가능.
+# 각 모델마다 10명의 출력결과가 있는데, 신체정보 sample은 sample_profiles.json 에서 확인 가능.
 
 
 
