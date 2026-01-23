@@ -55,7 +55,14 @@ input_data = {
 }
 
 result = analyzer.analyze_full_pipeline(input_data)
-print(f"최종 분석 체형: {result['stage1_2']['stage2_type']}")
+print(f"최종 분석 체형: {result['stage2']['stage3']}")
+```
+
+### 결과 출력값
+
+```python
+# return 타입:  <class 'dict'>
+{'stage2': '비만형', 'stage3': '표준형'}
 ```
 
 ---
