@@ -1,0 +1,42 @@
+{
+  "profile": {
+    "name": "김철수",
+    "sex": "남자",
+    "age": 28,
+    "height_cm": 175.0,
+    "weight_kg": 72.0
+  },
+  "analysis": {
+    "basic_info": {
+      "sex": "남자",
+      "age": 28,
+      "weight_kg": 72.0
+    },
+    "stage1_2": {
+      "bmi": 23.5,
+      "bmi_category": "과체중",
+      "fat_category": "표준",
+      "smm_ratio": 0.472,
+      "muscle_level": "근육 충분",
+      "stage1_type": "근육형",
+      "stage2_type": "근육형"
+    },
+    "muscle_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준이상",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "fat_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "stage3": "표준형"
+  },
+  "recommendations": "See: 김철수_20260122_114737_recommendations.md",
+  "generated_at": "2026-01-22T11:47:37.506618"
+}
