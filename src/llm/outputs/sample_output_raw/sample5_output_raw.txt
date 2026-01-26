@@ -1,0 +1,125 @@
+```json
+{
+  "exercise_plan": {
+    "weekly_goal": "주 4-5회 운동으로 전신 근력 강화 및 체지방 감소",
+    "weekly_schedule": [
+      {
+        "day": "월요일",
+        "focus": "상체 근력",
+        "exercises": [
+          {
+            "name": "푸시업",
+            "sets": 3,
+            "reps": 12,
+            "note": "무릎 대고 실시 가능"
+          },
+          {
+            "name": "덤벨 로우",
+            "sets": 3,
+            "reps": 10,
+            "note": "등 근육 강화"
+          },
+          {
+            "name": "플랭크",
+            "sets": 3,
+            "reps": 30,
+            "note": "초 단위로 유지"
+          }
+        ]
+      },
+      {
+        "day": "화요일",
+        "focus": "유산소",
+        "exercises": [
+          {
+            "name": "빠른 걷기",
+            "sets": 1,
+            "reps": 30,
+            "note": "분 단위 지속"
+          },
+          {
+            "name": "계단 오르기",
+            "sets": 3,
+            "reps": 10,
+            "note": "층 단위"
+          }
+        ]
+      },
+      {
+        "day": "수요일",
+        "focus": "하체 근력",
+        "exercises": [
+          {
+            "name": "스쿼트",
+            "sets": 3,
+            "reps": 15,
+            "note": "무릎이 발끝을 넘지 않도록"
+          },
+          {
+            "name": "런지",
+            "sets": 3,
+            "reps": 10,
+            "note": "좌우 각각"
+          },
+          {
+            "name": "카프 레이즈",
+            "sets": 3,
+            "reps": 20,
+            "note": "종아리 강화"
+          }
+        ]
+      },
+      {
+        "day": "목요일",
+        "focus": "유산소",
+        "exercises": [
+          {
+            "name": "조깅",
+            "sets": 1,
+            "reps": 25,
+            "note": "분 단위, 적절한 강도로"
+          },
+          {
+            "name": "버피",
+            "sets": 3,
+            "reps": 8,
+            "note": "전신 운동"
+          }
+        ]
+      },
+      {
+        "day": "금요일",
+        "focus": "전신 근력",
+        "exercises": [
+          {
+            "name": "데드리프트",
+            "sets": 3,
+            "reps": 8,
+            "note": "가벼운 중량으로"
+          },
+          {
+            "name": "마운틴 클라이머",
+            "sets": 3,
+            "reps": 30,
+            "note": "초 단위 지속"
+          },
+          {
+            "name": "사이드 플랭크",
+            "sets": 2,
+            "reps": 20,
+            "note": "좌우 각각, 초 단위"
+          }
+        ]
+      }
+    ]
+  },
+  "diet_plan": {
+    "daily_calorie_target": 1800,
+    "macros": {
+      "carbs": "45-50%",
+      "protein": "25-30%",
+      "fat": "20-25%"
+    },
+    "guidelines": [
+      "하루 3끼 규칙적인 식사",
+      "단백질 섭취량 증가 (닭가슴

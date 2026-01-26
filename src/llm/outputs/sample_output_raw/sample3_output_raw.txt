@@ -1,0 +1,125 @@
+```json
+{
+  "exercise_plan": {
+    "weekly_goal": "주 5회 운동으로 근력 증가와 체지방 감소",
+    "weekly_schedule": [
+      {
+        "day": "월요일",
+        "focus": "상체 근력",
+        "exercises": [
+          {
+            "name": "푸시업",
+            "sets": 3,
+            "reps": 12,
+            "note": "가슴과 팔 근육 강화"
+          },
+          {
+            "name": "덤벨 로우",
+            "sets": 3,
+            "reps": 10,
+            "note": "등 근육 발달"
+          },
+          {
+            "name": "숄더프레스",
+            "sets": 3,
+            "reps": 8,
+            "note": "어깨 근력 향상"
+          }
+        ]
+      },
+      {
+        "day": "화요일",
+        "focus": "유산소",
+        "exercises": [
+          {
+            "name": "조깅",
+            "sets": 1,
+            "reps": 30,
+            "note": "30분간 중강도로 진행"
+          },
+          {
+            "name": "플랭크",
+            "sets": 3,
+            "reps": 30,
+            "note": "코어 안정성 강화"
+          }
+        ]
+      },
+      {
+        "day": "수요일",
+        "focus": "하체 근력",
+        "exercises": [
+          {
+            "name": "스쿼트",
+            "sets": 4,
+            "reps": 15,
+            "note": "허벅지와 둔근 강화"
+          },
+          {
+            "name": "런지",
+            "sets": 3,
+            "reps": 12,
+            "note": "각 다리별로 실시"
+          },
+          {
+            "name": "카프레이즈",
+            "sets": 3,
+            "reps": 20,
+            "note": "종아리 근육 발달"
+          }
+        ]
+      },
+      {
+        "day": "목요일",
+        "focus": "유산소",
+        "exercises": [
+          {
+            "name": "사이클링",
+            "sets": 1,
+            "reps": 45,
+            "note": "45분간 중강도로 진행"
+          },
+          {
+            "name": "마운틴 클라이머",
+            "sets": 3,
+            "reps": 20,
+            "note": "전신 지구력 향상"
+          }
+        ]
+      },
+      {
+        "day": "금요일",
+        "focus": "전신 근력",
+        "exercises": [
+          {
+            "name": "버피",
+            "sets": 3,
+            "reps": 10,
+            "note": "전신 근력과 심폐지구력"
+          },
+          {
+            "name": "데드리프트",
+            "sets": 3,
+            "reps": 8,
+            "note": "후면 근육군 강화"
+          },
+          {
+            "name": "바이셉 컬",
+            "sets": 3,
+            "reps": 12,
+            "note": "팔 앞쪽 근육 발달"
+          }
+        ]
+      }
+    ]
+  },
+  "diet_plan": {
+    "daily_calorie_target": 2200,
+    "macros": {
+      "carbs": "45%",
+      "protein": "30%",
+      "fat": "25%"
+    },
+    "guidelines": [
+      "식사 전 물 한 컵 마시기",
+      "단백질을 매 끼니마다 

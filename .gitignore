@@ -21,7 +21,6 @@ __pycache__/
 *.so
 .Python
 rule_based_bodytype/__pycache__/
-
 # IDEs
 .vscode/
 .idea/
