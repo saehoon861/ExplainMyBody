@@ -1,4 +1,50 @@
+# Environment variables
 .env
-.venv
+.venv  # 기존 가상환경 파일이 남아있을 경우를 대비
+.env.local
+.env.*.local
+
+# Virtual Environments (uv)
+.venv/
+venv/
+env/
+ENV/
+
+# uv specific
+.uv/
+uv.lock
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 rule_based_bodytype/__pycache__/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic
+alembic/versions/*.pyc

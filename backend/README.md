@@ -54,23 +54,54 @@ backend/
     └── dependencies.py          # DB 세션, 인증 등
 ```
 
+## 개발 환경
+
+- **Python**: 3.11
+- **OS**: Ubuntu 22.04 (Linux)
+- **패키지 관리자**: uv (최상위 디렉토리에서 관리)
+- **데이터베이스**: PostgreSQL
+
 ## 설치 및 실행
 
-### 1. 가상환경 생성 및 활성화
+> **중요**: uv 가상환경은 **최상위 디렉토리(`/home/user/ExplainMyBody/`)** 에서 생성하고 관리합니다.
+> 
+> 자세한 설정 가이드는 [`../UV_QUICKSTART.md`](../UV_QUICKSTART.md)를 참고하세요.
+
+### 0. uv 설치 (처음 한 번만)
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
+# uv가 설치되어 있지 않은 경우
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# 또는
+pip install uv
 ```
 
-### 2. 패키지 설치
+### 1. 가상환경 생성 및 활성화 (최상위 디렉토리에서)
 ```bash
-pip install -r requirements.txt
+# 최상위 디렉토리로 이동
+cd /home/user/ExplainMyBody
+
+# uv로 Python 3.11 가상환경 생성
+uv venv --python 3.11
+
+# 가상환경 활성화
+source .venv/bin/activate
+```
+
+### 2. 패키지 설치 (최상위 디렉토리에서)
+```bash
+# 최상위 디렉토리에서 실행
+cd /home/user/ExplainMyBody
+
+# pyproject.toml 기반으로 모든 의존성 설치
+uv sync
+
+# 개발 도구 포함 설치
+uv sync --group dev
 ```
 
 ### 3. 환경 변수 설정
 ```bash
+cd backend
 cp .env.example .env
 # .env 파일을 열어서 데이터베이스 연결 정보 등을 수정
 ```
@@ -84,12 +115,51 @@ createdb explainmybody
 
 ### 5. 서버 실행
 ```bash
+# backend 디렉토리에서 실행
+cd backend
+
+# 가상환경이 활성화된 상태에서
 python main.py
-# 또는
+
+# 또는 개발 모드로 실행 (자동 재시작)
 uvicorn main:app --reload
 ```
 
 서버가 실행되면 http://localhost:8000 에서 접근 가능합니다.
+
+### 패키지 추가 방법
+```bash
+# 최상위 디렉토리로 이동
+cd /home/user/ExplainMyBody
+
+# 방법 1: 단일 패키지 추가 (자동으로 pyproject.toml 업데이트)
+uv add <package-name>
+
+# 개발 전용 패키지 추가
+uv add --group dev <package-name>
+
+# 방법 2: 여러 패키지 한 번에 추가 (추천)
+# pyproject.toml 파일을 열어서 dependencies 리스트에 직접 추가
+nano pyproject.toml  # 또는 code, vim 등
+
+# 예시: LLM 패키지 여러 개 추가
+# dependencies = [
+#     ...
+#     "openai>=1.0,<2.0",
+#     "anthropic>=0.18,<1.0",
+#     "langchain>=0.1,<1.0",
+# ]
+
+# 추가 후 동기화
+uv sync
+
+# 선택적 의존성 그룹 사용 (pyproject.toml에 정의)
+# [dependency-groups]
+# llm = ["openai>=1.0", "anthropic>=0.18"]
+
+# 특정 그룹만 설치
+uv sync --group llm
+```
 
 ## API 문서
 
@@ -116,6 +186,7 @@ models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.exam
     - 변수명 확인 필요
     - 데이터 형식 확인 필요
 3. 각 기능별로 필요한 API 엔드포인트가 정말로 있는지 확인 필요.
+4. 정의되어있는 엔드 포인트와 실제 코드의 엔드포인트가 일치하는지 확인 필요.
 
 
 
@@ -210,36 +281,37 @@ models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.exam
 ## 주요 API 엔드포인트
 
 ### 인증 (`/api/auth/*`)
-```
-POST /api/auth/register     # 회원가입
-POST /api/auth/login        # 로그인
-GET  /api/auth/me           # 현재 사용자 정보
-```
+- `POST /api/auth/register`      : 회원가입 (이메일, 비밀번호 등)
+- `POST /api/auth/login`         : 로그인 및 세션 유지
+- `GET  /api/auth/me`            : 현재 로그인한 사용자 정보 조회
+
+### 사용자 (`/api/users/*`)
+- `GET  /api/users/{user_id}`    : 특정 사용자 정보 조회
+- `GET  /api/users/`             : 전체 사용자 목록 (관리자 모드 필요)
+- `GET  /api/users/{user_id}/statistics` : 사용자의 전체 기록 및 분석 통계 조회
 
 ### 건강 기록 (`/api/health-records/*`)
-```
-POST /api/health-records/              # 수동 입력
-POST /api/health-records/ocr           # OCR 이미지 업로드
-GET  /api/health-records/{record_id}   # 기록 조회
-GET /api/health-records/user/{user_id} # 사용자의 건강 기록 목록
-GET  /api/health-records/user/{user_id}/latest  # 최신 기록
-```
+- `POST /api/health-records/`               : 건강 기록 직접 입력
+- `POST /api/health-records/ocr`            : 인바디 이미지 업로드 및 OCR 자동 등록
+- `GET  /api/health-records/{record_id}`    : 특정 건강 기록 상세 조회
+- `GET  /api/health-records/user/{user_id}`  : 사용자의 건강 기록 목록 조회
+- `GET  /api/health-records/user/{user_id}/latest` : 가장 최근 등록된 인바디 데이터 조회
 
 ### 분석 (`/api/analysis/*`)
-```
-POST /api/analysis/{record_id}         # 건강 기록(인바디 데이터)에 대한 LLM 분석 실행
-GET  /api/analysis/{report_id}         # 분석 리포트 조회
-GET  /api/analysis/record/{record_id}  # 건강 기록별 분석 조회
-```
+- `POST /api/analysis/{record_id}`          : 인바디 데이터에 대한 AI(LLM) 종합 분석 실행
+- `GET  /api/analysis/{report_id}`          : 특정 분석 리포트 내용 조회
+- `GET  /api/analysis/record/{record_id}`   : 특정 운동 기록에 매칭된 분석 리포트 조회
+- `GET  /api/analysis/user/{user_id}`       : 사용자가 지금까지 받은 모든 분석 리포트 목록 조회
 
-### 목표 (`/api/goals/*`)
-```
-POST /api/goals/                       # 목표 생성
-POST /api/goals/{goal_id}/generate-plan  # 주간 계획 생성 (LLM)
-GET  /api/goals/user/{user_id}/active  # 활성 목표 조회
-PATCH /api/goals/{goal_id}             # 목표 수정
-POST /api/goals/{goal_id}/complete     # 목표 완료
-```
+### 목표 및 리포트 (`/api/goals/*`)
+- `POST /api/goals/`                        : 새로운 건강 개선 목표 설정
+- `POST /api/goals/{goal_id}/generate-plan` : 설정된 목표에 따른 AI 주간 맞춤 계획 생성
+- `GET  /api/goals/{goal_id}`               : 특정 목표 정보 및 생성된 주간 계획 조회
+- `GET  /api/goals/user/{user_id}`          : 사용자의 모든 과거/현재 목표 목록 조회
+- `GET  /api/goals/user/{user_id}/active`   : 현재 진행 중인 활성 목표 조회
+- `PATCH /api/goals/{goal_id}`              : 목표 내용 수정
+- `POST /api/goals/{goal_id}/complete`      : 목표 달성 완료 처리
+- `DELETE /api/goals/{goal_id}`             : 목표 데이터 삭제
 
 
 ## 기존 코드 통합
