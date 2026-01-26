@@ -8,7 +8,7 @@ import os
 
 # 기존 OCR 코드 경로 추가
 # 추후에 각 기능의 파일 코드들을 정리할 때 삭제나 수정 필요 #fixme
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../src/ocr"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../src/OCR"))
 
 from typing import Dict, Any
 from fastapi import UploadFile, HTTPException
