@@ -47,7 +47,7 @@ class BodyTypeAnalysisInput(BaseModel):
         InBodyData에서 체형 분석 입력 생성
         
         Args:
-            inbody: InBodyData Pydantic 모델
+            inbody: InBodyData Pydantic 모델 (중첩 구조)
             muscle_seg: 부위별 근육량 수치 (선택적)
             fat_seg: 부위별 지방량 수치 (선택적)
             
@@ -55,13 +55,13 @@ class BodyTypeAnalysisInput(BaseModel):
             BodyTypeAnalysisInput: 체형 분석 입력 모델
         """
         return cls(
-            성별=inbody.성별,
-            연령=inbody.연령,
-            신장=inbody.신장,
-            체중=inbody.체중,
-            BMI=inbody.BMI,
-            체지방률=inbody.체지방률,
-            골격근량=inbody.골격근량,
+            성별=inbody.기본정보.성별,
+            연령=inbody.기본정보.연령,
+            신장=inbody.기본정보.신장,
+            체중=inbody.체중관리.체중,
+            BMI=inbody.비만분석.BMI,
+            체지방률=inbody.비만분석.체지방률,
+            골격근량=inbody.체중관리.골격근량,
             muscle_seg=MuscleFatSegment(**muscle_seg) if muscle_seg else None,
             fat_seg=MuscleFatSegment(**fat_seg) if fat_seg else None
         )

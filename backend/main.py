@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     #fixme : OCR 모델과 LLM 엔진을 로드해야 한다면 lifespan() 안에 넣어주는 것이 좋다.
     # 서버 시작 시 무거운 AI 모델 로드 (딱 한 번만 실행) 해주기 때문.
     # 예시: ocr_model = load_ocr_model() 
-    #       llm_engine = load_llm_engine()
+    #       llm_engine = load_llm_engine() 
 
     # 💡 한 가지 조언 (AI OCR 연동 관련)
     # 현재 lifespan에서 init_db()만 하고 있는데, 

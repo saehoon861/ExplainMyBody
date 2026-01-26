@@ -21,7 +21,8 @@ class HealthRecordCreate(HealthRecordBase):
 class HealthRecordUpdate(BaseModel):
     """건강 기록 수정 요청 스키마"""
     measurements: Optional[Dict[str, Any]] = None
-    body_type: Optional[str] = None
+    body_type1: Optional[str] = None
+    body_type2: Optional[str] = None
 
 
 class HealthRecordResponse(HealthRecordBase):
@@ -29,7 +30,8 @@ class HealthRecordResponse(HealthRecordBase):
     id: int
     user_id: int
     measured_at: datetime
-    body_type: Optional[str] = None
+    body_type1: Optional[str] = None  # stage2: 근육 보정 체형
+    body_type2: Optional[str] = None  # stage3: 최종 체형
     created_at: datetime
     
     class Config:

@@ -7,6 +7,13 @@ from sqlalchemy.orm import Session
 from repositories.health_record_repository import HealthRecordRepository
 from repositories.analysis_report_repository import AnalysisReportRepository
 from schemas.health_record import HealthRecordCreate
+from schemas.llm_input import (
+    StatusAnalysisInput,
+    GoalPlanInput,
+    StatusAnalysisResponse,
+    GoalPlanResponse
+)
+from schemas.analysis_report import AnalysisReportResponse
 from services.body_type_service import BodyTypeService
 from services.llm_service import LLMService
 from typing import Optional, Dict, Any
@@ -14,89 +21,235 @@ from typing import Optional, Dict, Any
 
 class HealthService:
     """건강 기록 관련 비즈니스 로직"""
-    
+
     def __init__(self):
         self.body_type_service = BodyTypeService()
         self.llm_service = LLMService()
-    
+
     def create_health_record(
         self,
         db: Session,
         user_id: int,
-        record_data: HealthRecordCreate,
-        auto_classify: bool = True
+        record_data: HealthRecordCreate
     ):
         """
-        건강 기록 생성 및 자동 체형 분류
-        
+        건강 기록 생성
+
+        Note: 체형 분류는 router에서 처리합니다.
+
         Args:
             db: 데이터베이스 세션
             user_id: 사용자 ID
             record_data: 건강 기록 데이터
-            auto_classify: 자동 체형 분류 여부
         """
-        # 건강 기록 생성
+        # 건강 기록 생성 (body_type1, body_type2는 router에서 설정)
         health_record = HealthRecordRepository.create(db, user_id, record_data)
-        
-        # 자동 체형 분류 # input, output의 형태에 대한 확인 필요 #fixme
-        if auto_classify:
-            body_type = self.body_type_service.classify_body_type(record_data.measurements)
-            if body_type:
-                health_record = HealthRecordRepository.update(
-                    db, health_record.id, body_type=body_type
-                )
-        
         return health_record
-    
-    async def analyze_health_record(
+
+    def prepare_status_analysis(
         self,
         db: Session,
         user_id: int,
         record_id: int
-    ):
+    ) -> Optional[StatusAnalysisResponse]:
         """
-        건강 기록 분석 (LLM 사용)
-        
+        LLM1: 건강 기록 분석용 input 데이터 준비 (status_analysis)
+
+        - 프론트엔드에서 선택한 건강 기록의 데이터를 반환
+        - 프론트엔드에서 이 데이터를 LLM API에 전달
+
         Args:
             db: 데이터베이스 세션
             user_id: 사용자 ID
-            record_id: 건강 기록 ID
+            record_id: 선택된 건강 기록 ID
+
+        Returns:
+            StatusAnalysisResponse: LLM input 데이터
         """
         # 건강 기록 조회
         health_record = HealthRecordRepository.get_by_id(db, record_id)
         if not health_record or health_record.user_id != user_id:
             return None
+
+        # LLM input 데이터 준비
+        input_data = self.llm_service.prepare_status_analysis_input(
+            record_id=health_record.id,
+            user_id=health_record.user_id,
+            measured_at=health_record.measured_at,
+            measurements=health_record.measurements,
+            body_type1=health_record.body_type1,
+            body_type2=health_record.body_type2
+        )
+
+        return StatusAnalysisResponse(
+            success=True,
+            message="LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요.",
+            input_data=StatusAnalysisInput(**input_data)
+        )
+
+    def prepare_goal_plan(
+        self,
+        db: Session,
+        user_id: int,
+        record_id: int,
+        user_goal_type: Optional[str] = None,
+        user_goal_description: Optional[str] = None
+    ) -> Optional[GoalPlanResponse]:
+        """
+        LLM2: 주간 계획서 생성용 input 데이터 준비 (goal_plan)
+
+        - 사용자 요구사항 + 선택된 건강 기록 + status_analysis 결과를 반환
+        - 프론트엔드에서 이 데이터를 LLM API에 전달
+
+        Args:
+            db: 데이터베이스 세션
+            user_id: 사용자 ID
+            record_id: 선택된 건강 기록 ID
+            user_goal_type: 사용자 목표 타입
+            user_goal_description: 사용자 목표 상세
+
+        Returns:
+            GoalPlanResponse: LLM input 데이터
+        """
+        # 선택된 건강 기록 조회
+        health_record = HealthRecordRepository.get_by_id(db, record_id)
+        if not health_record or health_record.user_id != user_id:
+            return None
+
+        # 해당 건강 기록의 status_analysis 결과 조회
+        status_analysis = AnalysisReportRepository.get_by_record_id_and_type(
+            db, record_id, "status_analysis"
+        )
+
+        status_analysis_result = None
+        status_analysis_id = None
+        if status_analysis:
+            status_analysis_result = status_analysis.llm_output
+            status_analysis_id = status_analysis.id
+
+        # LLM input 데이터 준비
+        input_data = self.llm_service.prepare_goal_plan_input(
+            user_goal_type=user_goal_type,
+            user_goal_description=user_goal_description,
+            record_id=health_record.id,
+            user_id=health_record.user_id,
+            measured_at=health_record.measured_at,
+            measurements=health_record.measurements,
+            body_type1=health_record.body_type1,
+            body_type2=health_record.body_type2,
+            status_analysis_result=status_analysis_result,
+            status_analysis_id=status_analysis_id
+        )
+
+        return GoalPlanResponse(
+            success=True,
+            message="LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요.",
+            input_data=GoalPlanInput(**input_data)
+        )
+
+    async def analyze_health_record(
+        self,
+        db: Session,
+        user_id: int,
+        record_id: int
+    ) -> Optional[AnalysisReportResponse]:
+        """
+        건강 기록 분석 및 리포트 생성
         
-        # LLM 분석 실행
-        # 추후 LLM1의 개발이 완료되면 그에 맞춰서 수정필요 #fixme
-        analysis_text = await self.llm_service.analyze_health_status(
-            health_record.measurements,
-            health_record.body_type
+        Args:
+            db: 데이터베이스 세션
+            user_id: 사용자 ID
+            record_id: 건강 기록 ID
+            
+        Returns:
+            AnalysisReportResponse: 생성된 분석 리포트
+        """
+        # 1. 건강 기록 조회
+        health_record = HealthRecordRepository.get_by_id(db, record_id)
+        if not health_record or health_record.user_id != user_id:
+            return None
+            
+        # 2. 이미 존재하는 분석 리포트 확인 (status_analysis 타입)
+        # 같은 날짜, 같은 데이터라도 record_id가 다르면 새로 생성해야 함
+        existing_report = AnalysisReportRepository.get_by_record_id_and_type(
+            db, record_id, "status_analysis"
         )
         
-        # 분석 결과 저장
+        if existing_report:
+            from schemas.analysis_report import AnalysisReportResponse
+            return AnalysisReportResponse.model_validate(existing_report)
+            
+        # 3. LLM 서비스 호출을 위한 입력 데이터 준비
+        input_data = self.llm_service.prepare_status_analysis_input(
+            record_id=health_record.id,
+            user_id=health_record.user_id,
+            measured_at=health_record.measured_at,
+            measurements=health_record.measurements,
+            body_type1=health_record.body_type1,
+            body_type2=health_record.body_type2
+        )
+        
+        # 4. LLM 호출 (현재는 Mocking)
+        try:
+            llm_output = await self.llm_service.call_status_analysis_llm(input_data)
+        except NotImplementedError:
+             # LLM 서비스가 아직 구현되지 않았을 경우 Mock 데이터 사용
+            llm_output = f"""
+[건강 상태 분석 결과]
+측정일: {health_record.measured_at.strftime('%Y-%m-%d')}
+체중: {health_record.measurements.get('weight', 'N/A')}kg
+골격근량: {health_record.measurements.get('skeletal_muscle_mass', 'N/A')}kg
+체지방률: {health_record.measurements.get('body_fat_percentage', 'N/A')}%
+
+현재 건강 상태는 전반적으로 양호합니다. 
+꾸준한 운동과 식단 관리를 통해 현재 상태를 유지하는 것을 권장합니다.
+"""
+
+        # 5. 분석 리포트 저장
         from schemas.analysis_report import AnalysisReportCreate
         report_data = AnalysisReportCreate(
             record_id=record_id,
-            llm_output=analysis_text,
+            llm_output=llm_output,
             model_version=self.llm_service.model_version,
             analysis_type="status_analysis"
         )
         
         analysis_report = AnalysisReportRepository.create(db, user_id, report_data)
-        return analysis_report
-    
-    def get_latest_record_with_analysis(self, db: Session, user_id: int):
+        
+        # 6. Pydantic 모델로 변환하여 반환
+        from schemas.analysis_report import AnalysisReportResponse
+        return AnalysisReportResponse.model_validate(analysis_report)
+
+    def get_record_with_analysis(
+        self,
+        db: Session,
+        user_id: int,
+        record_id: int
+    ) -> Optional[Dict[str, Any]]:
         """
-        가장 최신 건강 기록과 분석 결과 조회
+        특정 건강 기록과 분석 결과 조회
+
+        Args:
+            db: 데이터베이스 세션
+            user_id: 사용자 ID
+            record_id: 건강 기록 ID
         """
-        latest_record = HealthRecordRepository.get_latest(db, user_id)
-        if not latest_record:
+        health_record = HealthRecordRepository.get_by_id(db, record_id)
+        if not health_record or health_record.user_id != user_id:
             return None
-        
-        analysis_report = AnalysisReportRepository.get_by_record_id(db, latest_record.id)
-        
+
+        # status_analysis 타입의 분석 결과 조회
+        status_analysis = AnalysisReportRepository.get_by_record_id_and_type(
+            db, record_id, "status_analysis"
+        )
+
+        # goal_plan 타입의 분석 결과 조회
+        goal_plan = AnalysisReportRepository.get_by_record_id_and_type(
+            db, record_id, "goal_plan"
+        )
+
         return {
-            "health_record": latest_record,
-            "analysis_report": analysis_report
+            "health_record": health_record,
+            "status_analysis": status_analysis,
+            "goal_plan": goal_plan
         }

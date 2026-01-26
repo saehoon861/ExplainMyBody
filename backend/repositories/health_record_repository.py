@@ -73,8 +73,8 @@ class HealthRecordRepository:
     
     @staticmethod
     def search_by_body_type(db: Session, user_id: int, body_type: str) -> List[HealthRecord]:
-        """체형 타입으로 검색"""
+        """체형 타입으로 검색 (stage2 기준)"""
         return db.query(HealthRecord)\
-            .filter(HealthRecord.user_id == user_id, HealthRecord.body_type == body_type)\
+            .filter(HealthRecord.user_id == user_id, HealthRecord.body_type1 == body_type)\
             .order_by(desc(HealthRecord.measured_at))\
             .all()

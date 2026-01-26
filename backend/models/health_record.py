@@ -17,7 +17,8 @@ class HealthRecord(Base):
     source = Column(String(100), default="manual")  # manual, ocr, api 등
     measured_at = Column(DateTime(timezone=True), server_default=func.now())
     measurements = Column(JSON, nullable=False)  # JSONB 형태로 저장
-    body_type = Column(String(100), nullable=True)  # 체형 분류 결과 (rule_based_bodytype)
+    body_type1 = Column(String(100), nullable=True)  # stage2: 근육 보정 체형 (비만형, 표준형, 근육형 등)
+    body_type2 = Column(String(100), nullable=True)  # stage3: 최종 체형 (상체발달형, 하체비만형, 밸런스형 등)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # 관계 설정

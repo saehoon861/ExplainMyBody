@@ -40,6 +40,21 @@ class AnalysisReportRepository:
             .filter(AnalysisReport.record_id == record_id)\
             .order_by(desc(AnalysisReport.generated_at))\
             .first()
+
+    @staticmethod
+    def get_by_record_id_and_type(
+        db: Session,
+        record_id: int,
+        analysis_type: str
+    ) -> Optional[AnalysisReport]:
+        """건강 기록 ID와 분석 타입으로 리포트 조회 (가장 최신)"""
+        return db.query(AnalysisReport)\
+            .filter(
+                AnalysisReport.record_id == record_id,
+                AnalysisReport.analysis_type == analysis_type
+            )\
+            .order_by(desc(AnalysisReport.generated_at))\
+            .first()
     
     @staticmethod
     def get_by_user(db: Session, user_id: int, limit: int = 10) -> List[AnalysisReport]:
