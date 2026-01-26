@@ -21,8 +21,17 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={
           <div className="main-content">
-            <h1>메인 대시보드</h1>
-            <p>서비스 메인 화면입니다. 로그인이 성공하면 이곳으로 이동합니다.</p>
+            <header className="dashboard-header">
+              <h1>메인 대시보드</h1>
+              <p>내 몸을 위한 스마트한 관리, 지금 시작하세요.</p>
+            </header>
+            <div className="dashboard-card">
+              <h3>환영합니다! 👋</h3>
+              <p>이곳에 당신의 운동 계획과 건강 리포트가 요약되어 표시될 예정입니다.</p>
+              <div style={{ marginTop: '20px', color: '#818cf8', fontSize: '0.9rem' }}>
+                기능이 차례로 구현될 예정입니다. 준비 중이니 조금만 기다려주세요!
+              </div>
+            </div>
           </div>
         } />
       </Routes>

@@ -67,7 +67,8 @@ def process_inbody():
         auto_perspective = request.form.get('auto_perspective', 'true').lower() == 'true'
         skew_threshold = float(request.form.get('skew_threshold', '15.0'))
         
-        # 임시 파일로 저장
+        # 임시 파일로 저장 (폴더가 없는 경우 자동 생성)
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filename = secure_filename(file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{filename}")
         file.save(temp_path)

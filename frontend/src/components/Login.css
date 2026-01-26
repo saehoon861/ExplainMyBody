@@ -194,9 +194,9 @@
   background: var(--primary);
   color: white;
   border: none;
-  padding: 16px;
+  padding: 14px;
   border-radius: 16px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -206,6 +206,7 @@
   justify-content: center;
   gap: 10px;
   margin-top: 12px;
+  white-space: nowrap;
 }
 
 .primary-button:hover:not(:disabled) {
@@ -248,12 +249,14 @@
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border: 1px solid var(--glass-border);
-  padding: 16px;
+  padding: 14px 20px;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  white-space: nowrap;
+  min-width: 80px;
 }
 
 .secondary-button:hover {
@@ -901,7 +904,122 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 32px;
+  border-radius: 24px;
+}
+
+/* Funny Squat Loader */
+.squat-loader {
+  position: relative;
+  width: 80px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: squatMotion 1.2s ease-in-out infinite;
+}
+
+.squat-head {
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+
+.squat-body {
+  width: 14px;
+  height: 40px;
+  background: var(--primary);
+  border-radius: 7px;
+  position: relative;
+}
+
+.squat-arms {
+  position: absolute;
+  top: 5px;
+  left: -20px;
+  width: 54px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 4px;
+  transform-origin: center;
+  animation: armMotion 1.2s ease-in-out infinite;
+}
+
+.squat-legs {
+  display: flex;
+  gap: 12px;
+  margin-top: -5px;
+}
+
+.leg {
+  width: 10px;
+  height: 35px;
+  background: white;
+  border-radius: 5px;
+  transform-origin: top;
+  animation: legMotion 1.2s ease-in-out infinite;
+}
+
+.squat-shadow {
+  width: 50px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  margin-top: 10px;
+  filter: blur(4px);
+  animation: shadowMotion 1.2s ease-in-out infinite;
+}
+
+@keyframes squatMotion {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(25px);
+  }
+}
+
+@keyframes armMotion {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-20deg) translateY(10px);
+  }
+}
+
+@keyframes legMotion {
+
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.4);
+  }
+}
+
+@keyframes shadowMotion {
+
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: scaleX(1.5);
+    opacity: 0.6;
+  }
 }
 
 .loading-quote {

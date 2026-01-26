@@ -460,9 +460,19 @@ const Signup = () => {
 
                                 {isProcessingOCR && (
                                     <div className="ocr-processing report-style">
-                                        <Loader2 className="spinner" size={48} />
+                                        <div className="squat-loader">
+                                            <div className="squat-head"></div>
+                                            <div className="squat-body">
+                                                <div className="squat-arms"></div>
+                                            </div>
+                                            <div className="squat-legs">
+                                                <div className="leg"></div>
+                                                <div className="leg"></div>
+                                            </div>
+                                            <div className="squat-shadow"></div>
+                                        </div>
                                         <p className="loading-quote">{loadingMessage}</p>
-                                        <span className="processing-hint">인바디 리포트를 정밀하게 분석하고 있습니다...</span>
+                                        <span className="processing-hint">인바디 리포트를 근육질 AI가 정밀하게 분석하고 있습니다...</span>
                                     </div>
                                 )}
 
