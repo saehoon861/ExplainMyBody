@@ -649,17 +649,13 @@ const Signup = () => {
                                     </label>
                                     <div className="checkbox-grid">
                                         {medicalConditionsList.map((condition) => (
-                                            <label
+                                            <div
                                                 key={condition}
                                                 className={`checkbox-item ${formData.medicalConditions.includes(condition) ? 'active' : ''}`}
+                                                onClick={() => handleMedicalConditionToggle(condition)}
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.medicalConditions.includes(condition)}
-                                                    onChange={() => handleMedicalConditionToggle(condition)}
-                                                />
                                                 <span>{condition}</span>
-                                            </label>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
