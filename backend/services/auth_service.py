@@ -57,3 +57,14 @@ class AuthService:
                 detail="사용자를 찾을 수 없습니다."
             )
         return user
+    
+    @staticmethod
+    def logout(db: Session, user_id: int):
+        """로그아웃"""
+        user = UserRepository.get_by_id(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="사용자를 찾을 수 없습니다."
+            )
+        return user

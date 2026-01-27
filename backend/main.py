@@ -14,11 +14,10 @@ from routers import auth, users, health_records, analysis, goals
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 생명주기 관리"""
-    # 시작 시 데이터베이스 초기화
+    # 시작 시 데이터베이스 초기화 (빠름)
     print("🚀 ExplainMyBody 백엔드 서버 시작 중...")
     init_db()
     print("✅ 데이터베이스 초기화 완료")
-    
     #fixme : OCR 모델과 LLM 엔진을 로드해야 한다면 lifespan() 안에 넣어주는 것이 좋다.
     # 서버 시작 시 무거운 AI 모델 로드 (딱 한 번만 실행) 해주기 때문.
     # 예시: ocr_model = load_ocr_model() 
@@ -28,11 +27,28 @@ async def lifespan(app: FastAPI):
     # 현재 lifespan에서 init_db()만 하고 있는데, 
     # 나중에 ExplainMyBody의 핵심인 OCR 모델이나 LLM 엔진을 로드해야 한다면 
     # 해당 모델들을 lifespan() 안에 넣어주는 것이 좋습니다.
+    # OCR 엔진 백그라운드 로딩 시작 (비동기)
+    print("🔄 OCR 엔진 로딩 중... (백그라운드)")
+    
+    async def load_ocr_engine():
+        """OCR 엔진을 백그라운드에서 로드"""
+        from services.ocr_service import OCRService
+        from app_state import AppState
+        
+        AppState.ocr_service = OCRService()
+        print("✅ OCR 엔진 로딩 완료")
+    
+    # 백그라운드 태스크로 OCR 로딩 (서버 시작 차단 안 함)
+    import asyncio
+    asyncio.create_task(load_ocr_engine())
+    
+    print("✅ 서버 시작 완료 (OCR은 백그라운드에서 로딩 중)")
 
     yield
     
     # 종료 시 정리 작업
     print("👋 서버 종료 중...")
+
 
 
 # FastAPI 앱 생성

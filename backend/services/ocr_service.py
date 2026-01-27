@@ -58,9 +58,9 @@ class OCRService:
             print(f"⚠️ OCR 엔진 초기화 실패: {e}")
             self.matcher = None
     
-    async def extract_inbody_data(self, image_file: UploadFile) -> InBodyData:
+    async def extract_inbody_data(self, image_file: UploadFile) -> dict:
         """
-        인바디 이미지에서 데이터 추출 및 Pydantic 모델 변환
+        인바디 이미지에서 데이터 추출 (OCR만 수행, 검증 없음)
         
         처리 흐름:
         1. 업로드된 이미지를 임시 파일로 저장
@@ -71,23 +71,22 @@ class OCRService:
            - 팀원 코드: flat dict → 중첩 dict 변환
            - 반환값: {"기본정보": {...}, "체성분": {...}, ...}
         4. _convert_types()로 타입 변환
-           - 문자열 → float/int 변환 (Pydantic 스키마에 맞춤)
-        5. InBodyData Pydantic 모델로 검증
-           - 이상치 검증 (예: 신장 50~300cm)
-           - null 필드 목록 생성 (프론트엔드 검증용)
+           - 문자열 → float/int 변환
+        5. ⚠️ Pydantic 검증 없이 dict 그대로 반환
+           - 프론트엔드에서 사용자가 수정할 수 있도록 원시 데이터 제공
         
         Args:
             image_file: 업로드된 인바디 이미지 (UploadFile)
             
         Returns:
-            InBodyData: 검증된 인바디 데이터 Pydantic 모델
-            - 프론트엔드에서 null 필드 검증 필요
-            - get_null_fields()로 미검출 필드 확인 가능
+            dict: OCR로 추출된 원시 데이터 (검증 없음)
+            - 빈 값(None)이 있을 수 있음
+            - 이상치 값이 있을 수 있음
+            - 프론트엔드에서 사용자가 검증/수정 필요
             
         Raises:
             HTTPException 500: OCR 엔진 미초기화
             HTTPException 400: OCR 결과 추출 실패
-            HTTPException 422: Pydantic 검증 실패 (타입/이상치 오류)
         """
         # OCR 엔진 확인
         if not self.matcher:
@@ -127,27 +126,15 @@ class OCRService:
             # 팀원 코드는 모든 값을 문자열로 반환, Pydantic 스키마는 숫자 타입 기대
             mapped_result = self._convert_types(structured_result)
             
-            # Step 5: Pydantic 모델로 변환 및 검증
-            inbody_data = InBodyData(**mapped_result)
+            print(f"✅ OCR 추출 완료 (검증 없음)")
+            print(f"⚠️ 프론트엔드에서 사용자 검증 필요")
             
-            print(f"✅ OCR 추출 완료")
-            print(f"⚠️ null 필드 (프론트 검증 필요): {inbody_data.get_null_fields()}")
-            
-            return inbody_data
+            # Step 5: 검증 없이 dict 그대로 반환
+            return mapped_result
         
         except HTTPException:
             # HTTPException은 그대로 전달
             raise
-        
-        except ValidationError as e:
-            # Pydantic 검증 실패 (타입 오류, 이상치 등)
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "message": "OCR 추출 데이터 검증 실패",
-                    "errors": e.errors()
-                }
-            )
         
         except Exception as e:
             raise HTTPException(

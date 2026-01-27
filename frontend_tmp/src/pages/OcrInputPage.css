@@ -128,6 +128,35 @@
     text-align: center;
 }
 
+.validation-errors {
+    background: #fee;
+    border: 2px solid #dc3545;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+
+.validation-errors h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
+}
+
+.validation-errors ul {
+    margin: 0;
+    padding-left: 1.5rem;
+    list-style-type: disc;
+}
+
+.validation-errors li {
+    margin-bottom: 0.5rem;
+}
+
+.validation-errors strong {
+    color: #dc3545;
+}
+
+
 .data-form {
     display: flex;
     flex-direction: column;
@@ -172,6 +201,13 @@
     border: 2px solid #ffc107;
 }
 
+.form-group.error-field {
+    background: #ffebee;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 2px solid #dc3545;
+}
+
 .form-group label {
     font-weight: 600;
     color: #333;
@@ -189,6 +225,13 @@
     font-weight: 700;
 }
 
+.field-error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
 .form-group input {
     padding: 0.875rem;
     border: 2px solid #e0e0e0;
@@ -202,6 +245,11 @@
     background: white;
 }
 
+.form-group.error-field input {
+    border-color: #dc3545;
+    background: white;
+}
+
 .form-group input:focus {
     outline: none;
     border-color: #667eea;
@@ -209,6 +257,10 @@
 }
 
 .form-group.null-field input:focus {
+    border-color: #667eea;
+}
+
+.form-group.error-field input:focus {
     border-color: #667eea;
 }
 

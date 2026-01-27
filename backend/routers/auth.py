@@ -45,3 +45,14 @@ def get_current_user(user_id: int, db: Session = Depends(get_db)):
     """
     user = AuthService.get_current_user(db, user_id)
     return user
+
+
+@router.post("/logout", status_code=200)
+def logout(user_id: int, db: Session = Depends(get_db)):
+    """
+    로그아웃
+    
+    - **user_id**: 사용자 ID (쿼리 파라미터)
+    """
+    AuthService.logout(db, user_id)
+    return {"message": "로그아웃 완료"}
