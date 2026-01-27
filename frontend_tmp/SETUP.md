@@ -39,7 +39,7 @@ Node.js 설치 완료 후:
 
 ```bash
 # frontend 디렉토리로 이동
-cd /home/user/ExplainMyBody/frontend
+cd /home/user/ExplainMyBody/frontend_tmp
 
 # 패키지 설치
 npm install

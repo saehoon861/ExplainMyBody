@@ -50,7 +50,8 @@ class OCRService:
             InBodyData: 검증된 인바디 데이터 Pydantic 모델
             
         Raises:
-            HTTPException: OCR 실패 또는 필수 필드 누락 시
+            HTTPException: OCR 실패 또는 필수 필드 누락 시 - 이거는 진행 안함. #fixme
+
         """
         # 임시: 샘플 데이터 반환 (OCR 엔진 없이 API 로직 검증용)
         try:

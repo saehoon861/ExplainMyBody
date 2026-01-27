@@ -31,7 +31,11 @@ class AuthService:
     @staticmethod
     def login(db: Session, login_data: UserLogin):
         """로그인 (간단한 버전, 추후 JWT 토큰 등 추가 가능)"""
+
+        print(login_data)
+        print(login_data.email)
         user = UserRepository.get_by_email(db, login_data.email)
+        print(user)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
