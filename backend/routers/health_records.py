@@ -11,6 +11,7 @@ from database import get_db
 from schemas.health_record import HealthRecordCreate, HealthRecordResponse
 from schemas.inbody import InBodyData
 from schemas.body_type import BodyTypeAnalysisInput
+from schemas.llm_input import StatusAnalysisResponse
 from services.health_service import HealthService
 from services.ocr_service import OCRService
 from services.body_type_service import BodyTypeService
@@ -24,7 +25,7 @@ ocr_service = OCRService()
 body_type_service = BodyTypeService()
 
 
-@router.post("/ocr/extract", response_model=InBodyData, status_code=200)
+@router.post("/ocr/extract", status_code=200)
 async def extract_inbody_from_image(
     image: UploadFile = File(...)
 ):
@@ -36,10 +37,18 @@ async def extract_inbody_from_image(
     - 사용자가 데이터를 확인하고 수정할 수 있도록 반환
     
     Returns:
-        InBodyData: OCR로 추출된 인바디 데이터 (Pydantic 검증 완료)
+        {
+            "data": InBodyData,
+            "null_fields": Dict[str, list]  # 검증이 필요한 null 필드 목록
+        }
     """
     inbody_data = await ocr_service.extract_inbody_data(image)
-    return inbody_data
+    
+    return {
+        "data": inbody_data,
+        "null_fields": inbody_data.get_null_fields(),
+        "message": "OCR 추출 완료. null 값이 있는 필드는 사용자 검증이 필요합니다."
+    }
 
 
 @router.post("/ocr/validate", response_model=HealthRecordResponse, status_code=201)
@@ -53,9 +62,9 @@ async def validate_and_save_inbody(
     
     Flow:
     1. 사용자가 수정한 InBodyData를 받음 (Pydantic이 이상치 검증)
-    2. 인바디 데이터를 DB에 먼저 저장 (body_type=None)
+    2. 인바디 데이터를 DB에 먼저 저장 (body_type1=None, body_type2=None)
     3. 체형 분석 시도
-    4. 성공 시 body_type 필드 업데이트
+    4. 성공 시 body_type1 (stage2), body_type2 (stage3) 필드 업데이트
     5. 실패해도 인바디 데이터는 보존됨
     
     Args:
@@ -65,7 +74,7 @@ async def validate_and_save_inbody(
     Returns:
         HealthRecordResponse: 저장된 건강 기록 (체형 분석 결과 포함)
     """
-    # 1. 인바디 데이터를 DB에 저장 (body_type은 None)
+    # 1. 인바디 데이터를 DB에 저장 (body_type1, body_type2는 None)
     record_data = HealthRecordCreate(
         measurements=inbody_data.model_dump(exclude_none=True),
         source="ocr"
@@ -77,12 +86,13 @@ async def validate_and_save_inbody(
         # InBodyData에서 체형 분석 입력 생성
         body_type_input = BodyTypeAnalysisInput.from_inbody_data(inbody_data)
         
-        # 체형 분석 실행
+        # 체형 분석 실행 (stage2, stage3 모두 받기)
         body_type_result = body_type_service.get_full_analysis(body_type_input)
         
         if body_type_result:
             # 3. 체형 분석 성공 → DB 업데이트
-            health_record.body_type = body_type_result.stage2
+            health_record.body_type1 = body_type_result.stage2
+            health_record.body_type2 = body_type_result.stage3
             db.commit()
             db.refresh(health_record)
     
@@ -146,10 +156,34 @@ def get_user_health_records(
 def get_latest_health_record(user_id: int, db: Session = Depends(get_db)):
     """
     사용자의 가장 최신 건강 기록 조회
-    
+
     - **user_id**: 사용자 ID
     """
     health_record = HealthRecordRepository.get_latest(db, user_id)
     if not health_record:
         raise HTTPException(status_code=404, detail="건강 기록을 찾을 수 없습니다.")
     return health_record
+
+
+@router.get("/{record_id}/analysis/prepare", response_model=StatusAnalysisResponse)
+def prepare_status_analysis(
+    user_id: int,
+    record_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    LLM1: 건강 기록 분석용 input 데이터 준비 (status_analysis)
+    - 프론트엔드에서 선택한 건강 기록의 모든 데이터를 반환
+    - 프론트엔드에서 이 데이터를 LLM API에 전달하여 분석 요청
+
+    Args:
+        user_id: 사용자 ID
+        record_id: 선택된 건강 기록 ID
+
+    Returns:
+        StatusAnalysisResponse: LLM에 전달할 input 데이터
+    """
+    result = health_service.prepare_status_analysis(db, user_id, record_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="건강 기록을 찾을 수 없습니다.")
+    return result

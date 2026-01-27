@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas.user_goal import UserGoalCreate, UserGoalResponse, UserGoalUpdate
+from schemas.llm_input import GoalPlanRequest, GoalPlanResponse
 from repositories.user_goal_repository import UserGoalRepository
 from services.llm_service import LLMService
+from services.health_service import HealthService
 from repositories.health_record_repository import HealthRecordRepository
 from repositories.analysis_report_repository import AnalysisReportRepository
 from typing import List
@@ -16,6 +18,7 @@ from datetime import datetime
 
 router = APIRouter()
 llm_service = LLMService()
+health_service = HealthService()
 
 
 @router.post("/", response_model=UserGoalResponse, status_code=201)
@@ -26,7 +29,7 @@ def create_goal(
 ):
     """
     사용자 목표 생성
-    
+
     - **user_id**: 사용자 ID
     - **goal_data**: 목표 데이터
     """
@@ -34,43 +37,35 @@ def create_goal(
     return new_goal
 
 
-@router.post("/{goal_id}/generate-plan", response_model=UserGoalResponse)
-async def generate_weekly_plan(
+@router.post("/plan/prepare", response_model=GoalPlanResponse)
+def prepare_goal_plan(
     user_id: int,
-    goal_id: int,
+    request: GoalPlanRequest,
     db: Session = Depends(get_db)
 ):
     """
-    주간 계획서 생성 (LLM 사용)
-    
-    - **user_id**: 사용자 ID
-    - **goal_id**: 목표 ID
+    LLM2: 주간 계획서 생성용 input 데이터 준비 (goal_plan)
+
+    - 사용자 요구사항 + 선택된 건강 기록 + status_analysis 결과를 반환
+    - 프론트엔드에서 이 데이터를 LLM API에 전달하여 주간 계획서 생성 요청
+
+    Args:
+        user_id: 사용자 ID
+        request: GoalPlanRequest (record_id, user_goal_type, user_goal_description)
+
+    Returns:
+        GoalPlanResponse: LLM에 전달할 input 데이터
     """
-    # 목표 조회
-    goal = UserGoalRepository.get_by_id(db, goal_id)
-    if not goal or goal.user_id != user_id:
-        raise HTTPException(status_code=404, detail="목표를 찾을 수 없습니다.")
-    
-    # 최신 건강 기록 조회
-    latest_record = HealthRecordRepository.get_latest(db, user_id)
-    if not latest_record:
-        raise HTTPException(status_code=404, detail="건강 기록이 없습니다.")
-    
-    # 분석 결과 조회
-    analysis_report = AnalysisReportRepository.get_by_record_id(db, latest_record.id)
-    analysis_text = analysis_report.llm_output if analysis_report else "분석 결과 없음"
-    
-    # LLM으로 주간 계획 생성
-    weekly_plan = await llm_service.generate_weekly_plan(
-        latest_record.measurements,
-        latest_record.body_type,
-        analysis_text,
-        goal.goal_description or goal.goal_type or "건강 개선"
+    result = health_service.prepare_goal_plan(
+        db=db,
+        user_id=user_id,
+        record_id=request.record_id,
+        user_goal_type=request.user_goal_type,
+        user_goal_description=request.user_goal_description
     )
-    
-    # 목표에 주간 계획 저장
-    updated_goal = UserGoalRepository.update(db, goal_id, weekly_plan=weekly_plan)
-    return updated_goal
+    if not result:
+        raise HTTPException(status_code=404, detail="건강 기록을 찾을 수 없습니다.")
+    return result
 
 
 @router.get("/{goal_id}", response_model=UserGoalResponse)

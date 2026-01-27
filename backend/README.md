@@ -58,12 +58,12 @@ backend/
 
 - **Python**: 3.11
 - **OS**: Ubuntu 22.04 (Linux)
-- **패키지 관리자**: uv (최상위 디렉토리에서 관리)
+- **패키지 관리자**: uv (backend 디렉토리에서 관리)
 - **데이터베이스**: PostgreSQL
 
 ## 설치 및 실행
 
-> **중요**: uv 가상환경은 **최상위 디렉토리(`/home/user/ExplainMyBody/`)** 에서 생성하고 관리합니다.
+> **중요**: uv 가상환경은 **backend 디렉토리(`/home/user/ExplainMyBody/backend/`)** 에서 생성하고 관리합니다.
 > 
 > 자세한 설정 가이드는 [`../UV_QUICKSTART.md`](../UV_QUICKSTART.md)를 참고하세요.
 
@@ -75,10 +75,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 pip install uv
 ```
 
-### 1. 가상환경 생성 및 활성화 (최상위 디렉토리에서)
+### 1. 가상환경 생성 및 활성화 (backend 디렉토리에서)
 ```bash
-# 최상위 디렉토리로 이동
-cd /home/user/ExplainMyBody
+# backend 디렉토리로 이동
+cd /home/user/ExplainMyBody/backend
 
 # uv로 Python 3.11 가상환경 생성
 uv venv --python 3.11
@@ -87,10 +87,10 @@ uv venv --python 3.11
 source .venv/bin/activate
 ```
 
-### 2. 패키지 설치 (최상위 디렉토리에서)
+### 2. 패키지 설치 (backend 디렉토리에서)
 ```bash
-# 최상위 디렉토리에서 실행
-cd /home/user/ExplainMyBody
+# backend 디렉토리에서 실행
+cd /home/user/ExplainMyBody/backend
 
 # pyproject.toml 기반으로 모든 의존성 설치
 uv sync
@@ -118,7 +118,7 @@ createdb explainmybody
 # backend 디렉토리에서 실행
 cd backend
 
-# 가상환경이 활성화된 상태에서
+# 가상환경이 활성화된 상태에서 실행하거나
 python main.py
 
 # 또는 개발 모드로 실행 (자동 재시작)
@@ -129,8 +129,8 @@ uvicorn main:app --reload
 
 ### 패키지 추가 방법
 ```bash
-# 최상위 디렉토리로 이동
-cd /home/user/ExplainMyBody
+# backend 디렉토리로 이동
+cd /home/user/ExplainMyBody/backend
 
 # 방법 1: 단일 패키지 추가 (자동으로 pyproject.toml 업데이트)
 uv add <package-name>

@@ -13,9 +13,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### 2단계: 프로젝트 설정
 ```bash
-cd /home/user/ExplainMyBody
+cd /home/user/ExplainMyBody/backend
 
-# Python 3.11 가상환경 생성 (최상위 디렉토리에서)
+# Python 3.11 가상환경 생성 (backend 디렉토리에서)
 uv venv --python 3.11
 
 # 가상환경 활성화
@@ -70,7 +70,7 @@ uv add <package-name>
 uv add --group dev <package-name>
 
 # 방법 2: 여러 패키지 한 번에 추가 (추천)
-# pyproject.toml 파일을 열어서 dependencies 리스트에 직접 추가
+# backend/pyproject.toml 파일을 열어서 dependencies 리스트에 직접 추가
 nano pyproject.toml  # 또는 code, vim 등
 
 # 예시: LLM 패키지 여러 개 추가
@@ -120,7 +120,7 @@ uv tree
 
 ### 가상환경 재생성
 ```bash
-cd /home/user/ExplainMyBody
+cd /home/user/ExplainMyBody/backend
 
 # 기존 가상환경 삭제
 rm -rf .venv
@@ -189,10 +189,11 @@ uv sync --group dev --reinstall
 
 ```
 ExplainMyBody/
-├── .venv/              # uv 가상환경 (여기에 생성됨!)
-├── .python-version     # Python 3.11 지정
-├── pyproject.toml      # 프로젝트 의존성 관리
 ├── backend/            # FastAPI 백엔드
+│   ├── .venv/         # uv 가상환경 (backend에 생성됨!)
+│   ├── .python-version # Python 3.11 지정
+│   ├── pyproject.toml  # 프로젝트 의존성 관리
+│   ├── uv.lock        # 의존성 잠금 파일
 │   ├── main.py
 │   ├── .env           # 백엔드 환경 변수
 │   └── ...
