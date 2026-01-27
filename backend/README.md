@@ -118,7 +118,7 @@ createdb explainmybody
 # backend 디렉토리에서 실행
 cd backend
 
-# 가상환경이 활성화된 상태에서
+# 가상환경이 활성화된 상태에서 실행하거나
 python main.py
 
 # 또는 개발 모드로 실행 (자동 재시작)
