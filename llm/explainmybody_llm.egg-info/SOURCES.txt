@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+explainmybody_llm.egg-info/PKG-INFO
+explainmybody_llm.egg-info/SOURCES.txt
+explainmybody_llm.egg-info/dependency_links.txt
+explainmybody_llm.egg-info/requires.txt
+explainmybody_llm.egg-info/top_level.txt
+rule_based_bodytype/main_test.py
+rule_based_bodytype/utils_test.py
+rule_based_bodytype/body_analysis/__init__.py
+rule_based_bodytype/body_analysis/constants.py
+rule_based_bodytype/body_analysis/metrics.py
+rule_based_bodytype/body_analysis/models.py
+rule_based_bodytype/body_analysis/pipeline.py
+rule_based_bodytype/body_analysis/segmental.py
+rule_based_bodytype/body_analysis/stages.py

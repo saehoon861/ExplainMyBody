@@ -1,1 +1,28 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Environment
 .env
+.env.local
+**/.env
+
+# Database
+*.db
+*.sqlite
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Output
+outputs/
+*.log
+
+# uv - uv.lock은 커밋해야 함!
