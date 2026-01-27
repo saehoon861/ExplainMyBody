@@ -1,0 +1,21 @@
+{
+  "basic_info": { "sex": "남자", "age": 23, "weight_kg": 60.0 },
+  "stage1_2": {
+    "bmi": 19.2,
+    "bmi_category": "정상",
+    "fat_category": "표준미만",
+    "smm_ratio": 0.42,
+    "muscle_level": "근육 보통",
+    "stage1_type": "마른형",
+    "stage2_type": "마른형"
+  },
+  "muscle_seg": {
+    "왼팔": "표준",
+    "오른팔": "표준",
+    "몸통": "표준",
+    "왼다리": "표준",
+    "오른다리": "표준"
+  },
+  "fat_seg": null,
+  "stage3": "표준형"
+}

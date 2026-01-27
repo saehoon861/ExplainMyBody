@@ -1,0 +1,122 @@
+```json
+{
+  "exercise_plan": {
+    "weekly_goal": "주 4-5회 운동으로 전신 근력 강화 및 유산소 운동 병행",
+    "weekly_schedule": [
+      {
+        "day": "월요일",
+        "focus": "상체 근력운동",
+        "exercises": [
+          {
+            "name": "푸시업",
+            "sets": 3,
+            "reps": 12,
+            "note": "무릎 대고 시작 가능"
+          },
+          {
+            "name": "덤벨 로우",
+            "sets": 3,
+            "reps": 10,
+            "note": "등 근육 강화"
+          },
+          {
+            "name": "플랭크",
+            "sets": 3,
+            "reps": 30,
+            "note": "초 단위, 코어 안정화"
+          }
+        ]
+      },
+      {
+        "day": "화요일",
+        "focus": "유산소 운동",
+        "exercises": [
+          {
+            "name": "빠른 걷기",
+            "sets": 1,
+            "reps": 30,
+            "note": "분 단위, 중강도"
+          },
+          {
+            "name": "계단 오르기",
+            "sets": 3,
+            "reps": 5,
+            "note": "분 단위, 층간 휴식"
+          }
+        ]
+      },
+      {
+        "day": "수요일",
+        "focus": "하체 근력운동",
+        "exercises": [
+          {
+            "name": "스쿼트",
+            "sets": 3,
+            "reps": 15,
+            "note": "정확한 자세 유지"
+          },
+          {
+            "name": "런지",
+            "sets": 3,
+            "reps": 12,
+            "note": "양쪽 다리 번갈아"
+          },
+          {
+            "name": "카프 레이즈",
+            "sets": 3,
+            "reps": 15,
+            "note": "종아리 근육 강화"
+          }
+        ]
+      },
+      {
+        "day": "목요일",
+        "focus": "휴식 또는 가벼운 스트레칭",
+        "exercises": [
+          {
+            "name": "전신 스트레칭",
+            "sets": 1,
+            "reps": 20,
+            "note": "분 단위, 근육 이완"
+          }
+        ]
+      },
+      {
+        "day": "금요일",
+        "focus": "전신 운동",
+        "exercises": [
+          {
+            "name": "버피",
+            "sets": 3,
+            "reps": 8,
+            "note": "전신 근력 및 유산소"
+          },
+          {
+            "name": "마운틴 클라이머",
+            "sets": 3,
+            "reps": 20,
+            "note": "양쪽 다리 합계"
+          },
+          {
+            "name": "데드리프트",
+            "sets": 3,
+            "reps": 10,
+            "note": "가벼운 중량으로 시작"
+          }
+        ]
+      },
+      {
+        "day": "토요일",
+        "focus": "유산소 운동",
+        "exercises": [
+          {
+            "name": "조깅",
+            "sets": 1,
+            "reps": 25,
+            "note": "분 단위, 편안한 속도"
+          },
+          {
+            "name": "사이클링",
+            "sets": 1,
+            "reps": 20,
+            "note": "
