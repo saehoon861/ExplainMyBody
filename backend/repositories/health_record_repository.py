@@ -6,7 +6,7 @@ HealthRecord Repository
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from models.health_record import HealthRecord
-from schemas.health_record import HealthRecordCreate
+from schemas.common import HealthRecordCreate
 from typing import Optional, List
 from datetime import datetime
 

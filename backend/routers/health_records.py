@@ -8,10 +8,10 @@ OCR과 검증을 거쳐서 인바디 데이터를 DB에 저장하고 체형 분�
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.health_record import HealthRecordCreate, HealthRecordResponse
+from schemas.common import HealthRecordCreate, HealthRecordResponse
+from schemas.llm import StatusAnalysisResponse
 from schemas.inbody import InBodyData
 from schemas.body_type import BodyTypeAnalysisInput
-from schemas.llm_input import StatusAnalysisResponse
 from services.health_service import HealthService
 from services.ocr_service import OCRService
 from services.body_type_service import BodyTypeService

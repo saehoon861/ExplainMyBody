@@ -6,8 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.user_goal import UserGoalCreate, UserGoalResponse, UserGoalUpdate
-from schemas.llm_input import GoalPlanRequest, GoalPlanResponse
+from schemas.llm import UserGoalCreate, UserGoalResponse, UserGoalUpdate, GoalPlanRequest, GoalPlanResponse
 from repositories.user_goal_repository import UserGoalRepository
 from services.llm_service import LLMService
 from services.health_service import HealthService

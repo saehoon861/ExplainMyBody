@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.user import UserResponse
+from schemas.common import UserResponse
 from repositories.user_repository import UserRepository
 from typing import List
 

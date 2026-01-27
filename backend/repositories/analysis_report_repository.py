@@ -6,7 +6,7 @@ AnalysisReport Repository
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from models.analysis_report import AnalysisReport
-from schemas.analysis_report import AnalysisReportCreate
+from schemas.llm import AnalysisReportCreate
 from typing import Optional, List
 
 

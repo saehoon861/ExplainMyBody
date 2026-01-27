@@ -5,7 +5,7 @@
 
 from sqlalchemy.orm import Session
 from repositories.user_repository import UserRepository
-from schemas.user import UserCreate, UserLogin
+from schemas.common import UserCreate, UserLogin
 from fastapi import HTTPException, status
 from typing import Optional
 

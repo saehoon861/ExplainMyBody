@@ -1,119 +1,146 @@
 """
 OCR 서비스
 인바디 이미지에서 데이터 추출 및 Pydantic 검증
+
+OCR 처리 흐름:
+1. 이미지 업로드 → 임시 파일 저장
+2. InBodyMatcher로 OCR 수행 → raw 결과 (Dict[str, str])
+3. get_structured_results()로 구조화 → 중첩 딕셔너리
+4. _convert_types()로 타입 변환 → 숫자/정수 변환
+5. InBodyData Pydantic 모델로 검증
+
+팀원 코드 출처: backend_temp/inbody_matcher.py → backend/services/inbody_matcher.py로 이동
 """
 
-import sys
 import os
-
-# 기존 OCR 코드 경로 추가
-# 추후에 각 기능의 파일 코드들을 정리할 때 삭제나 수정 필요 #fixme
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../src/OCR"))
-
-from typing import Dict, Any
-from fastapi import UploadFile, HTTPException
-from pydantic import ValidationError
 import tempfile
 import shutil
+from typing import Dict, Any, Optional, Union
+
+from fastapi import UploadFile, HTTPException
+from pydantic import ValidationError
 
 from schemas.inbody import InBodyData
 
 
 class OCRService:
-    """OCR 처리 서비스"""
+    """
+    OCR 처리 서비스
+    
+    팀원 코드(backend_temp)의 InBodyMatcher 클래스를 사용하여
+    인바디 이미지에서 데이터를 추출하고 Pydantic 스키마로 검증합니다.
+    """
     
     def __init__(self):
-        """OCR 엔진 초기화"""
-        # TODO: 팀원의 OCR 코드 통합 시 활성화
-        # try:
-        #     from ocr_test import InBodyMatcher
-        #     self.matcher = InBodyMatcher()
-        # except Exception as e:
-        #     print(f"⚠️  OCR 엔진 초기화 실패: {e}")
-        #     self.matcher = None
+        """
+        OCR 엔진 초기화
         
-        # 임시: OCR 엔진 없이 샘플 데이터 사용
-        self.matcher = None
-        print("⚠️  OCR 엔진 미사용 - 샘플 데이터 모드")
+        InBodyMatcher 클래스 import 및 인스턴스 생성
+        - auto_perspective: 자동 원근 변환 (기울어진 문서 보정)
+        - skew_threshold: 기울기 임계값 (기본 15.0)
+        """
+        try:
+            # 팀원 코드: backend_temp/inbody_matcher.py → backend/services/inbody_matcher.py
+            from services.inbody_matcher import InBodyMatcher
+            
+            self.matcher = InBodyMatcher(
+                auto_perspective=True,
+                skew_threshold=15.0
+            )
+            print("✅ OCR 엔진 (InBodyMatcher) 초기화 완료")
+            
+        except ImportError as e:
+            print(f"⚠️ InBodyMatcher import 실패: {e}")
+            print("   PaddleOCR 및 관련 의존성이 설치되어 있는지 확인하세요.")
+            self.matcher = None
+            
+        except Exception as e:
+            print(f"⚠️ OCR 엔진 초기화 실패: {e}")
+            self.matcher = None
     
     async def extract_inbody_data(self, image_file: UploadFile) -> InBodyData:
         """
         인바디 이미지에서 데이터 추출 및 Pydantic 모델 변환
         
-        현재는 OCR 엔진 없이 샘플 데이터를 반환합니다.
-        팀원의 OCR 코드 통합 후 실제 OCR 로직으로 교체 예정
+        처리 흐름:
+        1. 업로드된 이미지를 임시 파일로 저장
+        2. InBodyMatcher.extract_and_match()로 OCR 수행
+           - 팀원 코드: 이미지에서 텍스트 추출 및 키-값 매칭
+           - 반환값: Dict[str, Optional[str]] (모든 값이 문자열)
+        3. InBodyMatcher.get_structured_results()로 구조화
+           - 팀원 코드: flat dict → 중첩 dict 변환
+           - 반환값: {"기본정보": {...}, "체성분": {...}, ...}
+        4. _convert_types()로 타입 변환
+           - 문자열 → float/int 변환 (Pydantic 스키마에 맞춤)
+        5. InBodyData Pydantic 모델로 검증
+           - 이상치 검증 (예: 신장 50~300cm)
+           - null 필드 목록 생성 (프론트엔드 검증용)
         
         Args:
-            image_file: 업로드된 이미지 파일
+            image_file: 업로드된 인바디 이미지 (UploadFile)
             
         Returns:
             InBodyData: 검증된 인바디 데이터 Pydantic 모델
+            - 프론트엔드에서 null 필드 검증 필요
+            - get_null_fields()로 미검출 필드 확인 가능
             
         Raises:
-            HTTPException: OCR 실패 또는 필수 필드 누락 시 - 이거는 진행 안함. #fixme
-
+            HTTPException 500: OCR 엔진 미초기화
+            HTTPException 400: OCR 결과 추출 실패
+            HTTPException 422: Pydantic 검증 실패 (타입/이상치 오류)
         """
-        # 임시: 샘플 데이터 반환 (OCR 엔진 없이 API 로직 검증용)
+        # OCR 엔진 확인
+        if not self.matcher:
+            raise HTTPException(
+                status_code=500,
+                detail="OCR 엔진이 초기화되지 않았습니다. 서버 로그를 확인하세요."
+            )
+        
+        # Step 1: 임시 파일로 저장
+        # 팀원 코드(InBodyMatcher)가 파일 경로를 받으므로 임시 파일 생성 필요
+        tmp_path = None
         try:
-            sample_data = {
-                "기본정보": {
-                    "신장": 170,
-                    "연령": 30,
-                    "성별": "남성"
-                },
-                "체성분": {
-                    "체수분": 41.7,
-                    "단백질": 11.4,
-                    "무기질": 3.99,
-                    "체지방": 20.6
-                },
-                "체중관리": {
-                    "체중": 77.7,
-                    "골격근량": 32.5,
-                    "체지방량": 20.6,
-                    "적정체중": 67.2,
-                    "체중조절": None,  # null 값 - 사용자 검증 필요
-                    "지방조절": -10.5,
-                    "근육조절": 0.0
-                },
-                "비만분석": {
-                    "BMI": 26.9,
-                    "체지방률": 26.5,
-                    "복부지방률": 0.93,
-                    "내장지방레벨": 8,
-                    "비만도": 122
-                },
-                "연구항목": {
-                    "제지방량": 57.1,
-                    "기초대사량": 1603,
-                    "권장섭취열량": 2267
-                },
-                "부위별근육분석": {
-                    "왼쪽팔": "표준",
-                    "오른쪽팔": "표준",
-                    "복부": "표준",
-                    "왼쪽하체": "표준",
-                    "오른쪽하체": "표준"
-                },
-                "부위별체지방분석": {
-                    "왼쪽팔": "표준이상",
-                    "오른쪽팔": "표준이상",
-                    "복부": "표준이상",
-                    "왼쪽하체": "표준이상",
-                    "오른쪽하체": "표준이상"
-                }
-            }
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
+                shutil.copyfileobj(image_file.file, tmp_file)
+                tmp_path = tmp_file.name
             
-            # Pydantic 모델로 변환 (자동 검증)
-            inbody_data = InBodyData(**sample_data)
+            print(f"📁 임시 파일 저장: {tmp_path}")
             
-            print(f"✅ 샘플 데이터 생성 완료")
-            print(f"⚠️  null 필드: {inbody_data.get_null_fields()}")
+            # Step 2: OCR 수행
+            # 팀원 함수: InBodyMatcher.extract_and_match(image_path: str) -> Dict[str, Optional[str]]
+            raw_result = self.matcher.extract_and_match(tmp_path)
+            
+            if not raw_result:
+                raise HTTPException(
+                    status_code=400,
+                    detail="OCR 결과를 추출할 수 없습니다. 이미지를 확인해주세요."
+                )
+            
+            # Step 3: 구조화
+            # 팀원 함수: InBodyMatcher.get_structured_results(results: Dict) -> Dict
+            # 팀원 코드의 키 이름과 우리 스키마의 키 이름 매핑:
+            #   - 팀원: "왼쪽팔 근육" → 우리: 부위별근육분석.왼쪽팔
+            #   - 팀원: "왼쪽팔 체지방" → 우리: 부위별체지방분석.왼쪽팔
+            structured_result = self.matcher.get_structured_results(raw_result)
+            
+            # Step 4: 타입 변환
+            # 팀원 코드는 모든 값을 문자열로 반환, Pydantic 스키마는 숫자 타입 기대
+            mapped_result = self._convert_types(structured_result)
+            
+            # Step 5: Pydantic 모델로 변환 및 검증
+            inbody_data = InBodyData(**mapped_result)
+            
+            print(f"✅ OCR 추출 완료")
+            print(f"⚠️ null 필드 (프론트 검증 필요): {inbody_data.get_null_fields()}")
             
             return inbody_data
         
+        except HTTPException:
+            # HTTPException은 그대로 전달
+            raise
+        
         except ValidationError as e:
-            # 필수 필드 누락 또는 타입 오류
+            # Pydantic 검증 실패 (타입 오류, 이상치 등)
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -128,84 +155,143 @@ class OCRService:
                 detail=f"OCR 처리 중 오류 발생: {str(e)}"
             )
         
-        # TODO: 팀원의 OCR 코드 통합 시 아래 코드 활성화
-        # if not self.matcher:
-        #     raise HTTPException(
-        #         status_code=500,
-        #         detail="OCR 엔진이 초기화되지 않았습니다."
-        #     )
-        # 
-        # # 임시 파일로 저장
-        # with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
-        #     shutil.copyfileobj(image_file.file, tmp_file)
-        #     tmp_path = tmp_file.name
-        # 
-        # try:
-        #     # OCR 실행 (Dict 반환)
-        #     raw_result = self.matcher.extract_and_match(tmp_path)
-        #     
-        #     # OCR 결과의 키 이름을 Pydantic 필드명으로 매핑
-        #     mapped_result = self._map_ocr_keys(raw_result)
-        #     
-        #     # Pydantic 모델로 변환 (자동 검증)
-        #     inbody_data = InBodyData(**mapped_result)
-        #     
-        #     return inbody_data
-        # 
-        # except ValidationError as e:
-        #     raise HTTPException(
-        #         status_code=422,
-        #         detail={
-        #             "message": "OCR 추출 데이터 검증 실패",
-        #             "errors": e.errors()
-        #         }
-        #     )
-        # 
-        # except Exception as e:
-        #     raise HTTPException(
-        #         status_code=500,
-        #         detail=f"OCR 처리 중 오류 발생: {str(e)}"
-        #     )
-        # 
-        # finally:
-        #     # 임시 파일 삭제
-        #     if os.path.exists(tmp_path):
-        #         os.remove(tmp_path)
+        finally:
+            # 임시 파일 삭제
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                    print(f"🗑️ 임시 파일 삭제: {tmp_path}")
+                except Exception as e:
+                    print(f"⚠️ 임시 파일 삭제 실패: {e}")
     
-    def _map_ocr_keys(self, ocr_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_types(self, structured_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        OCR 결과의 키 이름을 Pydantic 스키마에 맞게 변환
+        OCR 결과의 문자열 값을 Pydantic 스키마에 맞는 타입으로 변환
         
-        팀원이 작성한 OCR 코드의 출력 형식에 맞춰 수정 필요
+        팀원 코드(InBodyMatcher)는 모든 값을 문자열로 반환하지만,
+        우리의 InBodyData 스키마는 숫자 타입을 기대합니다.
+        
+        타입 변환 규칙:
+        - 기본정보.신장: str → float (예: "170" → 170.0)
+        - 기본정보.연령: str → int (예: "30" → 30)
+        - 기본정보.성별: str → str (변환 없음)
+        - 체성분.*: str → float
+        - 체중관리.*: str → float
+        - 비만분석.내장지방레벨: str → int
+        - 비만분석.비만도: str → int
+        - 연구항목.기초대사량: str → int
+        - 연구항목.권장섭취열량: str → int
+        - 부위별*분석.*: str → str (변환 없음, "표준", "표준이상" 등)
         
         Args:
-            ocr_result: extract_and_match의 원본 반환값
+            structured_data: InBodyMatcher.get_structured_results() 반환값
             
         Returns:
-            Pydantic 스키마에 맞게 매핑된 딕셔너리
+            타입 변환된 딕셔너리 (InBodyData 생성자에 전달 가능)
         """
-        # TODO: 팀원의 OCR 코드 출력 형식에 맞춰 매핑 로직 작성
-        # 예시:
-        # - OCR 출력이 flat한 구조라면 중첩 구조로 변환
-        # - 키 이름 정규화 (공백 → 언더스코어 등)
+        result = {}
         
-        mapped = {
-            "기본정보": {},
-            "체성분": {},
-            "체중관리": {},
-            "비만분석": {},
-            "연구항목": {},
-            "부위별근육분석": {},
-            "부위별체지방분석": {}
-        }
+        # 기본정보 (신장: float, 연령: int, 성별: str)
+        if "기본정보" in structured_data:
+            info = structured_data["기본정보"]
+            result["기본정보"] = {
+                "신장": self._to_float(info.get("신장")),
+                "연령": self._to_int(info.get("연령")),
+                "성별": info.get("성별")  # 문자열 유지
+            }
         
-        # OCR 결과를 적절한 섹션에 매핑
-        for key, value in ocr_result.items():
-            if value is None:
-                continue
+        # 체성분 (전부 float)
+        if "체성분" in structured_data:
+            comp = structured_data["체성분"]
+            result["체성분"] = {
+                "체수분": self._to_float(comp.get("체수분")),
+                "단백질": self._to_float(comp.get("단백질")),
+                "무기질": self._to_float(comp.get("무기질")),
+                "체지방": self._to_float(comp.get("체지방")),
+            }
+        
+        # 체중관리 (전부 float)
+        if "체중관리" in structured_data:
+            weight = structured_data["체중관리"]
+            result["체중관리"] = {
+                "체중": self._to_float(weight.get("체중")),
+                "골격근량": self._to_float(weight.get("골격근량")),
+                "체지방량": self._to_float(weight.get("체지방량")),
+                "적정체중": self._to_float(weight.get("적정체중")),
+                "체중조절": self._to_float(weight.get("체중조절")),
+                "지방조절": self._to_float(weight.get("지방조절")),
+                "근육조절": self._to_float(weight.get("근육조절")),
+            }
+        
+        # 비만분석 (BMI, 체지방률, 복부지방률: float / 내장지방레벨, 비만도: int)
+        if "비만분석" in structured_data:
+            obesity = structured_data["비만분석"]
+            result["비만분석"] = {
+                "BMI": self._to_float(obesity.get("BMI")),
+                "체지방률": self._to_float(obesity.get("체지방률")),
+                "복부지방률": self._to_float(obesity.get("복부지방률")),
+                "내장지방레벨": self._to_int(obesity.get("내장지방레벨")),
+                "비만도": self._to_int(obesity.get("비만도")),
+            }
+        
+        # 연구항목 (제지방량: float / 기초대사량, 권장섭취열량: int)
+        if "연구항목" in structured_data:
+            research = structured_data["연구항목"]
+            result["연구항목"] = {
+                "제지방량": self._to_float(research.get("제지방량")),
+                "기초대사량": self._to_int(research.get("기초대사량")),
+                "권장섭취열량": self._to_int(research.get("권장섭취열량")),
+            }
+        
+        # 부위별근육분석 (전부 str - "표준", "표준이상", "표준이하")
+        # 팀원 코드 키: "왼쪽팔 근육" → 우리 스키마: 부위별근육분석.왼쪽팔
+        if "부위별근육분석" in structured_data:
+            result["부위별근육분석"] = structured_data["부위별근육분석"].copy()
+        
+        # 부위별체지방분석 (전부 str)
+        # 팀원 코드 키: "왼쪽팔 체지방" → 우리 스키마: 부위별체지방분석.왼쪽팔
+        if "부위별체지방분석" in structured_data:
+            result["부위별체지방분석"] = structured_data["부위별체지방분석"].copy()
+        
+        return result
+    
+    def _to_float(self, value: Optional[str]) -> Optional[float]:
+        """
+        문자열을 float로 변환
+        
+        팀원 코드는 숫자를 문자열로 반환 (예: "77.7")
+        None, "미검출", 빈 문자열은 None 반환
+        
+        Args:
+            value: 변환할 문자열 값
             
-            # TODO: 키 이름에 따라 적절한 섹션에 할당
-            # 예: "신장" → mapped["기본정보"]["신장"] = value
+        Returns:
+            변환된 float 또는 None
+        """
+        if value is None or value == "" or value == "미검출":
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+    
+    def _to_int(self, value: Optional[str]) -> Optional[int]:
+        """
+        문자열을 int로 변환
+        
+        팀원 코드는 숫자를 문자열로 반환 (예: "30")
+        소수점이 있으면 float로 변환 후 int로 캐스팅
+        
+        Args:
+            value: 변환할 문자열 값
             
-        return mapped
-
+        Returns:
+            변환된 int 또는 None
+        """
+        if value is None or value == "" or value == "미검출":
+            return None
+        try:
+            # "30.0" 같은 경우도 처리
+            return int(float(value))
+        except (ValueError, TypeError):
+            return None
