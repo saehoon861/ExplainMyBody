@@ -1,4 +1,3 @@
-README.md
 pyproject.toml
 explainmybody_llm.egg-info/PKG-INFO
 explainmybody_llm.egg-info/SOURCES.txt
