@@ -154,9 +154,9 @@ const Signup = () => {
 
         try {
             const apiFormData = new FormData();
-            apiFormData.append('file', formData.inbodyImage);
+            apiFormData.append('image', formData.inbodyImage);
 
-            const response = await fetch('http://localhost:5000/api/process', {
+            const response = await fetch('http://localhost:8000/api/health-records/ocr/extract', {
                 method: 'POST',
                 body: apiFormData,
             });

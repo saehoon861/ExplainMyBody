@@ -22,15 +22,44 @@ from schemas.inbody import InBodyData
 class OCRService:
     """OCR 처리 서비스"""
     
+    _matcher = None
+    
     def __init__(self):
-        """OCR 엔진 초기화"""
+        """OCR 엔진 초기화 (최초 1회만)"""
+        # 이미 초기화되었으면 스킵
+        if OCRService._matcher is not None:
+            return
+        
         try:
+            print("🔄 OCRService 초기화 중...")
+            
             # 기존 OCR 코드 임포트
-            from ocr_test import InBodyMatcher
-            self.matcher = InBodyMatcher()
+            from inbody_matcher import InBodyMatcher
+            
+            # InBodyMatcher 초기화 (PaddleOCR 포함)
+            OCRService._matcher = InBodyMatcher(
+                auto_perspective=True,
+                skew_threshold=15.0
+            )
+            
+            print("✅ OCRService 초기화 완료")
+            
+        except ImportError as e:
+            print(f"❌ inbody_matcher.py 임포트 실패: {e}")
+            raise Exception(f"OCR 모듈을 찾을 수 없습니다: {e}")
+        
         except Exception as e:
-            print(f"⚠️  OCR 엔진 초기화 실패: {e}")
-            self.matcher = None
+            print(f"❌ OCR 엔진 초기화 실패: {e}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"OCR 엔진 초기화 실패: {e}")
+    
+    @property
+    def matcher(self):
+        """InBodyMatcher 인스턴스 반환"""
+        if OCRService._matcher is None:
+            raise Exception("OCR 엔진이 초기화되지 않았습니다.")
+        return OCRService._matcher
     
     async def extract_inbody_data(self, image_file: UploadFile) -> InBodyData:
         """
@@ -93,35 +122,81 @@ class OCRService:
     def _map_ocr_keys(self, ocr_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         OCR 결과의 키 이름을 Pydantic 스키마에 맞게 변환
-        
-        팀원이 작성한 OCR 코드의 출력 형식에 맞춰 수정 필요
-        
-        예시 매핑:
-        - "왼쪽팔 근육" → "왼쪽팔_근육"
-        - "오른쪽팔 근육" → "오른쪽팔_근육"
-        - 공백을 언더스코어로 변경
-        
-        Args:
-            ocr_result: extract_and_match의 원본 반환값
-            
-        Returns:
-            Pydantic 스키마에 맞게 매핑된 딕셔너리
         """
-        mapped = {}
+        # 구조화된 결과 사용
+        structured_result = self.matcher.get_structured_results(ocr_result)
         
-        for key, value in ocr_result.items():
-            # None 값은 제외 (선택적 필드)
-            if value is None:
-                continue
+        mapped = {
+            # 기본 정보
+            "신장": self._safe_float(ocr_result.get("신장")),
+            "연령": self._safe_int(ocr_result.get("연령")),
+            "성별": ocr_result.get("성별"),
             
-            # 공백을 언더스코어로 변경
-            new_key = key.replace(" ", "_")
+            # 체성분
+            "체수분": self._safe_float(ocr_result.get("체수분")),
+            "단백질": self._safe_float(ocr_result.get("단백질")),
+            "무기질": self._safe_float(ocr_result.get("무기질")),
+            "체지방": self._safe_float(ocr_result.get("체지방")),
             
-            # TODO: 팀원의 OCR 코드 출력 형식에 맞춰 추가 매핑 로직 작성
-            # 예: "왼쪽팔 근육" → "왼쪽팔_근육"
-            # 예: "오른쪽하체 근육" → "오른쪽하체_근육"
+            # 체중 관리
+            "체중": self._safe_float(ocr_result.get("체중")),
+            "골격근량": self._safe_float(ocr_result.get("골격근량")),
+            "체지방량": self._safe_float(ocr_result.get("체지방량")),
+            "적정체중": self._safe_float(ocr_result.get("적정체중")),
+            "체중조절": self._safe_float(ocr_result.get("체중조절")),
+            "지방조절": self._safe_float(ocr_result.get("지방조절")),
+            "근육조절": self._safe_float(ocr_result.get("근육조절")),
             
-            mapped[new_key] = value
+            # 비만 분석
+            "BMI": self._safe_float(ocr_result.get("BMI")),
+            "체지방률": self._safe_float(ocr_result.get("체지방률")),
+            "복부지방률": self._safe_float(ocr_result.get("복부지방률")),
+            "내장지방레벨": self._safe_int(ocr_result.get("내장지방레벨")),
+            "비만도": self._safe_int(ocr_result.get("비만도")),
+            
+            # 연구 항목
+            "제지방량": self._safe_float(ocr_result.get("제지방량")),
+            "기초대사량": self._safe_int(ocr_result.get("기초대사량")),
+            "권장섭취열량": self._safe_int(ocr_result.get("권장섭취열량")),
+            
+            # 부위별 근육 분석 (공백 → 언더스코어)
+            "왼쪽팔_근육": ocr_result.get("왼쪽팔 근육"),
+            "오른쪽팔_근육": ocr_result.get("오른쪽팔 근육"),
+            "복부_근육": ocr_result.get("복부 근육"),
+            "왼쪽하체_근육": ocr_result.get("왼쪽하체 근육"),
+            "오른쪽하체_근육": ocr_result.get("오른쪽하체 근육"),
+            
+            # 부위별 체지방 분석
+            "왼쪽팔_체지방": ocr_result.get("왼쪽팔 체지방"),
+            "오른쪽팔_체지방": ocr_result.get("오른쪽팔 체지방"),
+            "복부_체지방": ocr_result.get("복부 체지방"),
+            "왼쪽하체_체지방": ocr_result.get("왼쪽하체 체지방"),
+            "오른쪽하체_체지방": ocr_result.get("오른쪽하체 체지방"),
+        }
+        
+        # None 값 제거
+        mapped = {k: v for k, v in mapped.items() if v is not None}
         
         return mapped
-
+    
+    def _safe_float(self, value: Any) -> Optional[float]:
+        """안전한 float 변환"""
+        if value is None or value == "미검출":
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace("+", "").replace(" ", "")
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+    
+    def _safe_int(self, value: Any) -> Optional[int]:
+        """안전한 int 변환"""
+        if value is None or value == "미검출":
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace("+", "").replace(" ", "")
+            return int(float(value))
+        except (ValueError, TypeError):
+            return None
