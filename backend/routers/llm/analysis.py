@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.analysis_report import AnalysisReportResponse
+from schemas.llm import AnalysisReportResponse
 from services.health_service import HealthService
 from repositories.analysis_report_repository import AnalysisReportRepository
 from typing import List

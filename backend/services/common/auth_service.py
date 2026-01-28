@@ -5,7 +5,7 @@
 
 from sqlalchemy.orm import Session
 from repositories.user_repository import UserRepository
-from schemas.user import UserCreate, UserLogin
+from schemas.common import UserCreate, UserLogin
 from fastapi import HTTPException, status
 from typing import Optional
 
@@ -50,6 +50,17 @@ class AuthService:
     @staticmethod
     def get_current_user(db: Session, user_id: int):
         """현재 사용자 정보 조회"""
+        user = UserRepository.get_by_id(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="사용자를 찾을 수 없습니다."
+            )
+        return user
+    
+    @staticmethod
+    def logout(db: Session, user_id: int):
+        """로그아웃"""
         user = UserRepository.get_by_id(db, user_id)
         if not user:
             raise HTTPException(

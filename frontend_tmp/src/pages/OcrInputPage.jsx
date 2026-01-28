@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { healthService } from '../services/healthService';
@@ -12,9 +12,31 @@ const OcrInputPage = () => {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [extractedData, setExtractedData] = useState(null);
-    const [nullFields, setNullFields] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [validationErrors, setValidationErrors] = useState([]);
+    const [hasEmptyFields, setHasEmptyFields] = useState(false);
+
+    // 빈 필드 체크
+    useEffect(() => {
+        if (!extractedData) return;
+
+        const checkEmptyFields = () => {
+            for (const section in extractedData) {
+                if (typeof extractedData[section] === 'object') {
+                    for (const field in extractedData[section]) {
+                        const value = extractedData[section][field];
+                        if (value === null || value === undefined || value === '') {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        setHasEmptyFields(checkEmptyFields());
+    }, [extractedData]);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -37,9 +59,8 @@ const OcrInputPage = () => {
             const response = await healthService.extractInbodyFromImage(imageFile);
             console.log('OCR Response:', response);
 
-            // 백엔드 응답 구조: { data: InBodyData, null_fields: {...}, message: "..." }
+            // 백엔드 응답 구조: { data: dict (원시 데이터), message: "..." }
             setExtractedData(response.data);
-            setNullFields(response.null_fields || {});
             setStep(2);
         } catch (err) {
             console.error('OCR Error:', err);
@@ -57,20 +78,45 @@ const OcrInputPage = () => {
                 [field]: value ? (isNaN(value) ? value : parseFloat(value)) : null,
             }
         });
+        // 에러 메시지 초기화
+        setError('');
+        setValidationErrors([]);
     };
 
     const handleSave = async () => {
+        // 프론트엔드 검증: 빈 필드 체크
+        if (hasEmptyFields) {
+            setError('모든 필드를 입력해주세요.');
+            return;
+        }
+
         setLoading(true);
         setError('');
+        setValidationErrors([]);
 
         try {
-            // 백엔드로 전체 중첩 구조 전송
+            // 백엔드로 전체 중첩 구조 전송 (dict)
             await healthService.validateAndSaveInbody(user.id, extractedData);
             alert('인바디 데이터가 성공적으로 저장되었습니다!');
             navigate('/health-records');
         } catch (err) {
             console.error('Save Error:', err);
-            setError(err.response?.data?.detail || '저장 중 오류가 발생했습니다.');
+
+            // 백엔드 검증 실패 (422 에러)
+            if (err.response?.status === 422) {
+                const detail = err.response.data.detail;
+
+                // 상세 에러 메시지 처리
+                if (detail.message) {
+                    setError(detail.message);
+                }
+
+                if (detail.errors && Array.isArray(detail.errors)) {
+                    setValidationErrors(detail.errors);
+                }
+            } else {
+                setError(err.response?.data?.detail || '저장 중 오류가 발생했습니다.');
+            }
         } finally {
             setLoading(false);
         }
@@ -78,13 +124,19 @@ const OcrInputPage = () => {
 
     const renderFormField = (section, field, label, unit = '') => {
         const value = extractedData?.[section]?.[field];
-        const isNull = value === null || value === undefined;
+        const isNull = value === null || value === undefined || value === '';
+
+        // 해당 필드에 대한 검증 에러 찾기
+        const fieldError = validationErrors.find(err => {
+            const loc = err.loc || [];
+            return loc.includes(section) && loc.includes(field);
+        });
 
         return (
-            <div className={`form-group ${isNull ? 'null-field' : ''}`}>
+            <div className={`form-group ${isNull ? 'null-field' : ''} ${fieldError ? 'error-field' : ''}`}>
                 <label>
                     {label} {unit && `(${unit})`}
-                    {isNull && <span className="null-badge">검증 필요</span>}
+                    {isNull && <span className="null-badge">입력 필요</span>}
                 </label>
                 <input
                     type={typeof value === 'string' ? 'text' : 'number'}
@@ -93,6 +145,9 @@ const OcrInputPage = () => {
                     onChange={(e) => handleNestedDataChange(section, field, e.target.value)}
                     placeholder={isNull ? '값을 입력하세요' : ''}
                 />
+                {fieldError && (
+                    <span className="field-error-message">{fieldError.msg}</span>
+                )}
             </div>
         );
     };
@@ -147,9 +202,22 @@ const OcrInputPage = () => {
                             <h2>추출된 데이터 확인 및 수정</h2>
                             <p className="info-text">데이터를 확인하고 필요시 수정하세요</p>
 
-                            {Object.keys(nullFields).length > 0 && (
+                            {hasEmptyFields && (
                                 <div className="null-warning">
-                                    ⚠️ 일부 필드가 추출되지 않았습니다. 직접 입력해주세요.
+                                    ⚠️ 일부 필드가 추출되지 않았습니다. 모든 필드를 입력해야 저장할 수 있습니다.
+                                </div>
+                            )}
+
+                            {validationErrors.length > 0 && (
+                                <div className="validation-errors">
+                                    <h4>❌ 검증 실패</h4>
+                                    <ul>
+                                        {validationErrors.map((err, idx) => (
+                                            <li key={idx}>
+                                                <strong>{err.loc?.join(' > ')}</strong>: {err.msg}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
 
@@ -250,7 +318,12 @@ const OcrInputPage = () => {
                                 <button onClick={() => setStep(1)} className="back-btn">
                                     뒤로 가기
                                 </button>
-                                <button onClick={handleSave} disabled={loading} className="save-btn">
+                                <button
+                                    onClick={handleSave}
+                                    disabled={loading || hasEmptyFields}
+                                    className="save-btn"
+                                    title={hasEmptyFields ? '모든 필드를 입력해주세요' : ''}
+                                >
                                     {loading ? '저장 중...' : '저장하기'}
                                 </button>
                             </div>

@@ -6,14 +6,15 @@
 from sqlalchemy.orm import Session
 from repositories.health_record_repository import HealthRecordRepository
 from repositories.analysis_report_repository import AnalysisReportRepository
-from schemas.health_record import HealthRecordCreate
-from schemas.llm_input import (
+from schemas.common import HealthRecordCreate
+from schemas.llm import (
     StatusAnalysisInput,
     GoalPlanInput,
     StatusAnalysisResponse,
-    GoalPlanResponse
+    GoalPlanResponse,
+    AnalysisReportResponse,
+    AnalysisReportCreate
 )
-from schemas.analysis_report import AnalysisReportResponse
 from services.body_type_service import BodyTypeService
 from services.llm_service import LLMService
 from typing import Optional, Dict, Any
@@ -176,7 +177,6 @@ class HealthService:
         )
         
         if existing_report:
-            from schemas.analysis_report import AnalysisReportResponse
             return AnalysisReportResponse.model_validate(existing_report)
             
         # 3. LLM 서비스 호출을 위한 입력 데이터 준비
@@ -206,7 +206,6 @@ class HealthService:
 """
 
         # 5. 분석 리포트 저장
-        from schemas.analysis_report import AnalysisReportCreate
         report_data = AnalysisReportCreate(
             record_id=record_id,
             llm_output=llm_output,
@@ -217,7 +216,6 @@ class HealthService:
         analysis_report = AnalysisReportRepository.create(db, user_id, report_data)
         
         # 6. Pydantic 모델로 변환하여 반환
-        from schemas.analysis_report import AnalysisReportResponse
         return AnalysisReportResponse.model_validate(analysis_report)
 
     def get_record_with_analysis(

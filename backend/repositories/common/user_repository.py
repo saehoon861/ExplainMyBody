@@ -5,7 +5,7 @@ User Repository
 
 from sqlalchemy.orm import Session
 from models.user import User
-from schemas.user import UserCreate
+from schemas.common import UserCreate
 from typing import Optional
 
 
