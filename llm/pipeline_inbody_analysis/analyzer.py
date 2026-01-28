@@ -123,15 +123,18 @@ class InBodyAnalyzer:
         print_and_capture(f"  ✓ Stage 2: {stage_results['stage2']}")
         print_and_capture(f"  ✓ Stage 3: {stage_results['stage3']}")
 
-        # Measurements에 Stage 정보 추가
+        # Measurements에 Stage 정보 추가 (body_type1=stage2, body_type2=stage3)
         measurements.stage2_근육보정체형 = stage_results["stage2"]
         measurements.stage3_상하체밸런스 = stage_results["stage3"]
 
         # 2단계: health_records에 저장
         print_and_capture("\n💾 2단계: 측정 데이터 저장...")
+        m = measurements.model_dump()
+        m["body_type1"] = stage_results["stage2"]  # rule_based_bodytype stage2
+        m["body_type2"] = stage_results["stage3"]  # rule_based_bodytype stage3
         record_id = self.db.save_health_record(
             user_id=user_id,
-            measurements=measurements.model_dump(),
+            measurements=m,
             source=source,
         )
         print_and_capture(f"  ✓ Record ID: {record_id}")

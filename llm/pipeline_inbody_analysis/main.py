@@ -114,7 +114,7 @@ def main():
         "--enable-embedding", action="store_true", help="임베딩 생성 활성화"
     )
     parser.add_argument(
-        "--output-file", type=str, help="결과를 저장할 JSON 파일 경로"
+        "--output-file", type=str, help="결과를 저장할 TXT 파일 경로"
     )
 
     args = parser.parse_args()
@@ -152,20 +152,23 @@ def main():
     else:
         print(f"❌ 실패: {response.error}")
     
-    # 파일로 저장 (성공/실패 모두 저장)
-    if args.output_file:
+    # 파일로 저장 (성공 시에만 저장)
+    if args.output_file and response.success:
         try:
             output_path = Path(args.output_file)
             # 디렉토리가 없으면 생성
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Pydantic 모델을 dict로 변환
-            output_data = response.model_dump()
-            
-            # JSON 파일로 저장
+
+            # TXT 파일로 저장 (분석 텍스트만)
             with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(output_data, f, ensure_ascii=False, indent=2)
-            
+                f.write("=" * 60 + "\n")
+                f.write("InBody 분석 결과\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(f"Record ID: {response.record_id}\n")
+                f.write(f"Analysis ID: {response.analysis_id}\n\n")
+                f.write("-" * 60 + "\n\n")
+                f.write(response.analysis_text)
+
             print(f"\n💾 결과 저장 완료: {output_path.absolute()}")
         except Exception as e:
             print(f"\n⚠️  파일 저장 실패: {e}")

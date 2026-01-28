@@ -1,19 +1,18 @@
 # 인바디 결과 분석 및 주간 계획 출력 Pipeline
 
 
-현재 파일 상황이 복잡하여 우선 간단히 설명드리면, 
-
 '인바디 결과 출력'파이프라인과 '주간 계획 출력' 파이프라인 2개의 각각의 폴더에서 main.py로 실행합니다.
+(실행파일 main.py는 추후 이름 변경예정. ex.llm1,llm2? )
+결과물은 txt 형태 자연어로 출력됩니다.
+LLM 모델로 gpt-4o-mini 및 임베딩 모델 text-embedding-3-small (openai) 사용합니다.
 
+실제 출력 결과물은 각 pipeline_inbody_analysis, pipeline_weekly_plan 폴더 안의 output1.txt 등에서 확인가능합니다.
+DB 구조 파일은 shared폴더 내에 있으나 실제 사용은 llm/models_revised 의 ORM(Object Relational Mapping, 테이블 스키마) 및 라우터 설정으로 입출력(CRUD)합니다.
 
-# 이에 대해llm 폴더 내의 PIPELINE_GUIDE.md 파일에서 구조 및 실행법 조회 가능합니다.
+llm/PIPELINE_GUIDE.md 파일에서 전체적인 구조 및 실행법 조회 가능합니다.
 
-
-추가 설명하자면 현재 python 실행 가능하며 정상 작동 하고 있습니다만 LLM 프롬프트 및 출력값, DB 구조 수정 등 몇 가지 작업 수정 예정입니다.
-
-그 외에 llm폴더 내의 다른 md 파일을 보시면 세부적인 내용에 대해 잘 적혀 있습니다.
-
-궁금하신 점은 문의 주세요~~~
+로컬에서 실행해 보려면 postgresql db를 linux wsl 환경에서 설치 후 가능합니다.
+설치법: llm/markdowns/POSTGRESQL_SETUP.md 참조
 
 
 

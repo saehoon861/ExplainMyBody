@@ -112,7 +112,7 @@ def main():
         "--model", default="gpt-4o-mini", help="LLM 모델"
     )
     parser.add_argument("--db-url", default=None, help="데이터베이스 URL")
-    parser.add_argument("--output-file", type=str, help="결과 저장 JSON 파일")
+    parser.add_argument("--output-file", type=str, help="결과 저장 TXT 파일")
     parser.add_argument(
         "--use-ollama-rag",
         action="store_true",
@@ -180,30 +180,39 @@ def main():
     if response.success:
         print(f"✅ 성공!")
         print(f"   - Plan ID: {response.plan_id}")
-        print(f"\n## 주간 요약")
-        print(response.weekly_plan.weekly_summary)
-        print(f"\n## 주간 목표")
-        print(response.weekly_plan.weekly_goal)
 
-        if response.weekly_plan.tips:
-            print(f"\n## 팁")
-            for i, tip in enumerate(response.weekly_plan.tips, 1):
-                print(f"{i}. {tip}")
+        # LLM 원본 출력 표시
+        if response.weekly_plan.llm_raw_output:
+            print(f"\n{response.weekly_plan.llm_raw_output}")
+        else:
+            # Fallback: 구조화된 출력
+            print(f"\n## 주간 요약")
+            print(response.weekly_plan.weekly_summary)
+            print(f"\n## 주간 목표")
+            print(response.weekly_plan.weekly_goal)
 
-        print(f"\n## 요일별 계획")
-        for day_plan in response.weekly_plan.daily_plans:
-            print(f"\n### {day_plan.day_of_week}")
-            print(f"  운동: {len(day_plan.exercises)}개")
-            print(f"  식사: {len(day_plan.meals)}개")
-            if day_plan.total_calories:
-                print(f"  총 칼로리: {day_plan.total_calories} kcal")
-
-        # 파일로 저장
+        # 파일로 저장 (TXT 형식 - LLM 원본 출력)
         if args.output_file:
-            output_data = response.model_dump()
-            with open(args.output_file, "w", encoding="utf-8") as f:
-                json.dump(output_data, f, ensure_ascii=False, indent=2, default=str)
-            print(f"\n💾 결과 저장: {args.output_file}")
+            output_path = Path(args.output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write("주간 운동/식단 계획\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Plan ID: {response.plan_id}\n")
+                f.write(f"주차: {response.weekly_plan.week_number}\n")
+                f.write(f"기간: {response.weekly_plan.start_date} ~ {response.weekly_plan.end_date}\n\n")
+                f.write("-" * 80 + "\n\n")
+
+                # LLM 원본 출력 저장
+                if response.weekly_plan.llm_raw_output:
+                    f.write(response.weekly_plan.llm_raw_output)
+                else:
+                    # Fallback
+                    f.write(response.weekly_plan.weekly_summary)
+
+            print(f"\n💾 결과 저장: {output_path.absolute()}")
 
     else:
         print(f"❌ 실패: {response.error}")

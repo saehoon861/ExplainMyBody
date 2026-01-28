@@ -181,7 +181,7 @@ class WeeklyPlan(BaseModel):
     start_date: str = Field(..., description="시작 날짜")
     end_date: str = Field(..., description="종료 날짜")
 
-    daily_plans: List[DayPlan] = Field(..., description="요일별 계획")
+    daily_plans: List[DayPlan] = Field(default_factory=list, description="요일별 계획 (구조화된 데이터, 선택사항)")
 
     weekly_summary: Optional[str] = Field(None, description="주간 요약")
     weekly_goal: Optional[str] = Field(None, description="주간 목표")
@@ -189,6 +189,7 @@ class WeeklyPlan(BaseModel):
 
     model_version: str
     generated_at: datetime = Field(default_factory=datetime.now)
+    llm_raw_output: Optional[str] = Field(None, description="LLM 원본 출력 (자연어)")
 
 
 # ==================== API 요청/응답 ====================

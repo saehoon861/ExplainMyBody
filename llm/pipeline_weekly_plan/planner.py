@@ -2,8 +2,7 @@
 주간 계획 생성 로직
 """
 
-import json
-from typing import List, Dict, Any
+from typing import List
 from datetime import datetime, timedelta
 
 from shared.models import UserGoal, UserPreferences, WeeklyPlan
@@ -99,76 +98,28 @@ class WeeklyPlanner:
 
         print(f"  ✓ 계획 생성 완료 ({len(llm_output)} 글자)")
 
-        # 5단계: JSON 파싱
-        print("\n📊 4단계: JSON 파싱...")
-        try:
-            # LLM 응답에서 JSON 추출
-            plan_data = self._extract_json(llm_output)
+        # 5단계: WeeklyPlan 모델 생성 (자연어 출력 사용)
+        print("\n📊 4단계: 계획 저장 준비...")
+        weekly_plan = WeeklyPlan(
+            user_id=user_id,
+            week_number=week_number,
+            start_date=start_date,
+            end_date=end_date,
+            weekly_summary="",
+            weekly_goal="",
+            tips=[],
+            daily_plans=[],
+            model_version=self.model_version,
+            llm_raw_output=llm_output,  # LLM 원본 자연어 출력
+        )
 
-            # WeeklyPlan 모델 생성
-            weekly_plan = WeeklyPlan(
-                user_id=user_id,
-                week_number=week_number,
-                start_date=start_date,
-                end_date=end_date,
-                weekly_summary=plan_data.get("weekly_summary", ""),
-                weekly_goal=plan_data.get("weekly_goal", ""),
-                tips=plan_data.get("tips", []),
-                daily_plans=plan_data.get("daily_plans", []),
-                model_version=self.model_version,
-            )
-
-            print(f"  ✓ 파싱 성공: {len(weekly_plan.daily_plans)}일 계획")
-
-        except Exception as e:
-            print(f"  ⚠️  JSON 파싱 실패: {e}")
-            print("  원본 응답을 사용합니다.")
-
-            # Fallback: 기본 구조 생성
-            weekly_plan = WeeklyPlan(
-                user_id=user_id,
-                week_number=week_number,
-                start_date=start_date,
-                end_date=end_date,
-                weekly_summary=llm_output,
-                weekly_goal="",
-                daily_plans=[],
-                model_version=self.model_version,
-            )
+        print(f"  ✓ 자연어 계획 생성 완료")
 
         print("\n" + "=" * 60)
         print("✨ 주간 계획 생성 완료!")
         print("=" * 60)
 
         return weekly_plan
-
-    def _extract_json(self, text: str) -> Dict[str, Any]:
-        """
-        LLM 응답에서 JSON 추출
-
-        Args:
-            text: LLM 응답 텍스트
-
-        Returns:
-            파싱된 JSON dict
-        """
-        # JSON 블록 찾기 (```json ... ``` 또는 순수 JSON)
-        import re
-
-        # 1. Markdown JSON 블록 찾기
-        json_match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            # 2. 중괄호로 시작하는 JSON 찾기
-            json_match = re.search(r"\{.*\}", text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-            else:
-                # 3. 전체를 JSON으로 시도
-                json_str = text
-
-        return json.loads(json_str)
 
     def save_plan_to_db(self, weekly_plan: WeeklyPlan) -> int:
         """
@@ -192,36 +143,17 @@ class WeeklyPlanner:
             end_date_obj = datetime.strptime(weekly_plan.end_date, "%Y-%m-%d").date()
 
             # DB에 저장 (SQLAlchemy)
+            # mode='json'을 사용하여 datetime을 문자열로 직렬화
             plan_id = self.db.save_weekly_plan(
                 user_id=weekly_plan.user_id,
                 week_number=weekly_plan.week_number,
                 start_date=start_date_obj,
                 end_date=end_date_obj,
-                plan_data=weekly_plan.model_dump(),
+                plan_data=weekly_plan.model_dump(mode='json'),
                 model_version=weekly_plan.model_version,
             )
 
             print(f"  ✓ DB 저장 완료 (Plan ID: {plan_id})")
-
-            # 백업: JSON 파일로도 저장
-            from pathlib import Path
-
-            output_dir = Path("outputs/weekly_plans")
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            filename = f"user{weekly_plan.user_id}_week{weekly_plan.week_number}_{weekly_plan.start_date}.json"
-            filepath = output_dir / filename
-
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(
-                    weekly_plan.model_dump(),
-                    f,
-                    ensure_ascii=False,
-                    indent=2,
-                    default=str,
-                )
-
-            print(f"  ✓ 백업 저장: {filepath}")
 
             return plan_id
 

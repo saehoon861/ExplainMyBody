@@ -125,7 +125,6 @@ def create_fitness_prompt(analysis_result: Union[dict, "BodyAnalysisResult"]) ->
      * [호흡법]
      * [주의사항]
      * [난이도 조절법]
-     * 참고: https://youtube.com/watch?v=xxxxx
   
   2. 덤벨 숄더 프레스
      * [동일한 형식으로 상세 설명]
