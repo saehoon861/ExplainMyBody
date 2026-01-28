@@ -1,30 +1,49 @@
-# Python
+# Environment variables
+.env
+.venv  # 기존 가상환경 파일이 남아있을 경우를 대비
+.env.local
+.env.*.local
+
+# Virtual Environments (uv)
 .venv/
 venv/
+env/
+ENV/
+
+# uv specific
+.uv/
+uv.lock
+
+# Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-
-# Environment
-.env
-.env.local
-**/.env
-
-# Database
-*.db
-*.sqlite
-
+*$py.class
+*.so
+.Python
+rule_based_bodytype/__pycache__/
 # IDEs
 .vscode/
 .idea/
-**/.claude
-**/.serena
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Output
-outputs/
-*.log
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 
-# uv - uv.lock은 커밋해야 함!
+# Alembic
+alembic/versions/*.pyc
