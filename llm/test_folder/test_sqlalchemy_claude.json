@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "record_id": null,
+  "analysis_id": null,
+  "analysis_text": null,
+  "error": "(psycopg2.errors.UndefinedColumn) column \"record_date\" of relation \"health_records\" does not exist\nLINE 1: INSERT INTO health_records (user_id, record_date, measuremen...\n                                             ^\n\n[SQL: INSERT INTO health_records (user_id, record_date, measurements, source) VALUES (%(user_id)s, %(record_date)s, %(measurements)s::JSONB, %(source)s) RETURNING health_records.id]\n[parameters: {'user_id': 2, 'record_date': datetime.datetime(2026, 1, 26, 10, 22, 15, 665443), 'measurements': '{\"\\\\uc131\\\\ubcc4\": \"\\\\ub0a8\\\\uc790\", \"\\\\ub098\\\\uc774\": 30, \"\\\\uc2e0\\\\uc7a5\": 175.0, \"\\\\uccb4\\\\uc911\": 75.0, \"\\\\ubb34\\\\uae30\\\\uc9c8\": 3.5, \"\\\\uccb4\\\\u ... (1142 characters truncated) ... 21\\\\ubcf4\\\\uc815\\\\uccb4\\\\ud615\": \"\\\\uace0\\\\uadfc\\\\uc721\\\\uccb4\\\\ud615\", \"stage3_\\\\uc0c1\\\\ud558\\\\uccb4\\\\ubc38\\\\ub7f0\\\\uc2a4\": \"\\\\ud45c\\\\uc900\\\\ud615\"}', 'source': 'manual'}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+}
