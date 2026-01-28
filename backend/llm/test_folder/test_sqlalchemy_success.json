@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "record_id": null,
+  "analysis_id": null,
+  "analysis_text": null,
+  "error": "Claude API error: \"Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted\""
+}
