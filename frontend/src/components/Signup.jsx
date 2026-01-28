@@ -154,9 +154,9 @@ const Signup = () => {
 
         try {
             const apiFormData = new FormData();
-            apiFormData.append('file', formData.inbodyImage);
+            apiFormData.append('image', formData.inbodyImage);
 
-            const response = await fetch('http://localhost:5000/api/process', {
+            const response = await fetch('http://localhost:8000/api/health-records/ocr/extract', {
                 method: 'POST',
                 body: apiFormData,
             });
@@ -649,17 +649,13 @@ const Signup = () => {
                                     </label>
                                     <div className="checkbox-grid">
                                         {medicalConditionsList.map((condition) => (
-                                            <label
+                                            <div
                                                 key={condition}
                                                 className={`checkbox-item ${formData.medicalConditions.includes(condition) ? 'active' : ''}`}
+                                                onClick={() => handleMedicalConditionToggle(condition)}
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.medicalConditions.includes(condition)}
-                                                    onChange={() => handleMedicalConditionToggle(condition)}
-                                                />
                                                 <span>{condition}</span>
-                                            </label>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

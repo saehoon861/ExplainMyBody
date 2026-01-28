@@ -262,10 +262,22 @@ class InBodyMatcher:
             auto_perspective: 자동 원근 변환 활성화 (기본: True)
             skew_threshold: 기울기 임계값 (0-100, 기본: 15.0)
         """
+        import logging
+        import time
+        
         try:
-            import logging
-            logging.getLogger('ppocr').setLevel(logging.ERROR)
+            print("=" * 60)
+            print("🔄 PaddleOCR 초기화 시작...")
+            print("=" * 60)
             
+            # 로깅 설정
+            logging.basicConfig(level=logging.INFO)
+            logger = logging.getLogger('ppocr')
+            logger.setLevel(logging.INFO)  # ERROR → INFO로 변경 (디버깅용)
+            
+            start_time = time.time()
+            
+            # PaddleOCR 초기화
             self.ocr = PaddleOCR(
                 lang='korean',
                 ocr_version='PP-OCRv5',
@@ -273,7 +285,18 @@ class InBodyMatcher:
                 text_det_unclip_ratio=2.0,
                 use_textline_orientation=True
             )
+            
+            init_time = time.time() - start_time
+            print(f"✅ PaddleOCR 초기화 완료 ({init_time:.2f}초)")
+            print("=" * 60)
+            
         except Exception as e:
+            print(f"❌ PaddleOCR 초기화 실패!")
+            print(f"에러 메시지: {e}")
+            import traceback
+            print("\n상세 에러:")
+            traceback.print_exc()
+            print("=" * 60)
             raise Exception(f"PaddleOCR 초기화 실패: {e}")
         
         self.correction_map = ConfigManager.get_correction_map()
