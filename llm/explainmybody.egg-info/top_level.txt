@@ -1,0 +1,8 @@
+json
+markdowns
+outputs
+pipeline_inbody_analysis
+pipeline_weekly_plan
+rule_based_bodytype
+shared
+test_folder

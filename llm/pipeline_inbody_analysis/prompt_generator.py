@@ -69,9 +69,9 @@ def create_inbody_analysis_prompt(measurements: InBodyMeasurements) -> Tuple[str
 - 체중/지방/근육 조절 목표량
 - 건강 위험 요소 (내장지방, 복부비만 등)
 
-### 5. 규칙 기반 분석 결과 해석
-- Stage 2 (근육 보정 체형) 결과 해석
-- Stage 3 (상하체 밸런스) 결과 해석
+### 5. 체형 분류 결과 해석 (있는 경우)
+- Body Type 1 (1차 체형 분류) 해석
+- Body Type 2 (2차 체형 분류) 해석
 - 종합 체형 패턴 분석
 
 ### 6. 우선순위 개선 과제 도출
@@ -103,9 +103,9 @@ def create_inbody_analysis_prompt(measurements: InBodyMeasurements) -> Tuple[str
 - 체중 조절 목표
 - 건강 리스크 요인
 
-### [규칙 기반 분석 해석]
-- 근육 보정 체형 결과
-- 상하체 밸런스 결과
+### [체형 분류 해석] (있는 경우)
+- Body Type 1 결과
+- Body Type 2 결과
 
 ### [우선순위 개선 과제]
 1. 최우선 과제
@@ -211,14 +211,13 @@ def create_inbody_analysis_prompt(measurements: InBodyMeasurements) -> Tuple[str
         for part, grade in measurements.체지방_부위별등급.items():
             user_prompt_parts.append(f"- {part}: {grade}")
 
-    # Stage 분석
-    user_prompt_parts.append("\n## 규칙 기반 체형 분석")
-    user_prompt_parts.append(
-        f"- Stage 2 (근육 보정 체형): {measurements.stage2_근육보정체형 or 'N/A'}"
-    )
-    user_prompt_parts.append(
-        f"- Stage 3 (상하체 밸런스): {measurements.stage3_상하체밸런스 or 'N/A'}"
-    )
+    # 체형 분류 (있는 경우)
+    if measurements.body_type1 or measurements.body_type2:
+        user_prompt_parts.append("\n## 체형 분류")
+        if measurements.body_type1:
+            user_prompt_parts.append(f"- Body Type 1: {measurements.body_type1}")
+        if measurements.body_type2:
+            user_prompt_parts.append(f"- Body Type 2: {measurements.body_type2}")
 
     user_prompt = "\n".join(user_prompt_parts)
 

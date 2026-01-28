@@ -46,9 +46,9 @@ class InBodyMeasurements(BaseModel):
     근육_부위별등급: Dict[str, str]
     체지방_부위별등급: Optional[Dict[str, str]] = None
 
-    # Stage 분석 (규칙 기반)
-    stage2_근육보정체형: Optional[str] = None
-    stage3_상하체밸런스: Optional[str] = None
+    # 체형 분류 (외부 입력)
+    body_type1: Optional[str] = Field(None, description="1차 체형 분류 (예: 근육형, 표준형 등)")
+    body_type2: Optional[str] = Field(None, description="2차 체형 분류 (예: 균형형, 상체발달형 등)")
 
 
 class InBodyAnalysisResult(BaseModel):
