@@ -210,9 +210,13 @@ class InBodyAnalysisResponse(BaseModel):
     analysis_id: Optional[int] = None
     analysis_text: Optional[str] = None
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     refined_text: Optional[str] = None
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+    refined_text: Optional[str] = None
+>>>>>>> feature/llm2-new
     error: Optional[str] = None
 
 
@@ -233,7 +237,11 @@ class WeeklyPlanResponse(BaseModel):
     plan_id: Optional[int] = None
     weekly_plan: Optional[WeeklyPlan] = None
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     refined_text: Optional[str] = None
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+    refined_text: Optional[str] = None
+>>>>>>> feature/llm2-new
     error: Optional[str] = None

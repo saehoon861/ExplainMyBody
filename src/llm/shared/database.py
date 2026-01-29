@@ -79,10 +79,13 @@ class Database:
         print("✅ SQLAlchemy 데이터베이스 초기화 완료")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         # 인덱스 생성 (pgvector용)
         self._create_vector_indexes()
 
 =======
+=======
+>>>>>>> feature/llm2-new
         # 마이그레이션 실행 (컬럼 추가)
         self._run_migrations()
 
@@ -122,7 +125,10 @@ class Database:
             except Exception as e:
                 print(f"⚠️  Migration 실패 (weekly_plans): {e}")
 
+<<<<<<< HEAD
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+>>>>>>> feature/llm2-new
     def _create_vector_indexes(self):
         """Vector 검색을 위한 인덱스 생성 (1536D + 1024D)"""
         with self.engine.connect() as conn:
@@ -226,7 +232,10 @@ class Database:
             return False
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> feature/llm2-new
     def update_analysis_refined_output(
         self,
         report_id: int,
@@ -244,7 +253,10 @@ class Database:
                 return True
             return False
 
+<<<<<<< HEAD
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+>>>>>>> feature/llm2-new
     def get_analysis_report(self, report_id: int) -> Optional[Dict]:
         """인바디 분석 리포트 조회"""
         with self.get_session() as session:
@@ -405,7 +417,10 @@ class Database:
             session.flush()
             return plan.id
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> feature/llm2-new
 
     def update_weekly_plan_refined_output(
         self,
@@ -423,4 +438,7 @@ class Database:
                 plan.refined_output = refined_output
                 return True
             return False
+<<<<<<< HEAD
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+>>>>>>> feature/llm2-new

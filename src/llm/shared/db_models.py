@@ -112,9 +112,13 @@ class InbodyAnalysisReport(Base):
     report_date = Column(DateTime, default=datetime.utcnow)
     llm_output = Column(Text, nullable=False)  # LLM 생성 분석 텍스트
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     refined_output = Column(Text, nullable=True)  # 2차 LLM 생성 정제된 텍스트
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+    refined_output = Column(Text, nullable=True)  # 2차 LLM 생성 정제된 텍스트
+>>>>>>> feature/llm2-new
     model_version = Column(String(100))  # 사용된 LLM 모델
     embedding_1536 = Column(Vector(1536))  # OpenAI text-embedding-3-small (1536 차원)
     embedding_1024 = Column(Vector(1024))  # Ollama bge-m3 (1024 차원)
@@ -159,9 +163,13 @@ class WeeklyPlan(Base):
     end_date = Column(Date, nullable=False)
     plan_data = Column(JSONB, nullable=False)  # 주간 계획 데이터 (JSONB)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     refined_output = Column(Text, nullable=True)  # 2차 LLM 생성 정제된 텍스트
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+    refined_output = Column(Text, nullable=True)  # 2차 LLM 생성 정제된 텍스트
+>>>>>>> feature/llm2-new
     model_version = Column(String(100))  # 사용된 LLM 모델
     created_at = Column(DateTime, default=datetime.utcnow)
 

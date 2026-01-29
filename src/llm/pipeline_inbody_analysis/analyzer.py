@@ -97,7 +97,10 @@ class InBodyAnalyzer:
         print_and_capture(f"  ✓ Analysis ID: {analysis_id}")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> feature/llm2-new
         # 5단계: 2차 LLM 정제 (사용자 친화적 요약)
         print_and_capture("\n✨ 5단계: 사용자 친화적 요약 생성...")
         refined_system_prompt = """당신은 20년 경력의 체형관리 전문가이자 헬스케어 리포트 디자이너입니다.
@@ -199,7 +202,10 @@ class InBodyAnalyzer:
         self.db.update_analysis_refined_output(analysis_id, refined_text)
         print_and_capture(f"  ✓ Refined output 업데이트 완료")
 
+<<<<<<< HEAD
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+>>>>>>> feature/llm2-new
         print_and_capture("\n" + "=" * 60)
         print_and_capture("✨ InBody 분석 완료!")
         print_and_capture("=" * 60)
@@ -215,7 +221,11 @@ class InBodyAnalyzer:
             "analysis_id": analysis_id,
             "analysis_text": full_output,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
             "refined_text": refined_text,
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+            "refined_text": refined_text,
+>>>>>>> feature/llm2-new
         }

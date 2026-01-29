@@ -122,10 +122,14 @@ class WeeklyPlanner:
         return weekly_plan
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def save_plan_to_db(self, weekly_plan: WeeklyPlan) -> int:
 =======
     def save_plan_to_db(self, weekly_plan: WeeklyPlan) -> tuple[int, str]:
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+    def save_plan_to_db(self, weekly_plan: WeeklyPlan) -> tuple[int, str]:
+>>>>>>> feature/llm2-new
         """
         주간 계획을 DB에 저장 (SQLAlchemy)
 
@@ -134,10 +138,14 @@ class WeeklyPlanner:
 
         Returns:
 <<<<<<< HEAD
+<<<<<<< HEAD
             plan_id
 =======
             (plan_id, refined_text)
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+            (plan_id, refined_text)
+>>>>>>> feature/llm2-new
         """
         print("\n💾 주간 계획 저장...")
 
@@ -164,8 +172,11 @@ class WeeklyPlanner:
             print(f"  ✓ DB 저장 완료 (Plan ID: {plan_id})")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             return plan_id
 =======
+=======
+>>>>>>> feature/llm2-new
             # 2차 LLM 정제 (사용자 친화적 요약)
             print("\n✨ 사용자 친화적 요약 생성...")
             refined_system_prompt = """당신은 15년 경력의 피트니스 코치이자 영양사이며, 동시에 프리미엄 헬스케어 리포트 디자이너입니다. 
@@ -1000,7 +1011,10 @@ class WeeklyPlanner:
             print(f"  ✓ Refined output 업데이트 완료")
 
             return plan_id, refined_text
+<<<<<<< HEAD
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+>>>>>>> feature/llm2-new
 
         except Exception as e:
             print(f"  ⚠️  DB 저장 실패: {e}")
@@ -1008,7 +1022,11 @@ class WeeklyPlanner:
 
             traceback.print_exc()
 <<<<<<< HEAD
+<<<<<<< HEAD
             return 1  # fallback ID
 =======
             return 1, ""  # fallback
 >>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
+=======
+            return 1, ""  # fallback
+>>>>>>> feature/llm2-new
