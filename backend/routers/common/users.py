@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas.common import UserResponse
-from repositories.user_repository import UserRepository
+from repositories.common.user_repository import UserRepository
 from typing import List
 
 router = APIRouter()
@@ -46,7 +46,7 @@ def get_user_statistics(user_id: int, db: Session = Depends(get_db)):
     - **user_id**: 사용자 ID
     """
     from repositories.health_record_repository import HealthRecordRepository
-    from repositories.analysis_report_repository import AnalysisReportRepository
+    from repositories.llm.analysis_report_repository import AnalysisReportRepository
     
     user = UserRepository.get_by_id(db, user_id)
     if not user:

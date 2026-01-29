@@ -12,10 +12,10 @@ from schemas.common import HealthRecordCreate, HealthRecordResponse
 from schemas.llm import StatusAnalysisResponse
 from schemas.inbody import InBodyData
 from schemas.body_type import BodyTypeAnalysisInput
-from services.health_service import HealthService
-from services.ocr_service import OCRService
-from services.body_type_service import BodyTypeService
-from repositories.health_record_repository import HealthRecordRepository
+from services.common.health_service import HealthService
+from services.ocr.ocr_service import OCRService
+from services.ocr.body_type_service import BodyTypeService
+from repositories.common.health_record_repository import HealthRecordRepository
 from typing import List
 from pydantic import ValidationError
 
