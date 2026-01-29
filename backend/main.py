@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from database import init_db
-from routers import auth, users, health_records, analysis, goals
+from routers.common import auth_router, users_router
+from routers.ocr import health_records_router
+from routers.llm import analysis_router, goals_router
 
 
 @asynccontextmanager
@@ -18,21 +20,13 @@ async def lifespan(app: FastAPI):
     print("🚀 ExplainMyBody 백엔드 서버 시작 중...")
     init_db()
     print("✅ 데이터베이스 초기화 완료")
-    #fixme : OCR 모델과 LLM 엔진을 로드해야 한다면 lifespan() 안에 넣어주는 것이 좋다.
-    # 서버 시작 시 무거운 AI 모델 로드 (딱 한 번만 실행) 해주기 때문.
-    # 예시: ocr_model = load_ocr_model() 
-    #       llm_engine = load_llm_engine() 
-
-    # 💡 한 가지 조언 (AI OCR 연동 관련)
-    # 현재 lifespan에서 init_db()만 하고 있는데, 
-    # 나중에 ExplainMyBody의 핵심인 OCR 모델이나 LLM 엔진을 로드해야 한다면 
-    # 해당 모델들을 lifespan() 안에 넣어주는 것이 좋습니다.
+    
     # OCR 엔진 백그라운드 로딩 시작 (비동기)
     print("🔄 OCR 엔진 로딩 중... (백그라운드)")
     
     async def load_ocr_engine():
         """OCR 엔진을 백그라운드에서 로드"""
-        from services.ocr_service import OCRService
+        from services.ocr.ocr_service import OCRService
         from app_state import AppState
         
         AppState.ocr_service = OCRService()
@@ -69,11 +63,11 @@ app.add_middleware(
 )
 
 # 라우터 등록
-app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
-app.include_router(users.router, prefix="/api/users", tags=["사용자"])
-app.include_router(health_records.router, prefix="/api/health-records", tags=["건강 기록"])
-app.include_router(analysis.router, prefix="/api/analysis", tags=["분석"])
-app.include_router(goals.router, prefix="/api/goals", tags=["목표"])
+app.include_router(auth_router, prefix="/api/auth", tags=["인증"])
+app.include_router(users_router, prefix="/api/users", tags=["사용자"])
+app.include_router(health_records_router, prefix="/api/health-records", tags=["건강 기록"])
+app.include_router(analysis_router, prefix="/api/analysis", tags=["분석"])
+app.include_router(goals_router, prefix="/api/goals", tags=["목표"])
 
 
 @app.get("/")

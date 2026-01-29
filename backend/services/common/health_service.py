@@ -4,8 +4,8 @@
 """
 
 from sqlalchemy.orm import Session
-from repositories.health_record_repository import HealthRecordRepository
-from repositories.analysis_report_repository import AnalysisReportRepository
+from repositories.common.health_record_repository import HealthRecordRepository
+from repositories.llm.analysis_report_repository import AnalysisReportRepository
 from schemas.common import HealthRecordCreate
 from schemas.llm import (
     StatusAnalysisInput,
@@ -15,8 +15,8 @@ from schemas.llm import (
     AnalysisReportResponse,
     AnalysisReportCreate
 )
-from services.body_type_service import BodyTypeService
-from services.llm_service import LLMService
+from services.ocr.body_type_service import BodyTypeService
+from services.llm.llm_service import LLMService
 from typing import Optional, Dict, Any
 
 
