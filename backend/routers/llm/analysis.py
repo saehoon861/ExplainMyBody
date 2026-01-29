@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas.llm import AnalysisReportResponse
-from services.health_service import HealthService
-from repositories.analysis_report_repository import AnalysisReportRepository
+from services.common.health_service import HealthService
+from repositories.llm.analysis_report_repository import AnalysisReportRepository
 from typing import List
 
 router = APIRouter()

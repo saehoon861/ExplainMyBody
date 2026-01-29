@@ -16,18 +16,20 @@ backend/
 ├── .env.example                 # 환경 변수 예시
 ├── .python-version              # Python 버전 명시
 │
-├── models/                      # SQLAlchemy ORM 모델 (DB 테이블)  *DB설계 수정필요
+├── models/                      # SQLAlchemy ORM 모델 (DB 테이블)
 │   ├── __init__.py
-│   ├── user.py                  # User 테이블
+│   ├── user.py                  # users 테이블
 │   ├── health_record.py         # health_records 테이블
-│   ├── analysis_report.py       # analysis_reports 테이블
-│   └── user_goal.py             # user_goals 테이블
+│   ├── analysis_report.py       # inbody_analysis_reports 테이블 (구 analysis_reports)
+│   ├── user_detail.py           # user_details 테이블 (구 user_goals, 사용자 세부 목표)
+│   ├── weekly_plan.py           # weekly_plans 테이블 (주간 계획)
+│   └── user_goal.py             # user_goals 테이블 (Legacy, UserDetail로 대체됨)
 │
 ├── schemas/                     # Pydantic 모델 (팀별 분리)
 │   ├── __init__.py
 │   ├── README.md                # 스키마 구조 및 팀 담당 가이드
 │   ├── common.py                # 공통 스키마 (User, HealthRecord)
-│   ├── llm.py                   # LLM 팀 전담 (AnalysisReport, UserGoal, LLM 입출력)
+│   ├── llm.py                   # LLM 팀 전담 (InbodyAnalysisReport, UserDetail, WeeklyPlan)
 │   ├── inbody.py                # OCR 팀 전담 (InBody 데이터 검증)
 │   └── body_type.py             # OCR 팀 전담 (체형 분석)
 │
@@ -38,7 +40,9 @@ backend/
 │   │   └── health_record_repository.py
 │   └── llm/
 │       ├── analysis_report_repository.py
-│       └── user_goal_repository.py
+│       ├── user_detail_repository.py  # UserDetail 관리
+│       ├── weekly_plan_repository.py  # WeeklyPlan 관리
+│       └── user_goal_repository.py    # Legacy
 │
 ├── services/                    # 비즈니스 로직 (팀별 분리)
 │   ├── __init__.py
@@ -59,7 +63,7 @@ backend/
 │   │   └── users.py             # /api/users/*
 │   ├── llm/
 │   │   ├── analysis.py          # /api/analysis/*
-│   │   └── goals.py             # /api/goals/*
+│   │   └── goals.py             # /api/goals/* (UserDetail 사용)
 │   └── ocr/
 │       └── health_records.py    # /api/health-records/*
 │
@@ -68,12 +72,28 @@ backend/
 │   └── dependencies.py          # DB 세션, 인증 등
 │
 └── migrations/                  # 데이터베이스 마이그레이션
-    └── 001_update_health_records_body_types.sql
 ```
 
 ## 🚀 빠른 시작 (Quickstart)
 
 백엔드 서버 설치 및 실행 방법은 **[BACKEND_QUICKSTART.md](./BACKEND_QUICKSTART.md)**를 참고하세요.
+
+---
+
+## 🗄️ 데이터베이스 구조 (Relationship)
+
+주요 모델 간의 관계는 다음과 같습니다.
+
+- **User (1) : (N) HealthRecord**
+    - 한 명의 사용자는 여러 개의 건강 기록(인바디 측정 결과)을 가집니다.
+- **User (1) : (N) InbodyAnalysisReport**
+    - 한 명의 사용자는 여러 개의 분석 리포트를 가집니다.
+- **HealthRecord (1) : (N) InbodyAnalysisReport**
+    - 하나의 건강 기록에 대해 여러 분석(버전별, 재분석 등)이 존재할 수 있습니다.
+- **User (1) : (N) UserDetail**
+    - 사용자는 여러 목표/상세 정보를 가질 수 있습니다 (현재 활성화된 목표는 하나).
+- **User (1) : (N) WeeklyPlan**
+    - 한 명의 사용자는 여러 개의 주간 계획표를 생성할 수 있습니다.
 
 ---
 
@@ -98,12 +118,13 @@ backend/
 #### `llm/` - LLM 팀 전담
 - **담당**: LLM 기능 개발 팀원
 - **포함 내용**:
-  - AI 상태 분석 (LLM1)
-  - 주간 계획 생성 (LLM2)
-  - 분석 리포트 및 목표 관리
+  - AI 상태 분석 (InbodyAnalysisReport)
+  - 목표 및 상세 설정 (UserDetail)
+  - 주간 계획 생성 (WeeklyPlan)
 - **파일 예시**:
   - `services/llm/llm_service.py`
   - `routers/llm/analysis.py`
+  - `routers/llm/goals.py`
   - `repositories/llm/analysis_report_repository.py`
   - `schemas/llm.py`
 
@@ -134,30 +155,6 @@ backend/
 - ReDoc: http://localhost:8000/redoc
 
 
-
-
-
-
-
-## 개발 진행 상황
-
-디렉토리 구조 및 파일 생성 완료
-models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.example, .env 까지 확인 완료
-각 파일별로 추후 수정이 필요한 부분은 #fixme 주석으로 표시해둠.
-
-
-## 추가적인 진행이 필요한 부분
-
-1. schemas/*, repositories/*, routers/* 파일들 확인 필요.
-2. 각 기능별로 기능이 필요한 데이터 형식에 맞춰서 데이터를 전달하는지, 데이터를 잘 받아서 처리하는지 확인 필요.
-    - 변수명 확인 필요
-    - 데이터 형식 확인 필요
-3. 각 기능별로 필요한 API 엔드포인트가 정말로 있는지 확인 필요.
-4. 정의되어있는 엔드 포인트와 실제 코드의 엔드포인트가 일치하는지 확인 필요.
-
-
-
-
 ## 📊 데이터 흐름 예시
 
 ### 시나리오 1: OCR을 통한 인바디 등록 및 분석
@@ -181,69 +178,31 @@ models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.exam
    LLMService.analyze_health_status()
    
 7. 분석 리포트 저장 및 반환
-   AnalysisReport 생성
+   InbodyAnalysisReport 생성
 ```
 
 ### 시나리오 2: 목표 설정 및 주간 계획 생성
 ```
-1. 사용자가 목표 생성
+1. 사용자가 목표/상세정보 생성 (UserDetail)
    POST /api/goals/
-   body: { "goal_description": "3개월 내 체지방 5% 감량" }
+   body: { "goal_type": "다이어트", "goal_description": "3개월 내 5kg 감량" }
    
 2. 주간 계획 생성 요청
-   POST /api/goals/{goal_id}/generate-plan
+   POST /api/goals/plan/prepare
    
-3. 최신 인바디 데이터 + 분석 결과 조회
+3. 최신 인바디 데이터 + 분석 결과 + 사용자 목표 조회
    HealthRecordRepository.get_latest()
    AnalysisReportRepository.get_by_record_id()
+   UserDetailRepository.create() (또는 조회)
    
-4. LLM이 주간 계획 생성
+4. LLM이 주간 계획 생성 (WeeklyPlan)
    LLMService.generate_weekly_plan()
    
-5. 목표에 계획 저장 및 반환
-   UserGoal.weekly_plan 업데이트
+5. 주간 계획 저장
+   WeeklyPlan 생성
 ```
 
-## 🔧 추가 작업 필요 사항
-
-### 1. LLM API 연결
-- `services/llm_service.py`에 실제 LLM API 호출 로직 추가
-- OpenAI, Anthropic 등의 API 키 설정
-- 프롬프트 엔지니어링 최적화
-
-### 2. 인증/보안
-- JWT 토큰 기반 인증 구현
-- 비밀번호 해싱 (bcrypt)
-- API 엔드포인트 권한 검증
-
-### 3. 프론트엔드 개발
-- `frontend/` 디렉토리에 React/Vue 앱 생성
-- 백엔드 API 연동
-- UI/UX 디자인
-
-### 4. 배포
-- Docker 컨테이너화
-- PostgreSQL 프로덕션 설정
-- 환경별 설정 분리 (dev/staging/prod)
-
-## 📝 참고사항
-
-### Pydantic과 SQLAlchemy의 타입 불일치 방지
-- **Pydantic 스키마**: API 요청/응답 검증
-- **SQLAlchemy 모델**: 데이터베이스 테이블
-- 두 계층을 분리하여 타입 안전성 확보
-
-### JSONB 활용
-- `health_records.measurements` 필드는 JSONB 타입
-- 인바디 측정 항목이 추가/변경되어도 스키마 변경 불필요
-- GIN 인덱스로 JSONB 내부 검색 가능
-
-### 기존 코드와의 호환성
-- OCR 및 체형 분류 코드는 그대로 사용
-- `sys.path.append()`로 기존 모듈 임포트
-- 추후 패키지 구조 정리 가능
-
-
+---
 
 ## 주요 API 엔드포인트
 
@@ -283,50 +242,39 @@ models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.exam
 
 ### 4. 🧠 분석 (`routers/llm/analysis.py`)
 - **담당**: LLM 팀
-- **Service**: `HealthService` (`services/llm` 폴더 내부 로직 활용)
+- **Service**: `HealthService`, `LLMService`
+- **Repo**: `AnalysisReportRepository` (Target: `InbodyAnalysisReport` Table)
 
 | Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
 | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/analysis/{record_id}` | **상태 분석 실행** | `HealthService.analyze_health_record`<br>→ `LLMService`<br>→ `AnalysisReportRepository` | **처리**: LLM 호출하여 건강 상태 분석<br>**DB 생성**: `analysis_reports`에 분석 결과 저장 |
+| **POST** | `/api/analysis/{record_id}` | **상태 분석 실행** | `HealthService.analyze_health_record`<br>→ `LLMService`<br>→ `AnalysisReportRepository` | **처리**: LLM 호출하여 건강 상태 분석<br>**DB 생성**: `inbody_analysis_reports`에 분석 결과 저장 |
 | **GET** | `/api/analysis/{report_id}` | 리포트 조회 | `AnalysisReportRepository.get_by_id` | **조회**: 특정 리포트 내용 반환 |
 | **GET** | `/api/analysis/record/{record_id}` | 기록별 리포트 | `AnalysisReportRepository` | **조회**: 특정 건강 기록에 연결된 리포트 반환 |
 | **GET** | `/api/analysis/user/{user_id}` | 유저 리포트 목록 | `AnalysisReportRepository` | **조회**: 유저의 모든 리포트 반환 |
 
 ### 5. 🎯 목표 (`routers/llm/goals.py`)
 - **담당**: LLM 팀
-- **Repo**: `UserGoalRepository` (`repositories/llm/user_goal_repository.py`)
+- **Repo**: `UserDetailRepository` (Target: `UserDetail` Table), `AnalysisReportRepository`
+
+> **Note**: 엔드포인트는 `/api/goals`를 유지하지만, 내부적으로 `UserDetail` 테이블을 사용하여 사용자의 목표 및 상세 정보를 관리합니다.
 
 | Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
 | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/goals/` | 목표 생성 | `UserGoalRepository.create` | **DB 생성**: 새로운 목표 저장 |
-| **POST** | `/api/goals/plan/prepare` | **LLM2 입력 준비** | `HealthService.prepare_goal_plan` | **처리**: 주간 계획 생성을 위한 LLM 입력 데이터 가공 반환 |
-| **GET** | `/api/goals/user/{user_id}/active` | 활성 목표 조회 | `UserGoalRepository.get_active_goals` | **조회**: 현재 진행 중인 목표 반환 |
-| **PATCH** | `/api/goals/{goal_id}` | 목표 수정 | `UserGoalRepository.update` | **DB 수정**: 목표 내용 업데이트 |
-| **POST** | `/api/goals/{goal_id}/complete` | 목표 완료 | `UserGoalRepository.update` | **DB 수정**: `ended_at`을 현재 시간으로 설정 (완료 처리) |
+| **POST** | `/api/goals/` | 목표/상세 생성 | `UserDetailRepository.create` | **DB 생성**: 새로운 `UserDetail` 저장 |
+| **POST** | `/api/goals/plan/prepare` | **LLM2 입력 준비** | `HealthService.prepare_goal_plan` | **처리**: 주간 계획 생성을 위한 LLM 입력 데이터 가공 반환<br>(HealthRecord + AnalysisReport + UserDetail 조합) |
+| **GET** | `/api/goals/user/{user_id}/active` | 활성 목표 조회 | `UserDetailRepository.get_active_details` | **조회**: 현재 진행 중인 목표 반환 |
+| **PATCH** | `/api/goals/{goal_id}` | 목표 수정 | `UserDetailRepository.update` | **DB 수정**: 목표 내용 업데이트 |
+| **POST** | `/api/goals/{goal_id}/complete` | 목표 완료 | `UserDetailRepository.update` | **DB 수정**: `ended_at`을 현재 시간으로 설정 |
 
+### 6. 📅 주간 계획 (`routers/llm/weekly_plans.py`)
+- **담당**: LLM 팀
+- **Repo**: `WeeklyPlanRepository` (Target: `WeeklyPlan` Table)
 
-## 기존 코드 통합
-
-### OCR 서비스
-- **위치**: `services/ocr/ocr_service.py`
-- **InBody 데이터 추출**: `services/ocr/inbody_matcher.py` (기존 `../scr/ocr/ocr_test.py`의 `InBodyMatcher` 클래스 통합)
-- **기능**: 인바디 이미지에서 텍스트 추출 및 데이터 매칭
-
-### 체형 분류 서비스
-- **위치**: `services/ocr/body_type_service.py`
-- **기존 코드**: `../rule_based_bodytype/body_analysis/pipeline.py`의 `BodyCompositionAnalyzer` 통합
-- **기능**: Rule-based 체형 분석 (Stage 2, Stage 3)
-
-### LLM 서비스
-- **위치**: `services/llm/llm_service.py`
-- **기능**: 
-  - LLM1: 인바디 데이터 기반 상태 분석
-  - LLM2: 목표 기반 주간 계획 생성
-- **참고**: 실제 LLM API 연동 코드 포함 (OpenAI/Anthropic 등)
-
-## 개발 참고사항
-
-- **데이터 타입 일치**: Pydantic 스키마를 사용하여 요청/응답 데이터 검증
-- **JSONB 활용**: `health_records.measurements` 필드는 JSONB로 유연한 데이터 저장
-- **자동 체형 분류**: 건강 기록 생성 시 자동으로 체형 분류 실행
-- **LLM 통합**: `services/llm_service.py`에 실제 LLM API 호출 로직 추가 필요
+| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/weekly-plans/` | 주간 계획 생성 | `WeeklyPlanRepository.create` | **DB 생성**: 새로운 주간 계획 저장 |
+| **GET** | `/api/weekly-plans/{plan_id}` | 특정 계획 조회 | `WeeklyPlanRepository.get_by_id` | **조회**: 특정 주간 계획 반환 |
+| **GET** | `/api/weekly-plans/user/{user_id}` | 사용자별 목록 조회 | `WeeklyPlanRepository.get_by_user` | **조회**: 사용자의 모든 주간 계획 반환 |
+| **GET** | `/api/weekly-plans/user/{user_id}/week/{week_number}` | 특정 주차 조회 | `WeeklyPlanRepository.get_by_week` | **조회**: 특정 주차의 계획 반환 |
+| **PATCH** | `/api/weekly-plans/{plan_id}` | 계획 수정 | `WeeklyPlanRepository.update` | **DB 수정**: 계획 내용 업데이트 |
+| **DELETE** | `/api/weekly-plans/{plan_id}` | 계획 삭제 | `WeeklyPlanRepository.delete` | **DB 삭제**: 계획 삭제 |
