@@ -1,0 +1,16 @@
+{
+  "total_collected": 2190,
+  "by_domain": {
+    "protein_hypertrophy": 758,
+    "fat_loss": 732,
+    "korean_diet": 300,
+    "body_composition": 400
+  },
+  "by_language": {
+    "en": 2190
+  },
+  "by_source": {
+    "PubMed": 2190
+  },
+  "failed_count": 0
+}

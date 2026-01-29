@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <<<<<<< Updated upstream:src/llm/requirements.txt
 anthropic>=0.76.0
 langgraph>=0.2.0
@@ -6,7 +7,19 @@ langchain-core>=0.3.0
 >>>>>>> Stashed changes:llm/requirements.txt
 numpy>=2.4.1
 openai>=2.15.0
+=======
+anthropic>=0.76.0
+numpy>=2.4.1
+openai>=2.15.0
+psycopg2-binary>=2.9.9
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
 pydantic>=2.12.5
 pydantic-settings>=2.12.0
 python-dotenv>=1.2.1
 requests>=2.32.5
+<<<<<<< HEAD
+=======
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+pgvector>=0.2.0
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)

@@ -1,0 +1,42 @@
+{
+  "profile": {
+    "name": "이영희",
+    "sex": "여자",
+    "age": 32,
+    "height_cm": 162.0,
+    "weight_kg": 52.0
+  },
+  "analysis": {
+    "basic_info": {
+      "sex": "여자",
+      "age": 32,
+      "weight_kg": 52.0
+    },
+    "stage1_2": {
+      "bmi": 19.8,
+      "bmi_category": "정상",
+      "fat_category": "비만",
+      "smm_ratio": 0.394,
+      "muscle_level": "근육 적음",
+      "stage1_type": "마른비만형",
+      "stage2_type": "마른비만형"
+    },
+    "muscle_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준이상",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "fat_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "stage3": "표준형"
+  },
+  "recommendations": "See: 이영희_20260122_121325_recommendations.md",
+  "generated_at": "2026-01-22T12:13:25.375764"
+}

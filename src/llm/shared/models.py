@@ -209,6 +209,10 @@ class InBodyAnalysisResponse(BaseModel):
     record_id: Optional[int] = None
     analysis_id: Optional[int] = None
     analysis_text: Optional[str] = None
+<<<<<<< HEAD
+=======
+    refined_text: Optional[str] = None
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
     error: Optional[str] = None
 
 
@@ -228,4 +232,8 @@ class WeeklyPlanResponse(BaseModel):
     success: bool
     plan_id: Optional[int] = None
     weekly_plan: Optional[WeeklyPlan] = None
+<<<<<<< HEAD
+=======
+    refined_text: Optional[str] = None
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
     error: Optional[str] = None

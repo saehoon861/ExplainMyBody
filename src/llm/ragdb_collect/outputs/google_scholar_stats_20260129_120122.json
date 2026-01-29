@@ -1,0 +1,14 @@
+{
+  "total_collected": 456,
+  "by_domain": {
+    "korean_diet": 224,
+    "body_composition": 232
+  },
+  "by_language": {
+    "ko": 456
+  },
+  "by_source": {
+    "Google Scholar": 456
+  },
+  "failed_count": 0
+}

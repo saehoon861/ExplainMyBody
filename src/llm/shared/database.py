@@ -78,9 +78,51 @@ class Database:
         Base.metadata.create_all(bind=self.engine)
         print("✅ SQLAlchemy 데이터베이스 초기화 완료")
 
+<<<<<<< HEAD
         # 인덱스 생성 (pgvector용)
         self._create_vector_indexes()
 
+=======
+        # 마이그레이션 실행 (컬럼 추가)
+        self._run_migrations()
+
+        # 인덱스 생성 (pgvector용)
+        self._create_vector_indexes()
+
+    def _run_migrations(self):
+        """데이터베이스 마이그레이션 실행 (컬럼 추가 등)"""
+        with self.engine.connect() as conn:
+            try:
+                # Migration: Add refined_output column to inbody_analysis_reports
+                conn.execute(
+                    text(
+                        """
+                        ALTER TABLE inbody_analysis_reports
+                        ADD COLUMN IF NOT EXISTS refined_output TEXT
+                        """
+                    )
+                )
+                conn.commit()
+                print("✅ Migration: refined_output 컬럼 추가 (inbody_analysis_reports)")
+            except Exception as e:
+                print(f"⚠️  Migration 실패 (inbody_analysis_reports): {e}")
+
+            try:
+                # Migration: Add refined_output column to weekly_plans
+                conn.execute(
+                    text(
+                        """
+                        ALTER TABLE weekly_plans
+                        ADD COLUMN IF NOT EXISTS refined_output TEXT
+                        """
+                    )
+                )
+                conn.commit()
+                print("✅ Migration: refined_output 컬럼 추가 (weekly_plans)")
+            except Exception as e:
+                print(f"⚠️  Migration 실패 (weekly_plans): {e}")
+
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
     def _create_vector_indexes(self):
         """Vector 검색을 위한 인덱스 생성 (1536D + 1024D)"""
         with self.engine.connect() as conn:
@@ -183,6 +225,26 @@ class Database:
                 return True
             return False
 
+<<<<<<< HEAD
+=======
+    def update_analysis_refined_output(
+        self,
+        report_id: int,
+        refined_output: str,
+    ) -> bool:
+        """인바디 분석 리포트에 2차 정제 출력 업데이트"""
+        with self.get_session() as session:
+            report = (
+                session.query(InbodyAnalysisReport)
+                .filter(InbodyAnalysisReport.id == report_id)
+                .first()
+            )
+            if report:
+                report.refined_output = refined_output
+                return True
+            return False
+
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
     def get_analysis_report(self, report_id: int) -> Optional[Dict]:
         """인바디 분석 리포트 조회"""
         with self.get_session() as session:
@@ -342,3 +404,23 @@ class Database:
             session.add(plan)
             session.flush()
             return plan.id
+<<<<<<< HEAD
+=======
+
+    def update_weekly_plan_refined_output(
+        self,
+        plan_id: int,
+        refined_output: str,
+    ) -> bool:
+        """주간 계획에 2차 정제 출력 업데이트"""
+        with self.get_session() as session:
+            plan = (
+                session.query(WeeklyPlan)
+                .filter(WeeklyPlan.id == plan_id)
+                .first()
+            )
+            if plan:
+                plan.refined_output = refined_output
+                return True
+            return False
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)

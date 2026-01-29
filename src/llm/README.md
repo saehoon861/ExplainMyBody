@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 ### 현재 실행폴더 확인 방법 ###
 
@@ -40,6 +41,8 @@ gpt 동일.
 
 
 =======
+=======
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
 # 인바디 결과 분석 및 주간 계획 출력 Pipeline
 
 
@@ -59,7 +62,10 @@ llm/PIPELINE_GUIDE.md 파일에서 전체적인 구조 및 실행법 조회 가�
 
 
 
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
 
 # ExplainMyBody
 
