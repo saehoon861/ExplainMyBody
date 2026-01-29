@@ -4,168 +4,135 @@ FastAPI 기반 인바디 분석 및 건강 관리 백엔드 서버
 
 ## 프로젝트 구조
 
+> **팀 담당 기준으로 재구성됨**: 각 팀원의 담당 영역(common, llm, ocr)으로 디렉토리를 분리하여 Merge Conflict를 최소화
+
 ```
 backend/
 │
 ├── main.py                      # FastAPI 앱 생성 + 라우터 등록
+├── app_state.py                 # 애플리케이션 상태 관리
 ├── database.py                  # PostgreSQL 연결 설정
 ├── requirements.txt             # 패키지 목록
 ├── .env.example                 # 환경 변수 예시
+├── .python-version              # Python 버전 명시
 │
-├── models/                      # SQLAlchemy ORM 모델 (DB 테이블)
+├── models/                      # SQLAlchemy ORM 모델 (DB 테이블)  *DB설계 수정필요
 │   ├── __init__.py
 │   ├── user.py                  # User 테이블
 │   ├── health_record.py         # health_records 테이블
 │   ├── analysis_report.py       # analysis_reports 테이블
 │   └── user_goal.py             # user_goals 테이블
 │
-├── schemas/                     # Pydantic 모델 (Request/Response 검증)
+├── schemas/                     # Pydantic 모델 (팀별 분리)
 │   ├── __init__.py
-│   ├── user.py                  # UserCreate, UserResponse
-│   ├── health_record.py
-│   ├── analysis_report.py
-│   └── user_goal.py
+│   ├── README.md                # 스키마 구조 및 팀 담당 가이드
+│   ├── common.py                # 공통 스키마 (User, HealthRecord)
+│   ├── llm.py                   # LLM 팀 전담 (AnalysisReport, UserGoal, LLM 입출력)
+│   ├── inbody.py                # OCR 팀 전담 (InBody 데이터 검증)
+│   └── body_type.py             # OCR 팀 전담 (체형 분석)
 │
-├── repositories/                # DB CRUD 로직
+├── repositories/                # DB CRUD 로직 (팀별 분리)
 │   ├── __init__.py
-│   ├── user_repository.py
-│   ├── health_record_repository.py
-│   ├── analysis_report_repository.py
-│   └── user_goal_repository.py
+│   ├── common/
+│   │   ├── user_repository.py
+│   │   └── health_record_repository.py
+│   └── llm/
+│       ├── analysis_report_repository.py
+│       └── user_goal_repository.py
 │
-├── services/                    # 비즈니스 로직
+├── services/                    # 비즈니스 로직 (팀별 분리)
 │   ├── __init__.py
-│   ├── auth_service.py          # 로그인/회원가입
-│   ├── ocr_service.py           # OCR 처리 (기존 코드 통합)
-│   ├── body_type_service.py     # 체형 분류 (기존 코드 통합)
-│   ├── llm_service.py           # LLM API 호출
-│   └── health_service.py        # 건강 기록 관련 로직
+│   ├── common/
+│   │   ├── auth_service.py      # 로그인/회원가입
+│   │   └── health_service.py    # 건강 기록 관련 로직
+│   ├── llm/
+│   │   └── llm_service.py       # LLM API 호출 (상태 분석, 주간 계획 생성)
+│   └── ocr/
+│       ├── ocr_service.py       # OCR 처리
+│       ├── inbody_matcher.py    # InBody 데이터 추출 및 매칭
+│       └── body_type_service.py # 체형 분류
 │
-├── routers/                     # API 엔드포인트 (Controller)
+├── routers/                     # API 엔드포인트 (팀별 분리)
 │   ├── __init__.py
-│   ├── auth.py                  # /api/auth/*
-│   ├── users.py                 # /api/users/*
-│   ├── health_records.py        # /api/health-records/*
-│   ├── analysis.py              # /api/analysis/*
-│   └── goals.py                 # /api/goals/*
+│   ├── common/
+│   │   ├── auth.py              # /api/auth/*
+│   │   └── users.py             # /api/users/*
+│   ├── llm/
+│   │   ├── analysis.py          # /api/analysis/*
+│   │   └── goals.py             # /api/goals/*
+│   └── ocr/
+│       └── health_records.py    # /api/health-records/*
 │
-└── utils/                       # 유틸리티
-    ├── __init__.py
-    └── dependencies.py          # DB 세션, 인증 등
+├── utils/                       # 유틸리티
+│   ├── __init__.py
+│   └── dependencies.py          # DB 세션, 인증 등
+│
+└── migrations/                  # 데이터베이스 마이그레이션
+    └── 001_update_health_records_body_types.sql
 ```
 
-## 개발 환경
+## 🚀 빠른 시작 (Quickstart)
 
-- **Python**: 3.11
-- **OS**: Ubuntu 22.04 (Linux)
-- **패키지 관리자**: uv (backend 디렉토리에서 관리)
-- **데이터베이스**: PostgreSQL
+백엔드 서버 설치 및 실행 방법은 **[BACKEND_QUICKSTART.md](./BACKEND_QUICKSTART.md)**를 참고하세요.
 
-## 설치 및 실행
+---
 
-> **중요**: uv 가상환경은 **backend 디렉토리(`/home/user/ExplainMyBody/backend/`)** 에서 생성하고 관리합니다.
-> 
-> 자세한 설정 가이드는 [`../UV_QUICKSTART.md`](../UV_QUICKSTART.md)를 참고하세요.
+## 팀 담당 기준 디렉토리 구조
 
-### 0. uv 설치 (처음 한 번만)
-```bash
-# uv가 설치되어 있지 않은 경우
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# 또는
-pip install uv
-```
+백엔드는 **팀원별 담당 영역**에 따라 `common`, `llm`, `ocr` 세 가지 카테고리로 구성되어 있습니다.
 
-### 1. 가상환경 생성 및 활성화 (backend 디렉토리에서)
-```bash
-# backend 디렉토리로 이동
-cd /home/user/ExplainMyBody/backend
+### 📂 디렉토리 분류 기준
 
-# uv로 Python 3.11 가상환경 생성
-uv venv --python 3.11
+#### `common/` - 공통 영역
+- **담당**: 양 팀 공통 사용
+- **포함 내용**: 
+  - 사용자 인증 (로그인, 회원가입)
+  - 사용자 정보 관리
+  - 건강 기록 기본 CRUD
+- **파일 예시**:
+  - `services/common/auth_service.py`
+  - `routers/common/auth.py`
+  - `repositories/common/user_repository.py`
+  - `schemas/common.py`
 
-# 가상환경 활성화
-source .venv/bin/activate
-```
+#### `llm/` - LLM 팀 전담
+- **담당**: LLM 기능 개발 팀원
+- **포함 내용**:
+  - AI 상태 분석 (LLM1)
+  - 주간 계획 생성 (LLM2)
+  - 분석 리포트 및 목표 관리
+- **파일 예시**:
+  - `services/llm/llm_service.py`
+  - `routers/llm/analysis.py`
+  - `repositories/llm/analysis_report_repository.py`
+  - `schemas/llm.py`
 
-### 2. 패키지 설치 (backend 디렉토리에서)
-```bash
-# backend 디렉토리에서 실행
-cd /home/user/ExplainMyBody/backend
+#### `ocr/` - OCR 팀 전담
+- **담당**: OCR 및 체형 분석 개발 팀원
+- **포함 내용**:
+  - 인바디 이미지 OCR 처리
+  - 인바디 데이터 추출 및 매칭
+  - 체형 분류 (Rule-based)
+- **파일 예시**:
+  - `services/ocr/ocr_service.py`
+  - `services/ocr/body_type_service.py`
+  - `routers/ocr/health_records.py`
+  - `schemas/inbody.py`
 
-# pyproject.toml 기반으로 모든 의존성 설치
-uv sync
+### 🎯 협업 규칙 (Merge Conflict 방지)
+1. **OCR 팀원**: `ocr/` 디렉토리 및 OCR 관련 스키마 작업
+2. **LLM 팀원**: `llm/` 디렉토리 및 LLM 관련 스키마 작업
+3. **공통 영역**: `common/`, `models/` 수정 시 팀원 간 사전 협의 필수
 
-# 개발 도구 포함 설치
-uv sync --group dev
-```
+---
 
-### 3. 환경 변수 설정
-```bash
-cd backend
-cp .env.example .env
-# .env 파일을 열어서 데이터베이스 연결 정보 등을 수정
-```
-
-### 4. 데이터베이스 준비
-PostgreSQL이 설치되어 있어야 합니다.
-```bash
-# PostgreSQL에서 데이터베이스 생성
-createdb explainmybody
-```
-
-### 5. 서버 실행
-```bash
-# backend 디렉토리에서 실행
-cd backend
-
-# 가상환경이 활성화된 상태에서 실행하거나
-python main.py
-
-# 또는 개발 모드로 실행 (자동 재시작)
-uvicorn main:app --reload
-```
-
-서버가 실행되면 http://localhost:8000 에서 접근 가능합니다.
-
-### 패키지 추가 방법
-```bash
-# backend 디렉토리로 이동
-cd /home/user/ExplainMyBody/backend
-
-# 방법 1: 단일 패키지 추가 (자동으로 pyproject.toml 업데이트)
-uv add <package-name>
-
-# 개발 전용 패키지 추가
-uv add --group dev <package-name>
-
-# 방법 2: 여러 패키지 한 번에 추가 (추천)
-# pyproject.toml 파일을 열어서 dependencies 리스트에 직접 추가
-nano pyproject.toml  # 또는 code, vim 등
-
-# 예시: LLM 패키지 여러 개 추가
-# dependencies = [
-#     ...
-#     "openai>=1.0,<2.0",
-#     "anthropic>=0.18,<1.0",
-#     "langchain>=0.1,<1.0",
-# ]
-
-# 추가 후 동기화
-uv sync
-
-# 선택적 의존성 그룹 사용 (pyproject.toml에 정의)
-# [dependency-groups]
-# llm = ["openai>=1.0", "anthropic>=0.18"]
-
-# 특정 그룹만 설치
-uv sync --group llm
-```
 
 ## API 문서
 
 서버 실행 후 다음 URL에서 자동 생성된 API 문서를 확인할 수 있습니다:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
 
 
 
@@ -280,53 +247,82 @@ models/*, services/*, utils/*, database.py, main.py, requirements.txt, .env.exam
 
 ## 주요 API 엔드포인트
 
-### 인증 (`/api/auth/*`)
-- `POST /api/auth/register`      : 회원가입 (이메일, 비밀번호 등)
-- `POST /api/auth/login`         : 로그인 및 세션 유지
-- `GET  /api/auth/me`            : 현재 로그인한 사용자 정보 조회
+### 1. 🔐 인증 (`routers/common/auth.py`)
+- **담당**: 공통 (Common)
+- **Service**: `AuthService` (`services/common/auth_service.py`)
 
-### 사용자 (`/api/users/*`)
-- `GET  /api/users/{user_id}`    : 특정 사용자 정보 조회
-- `GET  /api/users/`             : 전체 사용자 목록 (관리자 모드 필요)
-- `GET  /api/users/{user_id}/statistics` : 사용자의 전체 기록 및 분석 통계 조회
+| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/register` | 회원가입 | `AuthService.register`<br>→ `UserRepository` | **DB 생성**: `users` 테이블에 새 사용자 추가 |
+| **POST** | `/api/auth/login` | 로그인 | `AuthService.login`<br>→ `UserRepository` | **조회**: 이메일로 사용자 찾고 정보 반환 |
+| **GET** | `/api/auth/me` | 현재 유저 조회 | `AuthService.get_current_user`<br>→ `UserRepository` | **조회**: `user_id`로 사용자 정보 반환 |
+| **POST** | `/api/auth/logout` | 로그아웃 | `AuthService.logout` | **없음**: 클라이언트 측 로그아웃 처리용 |
 
-### 건강 기록 (`/api/health-records/*`)
-- `POST /api/health-records/`               : 건강 기록 직접 입력
-- `POST /api/health-records/ocr`            : 인바디 이미지 업로드 및 OCR 자동 등록
-- `GET  /api/health-records/{record_id}`    : 특정 건강 기록 상세 조회
-- `GET  /api/health-records/user/{user_id}`  : 사용자의 건강 기록 목록 조회
-- `GET  /api/health-records/user/{user_id}/latest` : 가장 최근 등록된 인바디 데이터 조회
+### 2. 👤 사용자 (`routers/common/users.py`)
+- **담당**: 공통 (Common)
+- **Repo**: `UserRepository` (`repositories/common/user_repository.py`)
 
-### 분석 (`/api/analysis/*`)
-- `POST /api/analysis/{record_id}`          : 인바디 데이터에 대한 AI(LLM) 종합 분석 실행
-- `GET  /api/analysis/{report_id}`          : 특정 분석 리포트 내용 조회
-- `GET  /api/analysis/record/{record_id}`   : 특정 운동 기록에 매칭된 분석 리포트 조회
-- `GET  /api/analysis/user/{user_id}`       : 사용자가 지금까지 받은 모든 분석 리포트 목록 조회
+| Method | URL | 설명 | Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/users/{user_id}` | 특정 유저 조회 | `UserRepository.get_by_id` | **조회**: 해당 ID의 사용자 정보 반환 |
+| **GET** | `/api/users/` | 전체 유저 목록 | `UserRepository.get_all` | **조회**: 모든 사용자 목록 반환 (관리자용) |
+| **GET** | `/api/users/{user_id}/statistics` | 유저 통계 | `UserRepository`<br>`HealthRecordRepository`<br>`AnalysisReportRepository` | **조회**: 총 건강 기록 수, 총 리포트 수 집계하여 반환 |
 
-### 목표 및 리포트 (`/api/goals/*`)
-- `POST /api/goals/`                        : 새로운 건강 개선 목표 설정
-- `POST /api/goals/{goal_id}/generate-plan` : 설정된 목표에 따른 AI 주간 맞춤 계획 생성
-- `GET  /api/goals/{goal_id}`               : 특정 목표 정보 및 생성된 주간 계획 조회
-- `GET  /api/goals/user/{user_id}`          : 사용자의 모든 과거/현재 목표 목록 조회
-- `GET  /api/goals/user/{user_id}/active`   : 현재 진행 중인 활성 목표 조회
-- `PATCH /api/goals/{goal_id}`              : 목표 내용 수정
-- `POST /api/goals/{goal_id}/complete`      : 목표 달성 완료 처리
-- `DELETE /api/goals/{goal_id}`             : 목표 데이터 삭제
+### 3. 📝 건강 기록 (`routers/ocr/health_records.py`)
+- **담당**: OCR 팀
+- **Service**: `HealthService`, `OCRService`, `BodyTypeService`
+
+| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/health-records/ocr/extract` | **Step 1: OCR 추출** | `OCRService.extract_inbody_data` | **처리**: 이미지에서 텍스트 추출<br>**DB 변화 없음**: 원시 데이터 반환 (프론트 검증용) |
+| **POST** | `/api/health-records/ocr/validate` | **Step 2: 검증 및 저장** | `BodyTypeService.get_full_analysis`<br>`HealthService`<br>→ `HealthRecordRepository` | **처리**: 체형 분석 실행<br>**DB 생성**: `health_records`에 인바디+체형결과 저장 |
+| **POST** | `/api/health-records/` | 수동 입력 | `HealthService`<br>→ `HealthRecordRepository` | **DB 생성**: 직접 입력한 데이터 저장 |
+| **GET** | `/api/health-records/{record_id}` | 기록 상세 조회 | `HealthRecordRepository.get_by_id` | **조회**: 특정 건강 기록 반환 |
+| **GET** | `/api/health-records/user/{user_id}` | 유저 기록 목록 | `HealthRecordRepository.get_by_user` | **조회**: 해당 유저의 모든 기록 반환 |
+| **GET** | `/api/health-records/{record_id}/analysis/prepare` | **LLM1 입력 준비** | `HealthService.prepare_status_analysis` | **처리**: LLM 분석에 필요한 포맷으로 데이터 가공하여 반환 |
+
+### 4. 🧠 분석 (`routers/llm/analysis.py`)
+- **담당**: LLM 팀
+- **Service**: `HealthService` (`services/llm` 폴더 내부 로직 활용)
+
+| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/analysis/{record_id}` | **상태 분석 실행** | `HealthService.analyze_health_record`<br>→ `LLMService`<br>→ `AnalysisReportRepository` | **처리**: LLM 호출하여 건강 상태 분석<br>**DB 생성**: `analysis_reports`에 분석 결과 저장 |
+| **GET** | `/api/analysis/{report_id}` | 리포트 조회 | `AnalysisReportRepository.get_by_id` | **조회**: 특정 리포트 내용 반환 |
+| **GET** | `/api/analysis/record/{record_id}` | 기록별 리포트 | `AnalysisReportRepository` | **조회**: 특정 건강 기록에 연결된 리포트 반환 |
+| **GET** | `/api/analysis/user/{user_id}` | 유저 리포트 목록 | `AnalysisReportRepository` | **조회**: 유저의 모든 리포트 반환 |
+
+### 5. 🎯 목표 (`routers/llm/goals.py`)
+- **담당**: LLM 팀
+- **Repo**: `UserGoalRepository` (`repositories/llm/user_goal_repository.py`)
+
+| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/goals/` | 목표 생성 | `UserGoalRepository.create` | **DB 생성**: 새로운 목표 저장 |
+| **POST** | `/api/goals/plan/prepare` | **LLM2 입력 준비** | `HealthService.prepare_goal_plan` | **처리**: 주간 계획 생성을 위한 LLM 입력 데이터 가공 반환 |
+| **GET** | `/api/goals/user/{user_id}/active` | 활성 목표 조회 | `UserGoalRepository.get_active_goals` | **조회**: 현재 진행 중인 목표 반환 |
+| **PATCH** | `/api/goals/{goal_id}` | 목표 수정 | `UserGoalRepository.update` | **DB 수정**: 목표 내용 업데이트 |
+| **POST** | `/api/goals/{goal_id}/complete` | 목표 완료 | `UserGoalRepository.update` | **DB 수정**: `ended_at`을 현재 시간으로 설정 (완료 처리) |
 
 
 ## 기존 코드 통합
 
 ### OCR 서비스
-- 위치: `services/ocr_service.py`
-- 기존 코드: `../scr/ocr/ocr_test.py`의 `InBodyMatcher` 클래스 사용
+- **위치**: `services/ocr/ocr_service.py`
+- **InBody 데이터 추출**: `services/ocr/inbody_matcher.py` (기존 `../scr/ocr/ocr_test.py`의 `InBodyMatcher` 클래스 통합)
+- **기능**: 인바디 이미지에서 텍스트 추출 및 데이터 매칭
 
 ### 체형 분류 서비스
-- 위치: `services/body_type_service.py`
-- 기존 코드: `../rule_based_bodytype/body_analysis/pipeline.py`의 `BodyCompositionAnalyzer` 사용
+- **위치**: `services/ocr/body_type_service.py`
+- **기존 코드**: `../rule_based_bodytype/body_analysis/pipeline.py`의 `BodyCompositionAnalyzer` 통합
+- **기능**: Rule-based 체형 분석 (Stage 2, Stage 3)
 
 ### LLM 서비스
-- 위치: `services/llm_service.py`
-- 현재는 템플릿 응답, 실제 LLM API 연결은 팀원이 추가 예정
+- **위치**: `services/llm/llm_service.py`
+- **기능**: 
+  - LLM1: 인바디 데이터 기반 상태 분석
+  - LLM2: 목표 기반 주간 계획 생성
+- **참고**: 실제 LLM API 연동 코드 포함 (OpenAI/Anthropic 등)
 
 ## 개발 참고사항
 
