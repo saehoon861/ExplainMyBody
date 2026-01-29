@@ -1,5 +1,5 @@
 """
-UserGoal 테이블 ORM 모델
+UserDetail 테이블 ORM 모델 (구 UserGoal)
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
@@ -8,20 +8,22 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
-class UserGoal(Base):
-    """사용자 목표 테이블"""
-    __tablename__ = "user_goals"
+class UserDetail(Base):
+    """사용자 목표/상세정보 테이블"""
+    __tablename__ = "user_details"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     goal_type = Column(String(255), nullable=True)  # 목표 유형 (체중 감량, 근육 증가 등)
     goal_description = Column(Text, nullable=True)  # 사용자가 입력한 목표 설명
-    weekly_plan = Column(Text, nullable=True)  # LLM이 생성한 주간 계획서
+    preferences = Column(Text, nullable=True)  # 선호도
+    health_specifics = Column(Text, nullable=True)  # 건강 특이사항
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)  # NULL이면 진행 중
+    is_active = Column(Integer, default=1)  # 활성화 여부 (1=활성, 0=비활성)
     
     # 관계 설정
-    user = relationship("User", back_populates="goals")
+    user = relationship("User", back_populates="user_details")
     
     def __repr__(self):
-        return f"<UserGoal(id={self.id}, user_id={self.user_id}, goal_type='{self.goal_type}')>"
+        return f"<UserDetail(id={self.id}, user_id={self.user_id}, goal_type='{self.goal_type}', is_active={self.is_active})>"

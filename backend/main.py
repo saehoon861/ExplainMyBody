@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from database import init_db
 from routers.common import auth_router, users_router
 from routers.ocr import health_records_router
-from routers.llm import analysis_router, goals_router
+from routers.llm import analysis_router, goals_router, weekly_plans_router
 
 
 @asynccontextmanager
@@ -68,6 +68,7 @@ app.include_router(users_router, prefix="/api/users", tags=["사용자"])
 app.include_router(health_records_router, prefix="/api/health-records", tags=["건강 기록"])
 app.include_router(analysis_router, prefix="/api/analysis", tags=["분석"])
 app.include_router(goals_router, prefix="/api/goals", tags=["목표"])
+app.include_router(weekly_plans_router, prefix="/api/weekly-plans", tags=["주간 계획"])
 
 
 @app.get("/")
