@@ -9,7 +9,7 @@ OCR 처리 흐름:
 4. _convert_types()로 타입 변환 → 숫자/정수 변환
 5. InBodyData Pydantic 모델로 검증
 
-팀원 코드 출처: backend_temp/inbody_matcher.py → backend/services/inbody_matcher.py로 이동
+팀원 코드 출처: backend_temp/inbody_matcher.py → backend/services/ocr/inbody_matcher.py로 이동
 """
 
 import os
@@ -40,8 +40,8 @@ class OCRService:
         - skew_threshold: 기울기 임계값 (기본 15.0)
         """
         try:
-            # 팀원 코드: backend_temp/inbody_matcher.py → backend/services/inbody_matcher.py
-            from services.inbody_matcher import InBodyMatcher
+            # 팀원 코드: backend_temp/inbody_matcher.py → backend/services/ocr/inbody_matcher.py
+            from services.ocr.inbody_matcher import InBodyMatcher
             
             self.matcher = InBodyMatcher(
                 auto_perspective=True,

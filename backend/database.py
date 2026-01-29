@@ -53,7 +53,7 @@ def init_db():
     모든 테이블 생성
     """
     # 모든 모델 임포트 (테이블 생성을 위해 필요)
-    from models import user, health_record, analysis_report, user_goal
+    from models import user, health_record, analysis_report, user_detail, weekly_plan
     
     # 테이블 생성
     Base.metadata.create_all(bind=engine)

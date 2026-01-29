@@ -4,7 +4,7 @@
 """
 
 from sqlalchemy.orm import Session
-from repositories.user_repository import UserRepository
+from repositories.common.user_repository import UserRepository
 from schemas.common import UserCreate, UserLogin
 from fastapi import HTTPException, status
 from typing import Optional
