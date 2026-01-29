@@ -77,9 +77,7 @@ class HealthService:
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
-            measurements=health_record.measurements,
-            body_type1=health_record.body_type1,
-            body_type2=health_record.body_type2
+            measurements=health_record.measurements
         )
 
         return StatusAnalysisResponse(
@@ -136,8 +134,6 @@ class HealthService:
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
             measurements=health_record.measurements,
-            body_type1=health_record.body_type1,
-            body_type2=health_record.body_type2,
             status_analysis_result=status_analysis_result,
             status_analysis_id=status_analysis_id
         )
@@ -184,9 +180,7 @@ class HealthService:
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
-            measurements=health_record.measurements,
-            body_type1=health_record.body_type1,
-            body_type2=health_record.body_type2
+            measurements=health_record.measurements
         )
         
         # 4. LLM 호출 (현재는 Mocking)

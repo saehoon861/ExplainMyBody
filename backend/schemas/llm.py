@@ -122,9 +122,8 @@ class StatusAnalysisInput(BaseModel):
     record_id: int
     user_id: int
     measured_at: datetime
-    measurements: Dict[str, Any]  # 인바디 측정 데이터 전체
-    body_type1: Optional[str] = None  # stage2: 근육 보정 체형
-    body_type2: Optional[str] = None  # stage3: 최종 체형
+    measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
+    # body_type1, body_type2 필드 삭제!
 
     class Config:
         from_attributes = True
@@ -154,9 +153,8 @@ class GoalPlanInput(BaseModel):
     record_id: int
     user_id: int
     measured_at: datetime
-    measurements: Dict[str, Any]  # 인바디 측정 데이터 전체
-    body_type1: Optional[str] = None  # stage2: 근육 보정 체형
-    body_type2: Optional[str] = None  # stage3: 최종 체형
+    measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
+    # body_type1, body_type2 필드 삭제!
 
     # LLM1(status_analysis)의 분석 결과
     status_analysis_result: Optional[str] = None

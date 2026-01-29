@@ -28,9 +28,7 @@ class LLMService:
         record_id: int,
         user_id: int,
         measured_at: Any,
-        measurements: Dict[str, Any],
-        body_type1: Optional[str] = None,
-        body_type2: Optional[str] = None
+        measurements: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         LLM1: 건강 상태 분석용 input 데이터 준비
@@ -39,9 +37,7 @@ class LLMService:
             record_id: 건강 기록 ID
             user_id: 사용자 ID
             measured_at: 측정 일시
-            measurements: 인바디 측정 데이터
-            body_type1: stage2 체형 분류
-            body_type2: stage3 체형 분류
+            measurements: 인바디 측정 데이터(체형 분류 포함)
 
         Returns:
             LLM에 전달할 input 데이터 (프론트엔드에서 LLM API 호출 시 사용)
@@ -50,9 +46,7 @@ class LLMService:
             "record_id": record_id,
             "user_id": user_id,
             "measured_at": measured_at,
-            "measurements": measurements,
-            "body_type1": body_type1,
-            "body_type2": body_type2
+            "measurements": measurements
         }
 
     def prepare_goal_plan_input(
@@ -65,8 +59,6 @@ class LLMService:
         user_id: int,
         measured_at: Any,
         measurements: Dict[str, Any],
-        body_type1: Optional[str] = None,
-        body_type2: Optional[str] = None,
         # LLM1 분석 결과
         status_analysis_result: Optional[str] = None,
         status_analysis_id: Optional[int] = None
@@ -80,9 +72,7 @@ class LLMService:
             record_id: 선택된 건강 기록 ID
             user_id: 사용자 ID
             measured_at: 측정 일시
-            measurements: 인바디 측정 데이터
-            body_type1: stage2 체형 분류
-            body_type2: stage3 체형 분류
+            measurements: 인바디 측정 데이터(체형 분류 포함)
             status_analysis_result: LLM1의 분석 결과 텍스트
             status_analysis_id: LLM1 분석 결과 ID
 
@@ -96,8 +86,6 @@ class LLMService:
             "user_id": user_id,
             "measured_at": measured_at,
             "measurements": measurements,
-            "body_type1": body_type1,
-            "body_type2": body_type2,
             "status_analysis_result": status_analysis_result,
             "status_analysis_id": status_analysis_id
         }
