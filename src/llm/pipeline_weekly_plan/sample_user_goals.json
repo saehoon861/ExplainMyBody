@@ -1,0 +1,13 @@
+[
+  {
+    "goal_type": "체중감량",
+    "target_weight": 68.0,
+    "target_body_fat": 18.0,
+    "deadline": "3개월",
+    "priority": "high"
+  },
+  {
+    "goal_type": "복부비만개선",
+    "priority": "high"
+  }
+]

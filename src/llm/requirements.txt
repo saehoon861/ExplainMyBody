@@ -1,6 +1,9 @@
+<<<<<<< Updated upstream:src/llm/requirements.txt
 anthropic>=0.76.0
 langgraph>=0.2.0
 langchain-core>=0.3.0
+=======
+>>>>>>> Stashed changes:llm/requirements.txt
 numpy>=2.4.1
 openai>=2.15.0
 pydantic>=2.12.5
