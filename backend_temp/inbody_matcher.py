@@ -6,7 +6,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 from contextlib import contextmanager
 import tempfile
@@ -262,10 +262,22 @@ class InBodyMatcher:
             auto_perspective: 자동 원근 변환 활성화 (기본: True)
             skew_threshold: 기울기 임계값 (0-100, 기본: 15.0)
         """
+        import logging
+        import time
+        
         try:
-            import logging
-            logging.getLogger('ppocr').setLevel(logging.ERROR)
+            print("=" * 60)
+            print("🔄 PaddleOCR 초기화 시작...")
+            print("=" * 60)
             
+            # 로깅 설정
+            logging.basicConfig(level=logging.INFO)
+            logger = logging.getLogger('ppocr')
+            logger.setLevel(logging.INFO)  # ERROR → INFO로 변경 (디버깅용)
+            
+            start_time = time.time()
+            
+            # PaddleOCR 초기화
             self.ocr = PaddleOCR(
                 lang='korean',
                 ocr_version='PP-OCRv5',
@@ -273,7 +285,18 @@ class InBodyMatcher:
                 text_det_unclip_ratio=2.0,
                 use_textline_orientation=True
             )
+            
+            init_time = time.time() - start_time
+            print(f"✅ PaddleOCR 초기화 완료 ({init_time:.2f}초)")
+            print("=" * 60)
+            
         except Exception as e:
+            print(f"❌ PaddleOCR 초기화 실패!")
+            print(f"에러 메시지: {e}")
+            import traceback
+            print("\n상세 에러:")
+            traceback.print_exc()
+            print("=" * 60)
             raise Exception(f"PaddleOCR 초기화 실패: {e}")
         
         self.correction_map = ConfigManager.get_correction_map()
@@ -535,17 +558,21 @@ class InBodyMatcher:
         
         return results
     
-    def extract_and_match(self, image_path: str) -> Dict[str, Optional[str]]:
+    def extract_and_match(self, image_input: Union[str, np.ndarray]) -> Dict[str, Optional[str]]:
         """이미지에서 인바디 데이터 추출 및 매칭"""
-        if not os.path.exists(image_path):
-            raise FileNotFoundError(f"이미지 파일을 찾을 수 없습니다: {image_path}")
-        
         try:
-            src_img = cv2.imread(image_path)
-            if src_img is None:
-                raise ValueError(f"이미지를 읽을 수 없습니다: {image_path}")
-            
-            print(f"📸 원본 이미지 크기: {src_img.shape[:2]}")
+            if isinstance(image_input, str):
+                if not os.path.exists(image_input):
+                    raise FileNotFoundError(f"이미지 파일을 찾을 수 없습니다: {image_input}")
+                src_img = cv2.imread(image_input)
+                if src_img is None:
+                    raise ValueError(f"이미지를 읽을 수 없습니다: {image_input}")
+                print(f"📸 원본 이미지 크기: {src_img.shape[:2]}")
+            elif isinstance(image_input, np.ndarray):
+                src_img = image_input
+                print(f"📸 입력 이미지 크기 (Numpy): {src_img.shape[:2]}")
+            else:
+                raise ValueError("입력값은 파일 경로(str) 또는 이미지 배열(np.ndarray)이어야 합니다.")
             
             if self.auto_perspective:
                 src_img, applied, skew_score = DocumentRectifier.rectify_auto(
