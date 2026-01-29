@@ -6,7 +6,7 @@
   box-sizing: border-box;
 }
 
-**:root {
+:root {
   --primary: #818cf8;
   --primary-glow: rgba(129, 140, 248, 0.4);
   --primary-hover: #6366f1;

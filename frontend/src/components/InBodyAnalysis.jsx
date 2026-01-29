@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, Home, RefreshCw, Camera } from 'lucide-react';
+import { Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, Home, RefreshCw, Camera, Save } from 'lucide-react';
 import './LoginLight.css';
 
 const InBodyAnalysis = () => {
@@ -8,6 +8,7 @@ const InBodyAnalysis = () => {
     const [inbodyData, setInbodyData] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('인바디 리포트를 읽어오는 중입니다...');
     const [reportSlideIndex, setReportSlideIndex] = useState(0);
     const [errors, setErrors] = useState({});
@@ -173,6 +174,61 @@ const InBodyAnalysis = () => {
         }));
     };
 
+    const handleConfirmData = async () => {
+        if (!inbodyData) return;
+
+        setIsSaving(true);
+        setErrors({});
+
+        try {
+            // TODO: API 연동 시 실제 엔드포인트로 변경
+            const response = await fetch('/api/inbody/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // 'Authorization': `Bearer ${localStorage.getItem('token')}` // 인증 토큰
+                },
+                body: JSON.stringify({
+                    inbodyData: inbodyData,
+                    imageUrl: imagePreview, // 필요시 이미지도 함께 전송
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('데이터 저장에 실패했습니다.');
+            }
+
+            await response.json();
+
+            // 저장 성공 시 대시보드로 이동
+            alert('인바디 데이터가 성공적으로 저장되었습니다! ✨');
+            navigate('/dashboard');
+        } catch (err) {
+            console.error('Save Error:', err);
+            // Mock으로 일단 성공 처리 (백엔드 API 없을 때)
+            if (err.message.includes('Failed to fetch')) {
+                // API가 없는 경우 로컬 저장
+                const savedData = JSON.parse(localStorage.getItem('inbodyHistory') || '[]');
+                savedData.push({
+                    id: Date.now(),
+                    data: inbodyData,
+                    date: new Date().toISOString(),
+                    preview: imagePreview
+                });
+                localStorage.setItem('inbodyHistory', JSON.stringify(savedData));
+                localStorage.setItem('lastInbodyData', JSON.stringify(inbodyData));
+
+                alert('인바디 데이터가 저장되었습니다! 💪');
+                navigate('/dashboard');
+            } else {
+                setErrors({ save: err.message });
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = inbodyData?.[categoryKey];
         if (!categoryData) return null;
@@ -300,17 +356,10 @@ const InBodyAnalysis = () => {
 
                     {isProcessingOCR && (
                         <div className="ocr-processing-container fade-in">
-                            <div className="pushup-loader">
-                                <div className="character">
-                                    <div className="head"></div>
-                                    <div className="body">
-                                        <div className="arm arm-l"></div>
-                                        <div className="arm arm-r"></div>
-                                    </div>
-                                    <div className="leg leg-l"></div>
-                                    <div className="leg leg-r"></div>
-                                </div>
-                                <div className="ground"></div>
+                            <div className="loading-icon-container">
+                                <div className="pulse-ring"></div>
+                                <div className="pulse-ring-delayed"></div>
+                                <Activity size={48} className="loading-icon" strokeWidth={2.5} />
                             </div>
 
                             <div className="progress-status-container">
@@ -464,6 +513,56 @@ const InBodyAnalysis = () => {
                                 </div>
                             </div>
 
+                            {/* 확정 버튼 */}
+                            <div style={{ marginTop: '32px', display: 'flex', gap: '12px' }}>
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => {
+                                        setInbodyData(null);
+                                        setImagePreview(null);
+                                        setInbodyImage(null);
+                                        setReportSlideIndex(0);
+                                    }}
+                                    disabled={isSaving}
+                                    style={{ flex: 1 }}
+                                >
+                                    <RefreshCw size={18} />
+                                    다시 분석하기
+                                </button>
+                                <button
+                                    type="button"
+                                    className="primary-button"
+                                    onClick={handleConfirmData}
+                                    disabled={isSaving}
+                                    style={{
+                                        flex: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 size={18} className="spin-animation" />
+                                            저장 중...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={18} />
+                                            결과 확정하기
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                        </div>
+                    )}
+
+                    {errors.save && (
+                        <div className="error-message report-error" style={{ marginTop: '16px' }}>
+                            <AlertCircle size={20} /> {errors.save}
                         </div>
                     )}
                 </div>

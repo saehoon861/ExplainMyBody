@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield } from 'lucide-react';
 import './LoginLight.css'; // 스타일 재사용
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -125,22 +125,34 @@ const Dashboard = () => {
     const getChartData = () => {
         if (!userData) return [];
 
-        // 사용자 데이터 (inbody_data가 있으면 사용, 없으면 start_weight만 사용)
-        const myWeight = userData.inbody_data?.weight || userData.start_weight || 0;
-        const myMuscle = userData.inbody_data?.skeletal_muscle || 0;
-        const myFat = userData.inbody_data?.body_fat_mass || 0;
-
-        // 평균 데이터 (Mock) - 성별에 따라 다르게 설정 가능
+        const d = userData.inbody_data || {};
         const isMale = userData.gender === 'male';
-        const avgWeight = isMale ? 74 : 58;
-        const avgMuscle = isMale ? 34 : 22;
-        const avgFat = isMale ? 14 : 16;
 
-        return [
-            { name: '체중', me: myWeight, avg: avgWeight },
-            { name: '골격근량', me: myMuscle, avg: avgMuscle },
-            { name: '체지방량', me: myFat, avg: avgFat },
+        // 8 metrics for Octagon shape (팔각 그래프)
+        const metrics = [
+            { name: '체중', me: d["체중관리"]?.["체중"] || d.weight || userData.start_weight || 70, avg: isMale ? 74 : 58 },
+            { name: 'BMI', me: d["비만분석"]?.["BMI"] || d.bmi || 23, avg: 22 },
+            { name: '골격근량', me: d["체중관리"]?.["골격근량"] || d.skeletal_muscle || 30, avg: isMale ? 34 : 22 },
+            { name: '체지방률', me: d["비만분석"]?.["체지방률"] || d.body_fat_percentage || 20, avg: isMale ? 18 : 24 },
+            { name: '체지방량', me: d["체중관리"]?.["체지방량"] || d.body_fat_mass || 15, avg: isMale ? 14 : 16 },
+            { name: '복부지방률', me: d["비만분석"]?.["복부지방률"] || d.whr || 0.85, avg: 0.85 },
+            { name: '기초대사량', me: d["연구항목"]?.["기초대사량"] || d.bmr || 1600, avg: isMale ? 1700 : 1300 },
+            { name: '신체점수', me: d["연구항목"]?.["인바디점수"] || d.score || 75, avg: 75 },
         ];
+
+        // Normalize string values to float and normalize to average
+        return metrics.map(m => {
+            const myVal = typeof m.me === 'string' ? parseFloat(m.me.replace(/[^0-9.]/g, '')) : m.me;
+            const avgVal = m.avg;
+
+            return {
+                subject: m.name,
+                me: (myVal / avgVal) * 100,
+                avg: 100,
+                originalMe: myVal || 0,
+                originalAvg: avgVal
+            };
+        });
     };
 
     const chartData = getChartData();
@@ -206,55 +218,89 @@ const Dashboard = () => {
                         <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '20px' }}>
                             또래 평균 대비 나의 상태를 확인해보세요.
                         </p>
-                        <div style={{ width: '100%', height: 300 }}>
+                        <div style={{ width: '100%', height: 400, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={chartData}
-                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                                    barGap={8}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                        dy={10}
+                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                                    <PolarAngleAxis
+                                        dataKey="subject"
+                                        tick={(props) => {
+                                            const { x, y, payload } = props;
+                                            const data = chartData.find(d => d.subject === payload.value);
+                                            if (!data) return null;
+
+                                            // 단위 설정
+                                            let unit = "";
+                                            if (data.subject.includes("체중") || data.subject.includes("근량") || data.subject.includes("지방량")) unit = "kg";
+                                            else if (data.subject.includes("률")) unit = "%";
+                                            else if (data.subject.includes("대사량")) unit = "kcal";
+                                            else if (data.subject === "BMI") unit = "";
+                                            else if (data.subject === "신체점수") unit = "점";
+
+                                            return (
+                                                <g transform={`translate(${x},${y})`}>
+                                                    <text
+                                                        textAnchor="middle"
+                                                        fill="#94a3b8"
+                                                        fontSize={12}
+                                                        fontWeight={700}
+                                                    >
+                                                        <tspan x="0" dy="0">{data.subject}</tspan>
+                                                        <tspan x="0" dy="16" fill="#818cf8" fontSize={11}>{data.originalMe.toFixed(1)}{unit}</tspan>
+                                                    </text>
+                                                </g>
+                                            );
+                                        }}
                                     />
-                                    <YAxis
-                                        hide={true}
+                                    <PolarRadiusAxis
+                                        angle={30}
+                                        domain={[0, 150]}
+                                        tick={false}
+                                        axisLine={false}
                                     />
                                     <Tooltip
-                                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                        contentStyle={{ backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px' }}
-                                        itemStyle={{ color: '#fff', fontSize: '0.9rem' }}
-                                        labelStyle={{ color: '#94a3b8', marginBottom: '8px' }}
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                const data = payload[0].payload;
+                                                return (
+                                                    <div style={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
+                                                        <p style={{ color: '#fff', fontWeight: 800, marginBottom: '8px', fontSize: '1rem' }}>{data.subject}</p>
+                                                        <p style={{ color: '#818cf8', fontSize: '0.9rem', margin: '4px 0' }}>내 수치: <strong style={{ fontSize: '1.1rem' }}>{data.originalMe.toFixed(1)}</strong></p>
+                                                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '4px 0' }}>또래 평균: <strong>{data.originalAvg.toFixed(1)}</strong></p>
+                                                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem', color: data.me > 100 ? '#818cf8' : '#94a3b8' }}>
+                                                            평균 대비 {Math.abs(data.me - 100).toFixed(1)}% {data.me > 100 ? '높음' : '낮음'}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
+                                    <Radar
+                                        name="내 수치"
+                                        dataKey="me"
+                                        stroke="#818cf8"
+                                        strokeWidth={3}
+                                        fill="#818cf8"
+                                        fillOpacity={0.5}
+                                        animationDuration={1500}
+                                        animationEasing="ease-out"
+                                    />
+                                    <Radar
+                                        name="또래 평균"
+                                        dataKey="avg"
+                                        stroke="#334155"
+                                        strokeWidth={2}
+                                        fill="#334155"
+                                        fillOpacity={0.2}
+                                        animationDuration={1500}
+                                        animationEasing="ease-out"
                                     />
                                     <Legend
                                         wrapperStyle={{ paddingTop: '20px' }}
-                                        formatter={(value) => <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{value === 'me' ? '내 수치' : '평균'}</span>}
+                                        formatter={(value) => <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 600 }}>{value}</span>}
                                     />
-                                    <Bar
-                                        dataKey="me"
-                                        name="me"
-                                        fill="#818cf8"
-                                        radius={[6, 6, 0, 0]}
-                                        animationDuration={800}
-                                        animationBegin={200}
-                                        animationEasing="cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                                    >
-                                        <Cell fill="#818cf8" />
-                                    </Bar>
-                                    <Bar
-                                        dataKey="avg"
-                                        name="avg"
-                                        fill="#334155"
-                                        radius={[6, 6, 0, 0]}
-                                        animationDuration={800}
-                                        animationBegin={400}
-                                        animationEasing="cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                                    />
-                                </BarChart>
+                                </RadarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
@@ -293,11 +339,14 @@ const Dashboard = () => {
                                                     if (isSelected) {
                                                         newGoals = selectedGoals.filter(g => g !== type);
                                                     } else {
-                                                        // 일반 목표(감량/유지/증량)는 상호 배타적일 수 있지만, 
-                                                        // 사용자가 다중 선택을 원하므로 모두 허용하거나 감량/유지/증량 중 하나만 선택하게 할 수도 있음.
-                                                        // 여기서는 사용자의 "중복 선택" 요청에 따라 모두 허용함.
-                                                        newGoals = [...selectedGoals, type];
-                                                        // 순서 보장: 일반 목표 우선, 재활 마지막
+                                                        if (type === '재활') {
+                                                            newGoals = [...selectedGoals, type];
+                                                        } else {
+                                                            // 감량, 유지, 증량은 상호 배타적
+                                                            const standardGoals = ['감량', '유지', '증량'];
+                                                            newGoals = selectedGoals.filter(g => !standardGoals.includes(g));
+                                                            newGoals.push(type);
+                                                        }
                                                         const order = ['감량', '유지', '증량', '재활'];
                                                         newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
                                                     }

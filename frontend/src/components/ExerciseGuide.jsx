@@ -1,30 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Dumbbell, Youtube, ChevronRight, Activity, Zap, Shield } from 'lucide-react';
+import { Dumbbell, Youtube, ChevronRight, ArrowUp, Circle, ArrowDown, X, Play } from 'lucide-react';
 import '../AppLight.css';
 
 const ExerciseGuide = () => {
     const [activeCategory, setActiveCategory] = useState('상체');
+    const [selectedVideo, setSelectedVideo] = useState(null);
     const location = useLocation();
 
+    // 조회수가 매우 높고(수백만~수천만) 임베드가 허용된 대한민국 대표 운동 영상들
     const EXERCISE_GUIDES = {
         '상체': [
-            { id: 1, name: '팔굽혀펴기 (Push-up)', url: 'https://www.youtube.com/results?search_query=팔굽혀펴기+자세', desc: '가슴, 어깨, 삼두근을 동시에 강화하는 최고의 맨몸 운동입니다.', tag: '기초' },
-            { id: 2, name: '턱걸이 (Pull-up)', url: 'https://www.youtube.com/results?search_query=턱걸이+자세', desc: '넓은 등과 강한 팔을 만드는 상체 운동의 꽃입니다.', tag: '상급' },
-            { id: 3, name: '드레스 다운 (Lat Pull Down)', url: 'https://www.youtube.com/results?search_query=렛풀다운+자세', desc: '등 근육의 너비를 조절하고 광배근을 발달시킵니다.', tag: '추천' },
-            { id: 4, name: '숄더 프레스 (Shoulder Press)', url: 'https://www.youtube.com/results?search_query=숄더프레스+자세', desc: '탄탄하고 넓은 어깨 라인을 만드는 필수 종목입니다.', tag: '필수' }
+            { id: 1, name: '팔굽혀펴기 (Push-up)', videoId: 'VoOkoXNEi9c', desc: '피지컬갤러리의 과학적으로 검증된 완벽한 푸쉬업 자세입니다.', tag: '필수' },
+            { id: 2, name: '턱걸이 (Pull-up)', videoId: '3U9Yv39ca_A', desc: '초보자도 턱걸이 개수를 늘리는 가장 확실한 방법입니다.', tag: '상급' },
+            { id: 3, name: '렛풀다운 (Lat Pull Down)', videoId: 'Y7B2jJ_LdO0', desc: '등 근육의 너비를 조절하고 광배근을 발달시키는 핵심 정격 자세입니다.', tag: '추천' },
+            { id: 4, name: '숄더 프레스 (Shoulder Press)', videoId: 'pS-WJny504U', desc: '탄탄하고 넓은 어깨 라인을 만드는 필수 어깨 운동 강의입니다.', tag: '추천' }
         ],
         '복근': [
-            { id: 5, name: '크런치 (Crunch)', url: 'https://www.youtube.com/results?search_query=크런치+자세', desc: '상복부를 집중적으로 타격하여 복근 라인을 선명하게 만듭니다.', tag: '기초' },
-            { id: 6, name: '레그 레이즈 (Leg Raise)', url: 'https://www.youtube.com/results?search_query=레그레이즈+자세', desc: '하복부와 코어 하부 근력을 강화하는 데 효과적입니다.', tag: '추천' },
-            { id: 7, name: '플랭크 (Plank)', url: 'https://www.youtube.com/results?search_query=플랭크+자세', desc: '전신 코어의 안정성을 높이고 자세를 교정해줍니다.', tag: '코어' },
-            { id: 8, name: '바이시클 크런치', url: 'https://www.youtube.com/results?search_query=바이시클+크런치+자세', desc: '외복사근을 자극하여 슬림한 허리 라인을 만듭니다.', tag: '유산소' }
+            { id: 1, name: '크런치 (Crunch)', videoId: '57j88vXyVmc', desc: '상복부를 집중적으로 타격하여 선명한 복근을 만듭니다.', tag: '기초' },
+            { id: 2, name: '레그 레이즈 (Leg Raise)', videoId: 'r_L85k_N9A0', desc: '조회수 2천만의 신화! 아랫배 뱃살을 빼는 최강의 하복부 운동입니다.', tag: '필수' },
+            { id: 3, name: '플랭크 (Plank)', videoId: 'Zq8nRY9P_No', desc: '심으뜸의 10분 플랭크 챌린지! 전신 코어의 기본이자 완성입니다.', tag: '필수' },
+            { id: 4, name: '바이시클 크런치 (Bicycle Crunch)', videoId: '9vS2m9AAnSg', desc: '복부 전체와 옆구리를 동시에 자극하는 고효율 유산소성 복근 운동입니다.', tag: '도전' }
         ],
         '하체': [
-            { id: 9, name: '스쿼트 (Squat)', url: 'https://www.youtube.com/results?search_query=스쿼트+자세', desc: '하체 근력의 기초이자 전신 대사량을 높여주는 최고의 운동.', tag: '필수' },
-            { id: 10, name: '런지 (Lunge)', url: 'https://www.youtube.com/results?search_query=런지+자세', desc: '하체의 균형 감각을 높이고 엉덩이 근육을 탄력 있게 만듭니다.', tag: '기초' },
-            { id: 11, name: '데드리프트 (Deadlift)', url: 'https://www.youtube.com/results?search_query=데드리프트+자세', desc: '뒷면 사슬 근육 전체를 강화하여 폭발적인 힘을 냅니다.', tag: '고강도' },
-            { id: 12, name: '레그 프레스 (Leg Press)', url: 'https://www.youtube.com/results?search_query=레그프레스+자세', desc: '허리에 무리 없이 허벅지 근육을 안전하게 강화합니다.', tag: '안전' }
+            { id: 1, name: '스쿼트 (Squat)', videoId: 'bEv6Tqoz87g', desc: '조회수 1,300만! 하체 운동의 왕, 스쿼트의 정석 자세를 마스터하세요.', tag: '왕강추' },
+            { id: 2, name: '런지 (Lunge)', videoId: 'Uv_Mst5nN2M', desc: '엉덩이와 허벅지 라인을 살려주는 최고의 하체 루틴입니다.', tag: '강력추천' },
+            { id: 3, name: '데드리프트 (Deadlift)', videoId: 'R9j0D_Lw-vA', desc: '전신 근력 향상의 꽃, 정석 데드리프트 완벽 강의입니다.', tag: '상급' },
+            { id: 4, name: '레그 프레스 (Leg Press)', videoId: '9Y4vH1-E-Xg', desc: '안전하게 고중량 하체 훈련을 할 수 있는 레그 프레스 활용법입니다.', tag: '추천' }
         ]
     };
 
@@ -35,6 +37,16 @@ const ExerciseGuide = () => {
             setActiveCategory(cat);
         }
     }, [location]);
+
+    const openVideo = (exercise) => {
+        setSelectedVideo(exercise);
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeVideo = () => {
+        setSelectedVideo(null);
+        document.body.style.overflow = 'auto';
+    };
 
     return (
         <div className="main-content fade-in">
@@ -56,9 +68,9 @@ const ExerciseGuide = () => {
                             className={`tab-item ${activeCategory === cat ? 'active' : ''}`}
                             onClick={() => setActiveCategory(cat)}
                         >
-                            {cat === '상체' && <Zap size={16} />}
-                            {cat === '복근' && <Shield size={16} />}
-                            {cat === '하체' && <Activity size={16} />}
+                            {cat === '상체' && <ArrowUp size={16} />}
+                            {cat === '복근' && <Circle size={16} />}
+                            {cat === '하체' && <ArrowDown size={16} />}
                             <span>{cat}</span>
                         </button>
                     ))}
@@ -67,13 +79,11 @@ const ExerciseGuide = () => {
 
             <div className="exercise-grid">
                 {EXERCISE_GUIDES[activeCategory].map((ex, index) => (
-                    <a
+                    <div
                         key={ex.id}
-                        href={ex.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="guide-card fade-in"
-                        style={{ animationDelay: `${index * 0.1}s` }}
+                        style={{ animationDelay: `${index * 0.1}s`, cursor: 'pointer' }}
+                        onClick={() => openVideo(ex)}
                     >
                         <div className="guide-card-header">
                             <span className="tag-badge">{ex.tag}</span>
@@ -85,12 +95,67 @@ const ExerciseGuide = () => {
                         <h3 className="exercise-name">{ex.name}</h3>
                         <p className="exercise-desc">{ex.desc}</p>
                         <div className="guide-card-footer">
-                            <span className="learn-more">자세히 알아보기</span>
-                            <ChevronRight size={16} />
+                            <span className="learn-more">영상으로 배우기</span>
+                            <Play size={16} fill="currentColor" />
                         </div>
-                    </a>
+                    </div>
                 ))}
             </div>
+
+            {/* Video Modal Popup */}
+            {selectedVideo && (
+                <div className="video-modal-overlay fade-in" onClick={closeVideo}>
+                    <div className="video-modal-card" onClick={e => e.stopPropagation()}>
+                        <div className="video-modal-header">
+                            <h3>{selectedVideo.name}</h3>
+                            <button className="close-btn" onClick={closeVideo}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="video-container">
+                            <iframe
+                                width="100%"
+                                height="100%"
+                                src={`https://www.youtube.com/embed/${selectedVideo.videoId}?autoplay=1&rel=0&modestbranding=1&origin=${window.location.origin}`}
+                                title={selectedVideo.name}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                            ></iframe>
+                        </div>
+                        <div className="video-info">
+                            <p>{selectedVideo.desc}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="channel-info">
+                                    <div className="channel-avatar">EMB</div>
+                                    <span>ExplainMyBody 추천 가이드</span>
+                                </div>
+                                <a
+                                    href={`https://youtu.be/${selectedVideo.videoId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="fallback-link"
+                                    style={{
+                                        fontSize: '0.85rem',
+                                        color: '#ef4444',
+                                        fontWeight: 700,
+                                        textDecoration: 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '8px 16px',
+                                        background: '#fff1f2',
+                                        borderRadius: '12px'
+                                    }}
+                                >
+                                    <Youtube size={16} />
+                                    YouTube에서 직접 보기
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .category-tabs-container {
@@ -192,6 +257,111 @@ const ExerciseGuide = () => {
                     font-weight: 700;
                     font-size: 0.9rem;
                 }
+
+                .video-modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.85);
+                    backdrop-filter: blur(10px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 9999;
+                    padding: 20px;
+                }
+                .video-modal-card {
+                    background: white;
+                    border-radius: 32px;
+                    width: 100%;
+                    max-width: 900px;
+                    overflow: hidden;
+                    animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                }
+                .video-modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 20px 32px;
+                    background: white;
+                    border-bottom: 1px solid #f1f5f9;
+                }
+                .video-modal-header h3 {
+                    margin: 0;
+                    font-size: 1.25rem;
+                    font-weight: 800;
+                    color: #1e293b;
+                }
+                .close-btn {
+                    background: none;
+                    border: none;
+                    color: #64748b;
+                    cursor: pointer;
+                    padding: 8px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s;
+                }
+                .close-btn:hover {
+                    background: #f1f5f9;
+                    color: #ef4444;
+                    transform: rotate(90deg);
+                }
+                .video-container {
+                    position: relative;
+                    padding-bottom: 56.25%; 
+                    height: 0;
+                    background: black;
+                }
+                .video-container iframe {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                }
+                .video-info {
+                    padding: 24px 32px;
+                }
+                .video-info p {
+                    margin: 0 0 20px 0;
+                    color: #475569;
+                    font-size: 1rem;
+                    line-height: 1.6;
+                }
+                .channel-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .channel-avatar {
+                    width: 36px;
+                    height: 36px;
+                    background: #4f46e5;
+                    color: white;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 800;
+                    font-size: 0.75rem;
+                }
+                .channel-info span {
+                    font-weight: 700;
+                    color: #1e293b;
+                    font-size: 0.95rem;
+                }
+
+                @keyframes modalSlideUp {
+                    from { transform: translateY(40px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+
                 @media (max-width: 768px) {
                     .exercise-grid {
                         grid-template-columns: 1fr;
@@ -199,6 +369,15 @@ const ExerciseGuide = () => {
                     .tab-item {
                         padding: 10px 18px;
                         font-size: 0.9rem;
+                    }
+                    .video-modal-card {
+                        border-radius: 20px;
+                    }
+                    .video-modal-header {
+                        padding: 16px 20px;
+                    }
+                    .video-info {
+                        padding: 20px;
                     }
                 }
             `}</style>

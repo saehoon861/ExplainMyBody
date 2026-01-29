@@ -787,3 +787,17 @@ body {
         font-size: 1.4rem;
     }
 }
+
+/* Spin Animation for Loading Icons */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-animation {
+    animation: spin 1s linear infinite;
+}

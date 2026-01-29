@@ -932,7 +932,14 @@ const Signup = () => {
                                                     if (isSelected) {
                                                         newGoals = selectedGoals.filter(g => g !== type);
                                                     } else {
-                                                        newGoals = [...selectedGoals, type];
+                                                        if (type === '재활') {
+                                                            newGoals = [...selectedGoals, type];
+                                                        } else {
+                                                            // 감량, 유지, 증량은 상호 배타적
+                                                            const standardGoals = ['감량', '유지', '증량'];
+                                                            newGoals = selectedGoals.filter(g => !standardGoals.includes(g));
+                                                            newGoals.push(type);
+                                                        }
                                                         const order = ['감량', '유지', '증량', '재활'];
                                                         newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
                                                     }
