@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import './SplashScreen.css';
+import './SplashScreenLight.css';
 
 const SplashScreen = ({ onFinish }) => {
     const [fadeOut, setFadeOut] = useState(false);
@@ -17,11 +17,8 @@ const SplashScreen = ({ onFinish }) => {
         <div className={`splash-container ${fadeOut ? 'fade-out' : ''}`}>
             <div className="splash-content">
                 <div className="logo-glitch-container">
-                    <h1 className="splash-logo">ExplainMyBody</h1>
+                    <h1 className="splash-logo" data-text="ExplainMyBody">ExplainMyBody</h1>
                     <div className="logo-glow"></div>
-                </div>
-                <div className="loading-bar-container">
-                    <div className="loading-bar"></div>
                 </div>
                 <p className="splash-subtitle">내 몸을 이해하는 가장 스마트한 방법</p>
             </div>
