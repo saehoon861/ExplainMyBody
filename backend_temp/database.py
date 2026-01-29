@@ -2,14 +2,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLite 데이터베이스 파일 경로 설정
-SQLALCHEMY_DATABASE_URL = "sqlite:///./explainmybody.db"
-
 # 데이터베이스 엔진 생성
-# check_same_thread=False는 SQLite에서만 필요 (한 스레드 통신)
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# PostgreSQL 연결 설정
+# 형식: postgresql://[user]:[password]@[host]/[dbname]
+SQLALCHEMY_DATABASE_URL = "postgresql://myuser:mypassword@localhost/explainmybody"
+
+# PostgreSQL은 check_same_thread 옵션 불필요
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # 데이터베이스 세션 생성기
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

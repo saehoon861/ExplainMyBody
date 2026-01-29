@@ -31,6 +31,13 @@ body {
     /* Space for fixed bottom nav */
 }
 
+@media (min-width: 769px) {
+    .main-content-container {
+        overflow-y: visible;
+        height: auto;
+    }
+}
+
 .main-content {
     display: flex;
     flex-direction: column;
@@ -564,5 +571,219 @@ body {
     .report-table td {
         white-space: normal;
         /* Allow wrapping on PC if needed */
+    }
+}
+
+/* ===== ChatbotSelector Styles ===== */
+.chatbot-selector-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.selector-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.selector-header .header-icon {
+    color: #667eea;
+    margin-bottom: 16px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.selector-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.selector-header p {
+    font-size: 1rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.chatbot-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.chatbot-card {
+    position: relative;
+    background: white;
+    border-radius: 24px;
+    padding: 32px;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: slideInUp 0.6s ease-out forwards;
+    opacity: 0;
+}
+
+.chatbot-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    opacity: 0.1;
+    transition: all 0.4s ease;
+}
+
+.chatbot-card:hover .card-background {
+    opacity: 0.15;
+    height: 100%;
+}
+
+.card-content {
+    position: relative;
+    z-index: 1;
+}
+
+.bot-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    color: #667eea;
+    transition: all 0.3s ease;
+}
+
+.chatbot-card:hover .bot-icon-wrapper {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.chatbot-card:nth-child(2) .bot-icon-wrapper {
+    color: #f5576c;
+}
+
+.card-content h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: #1e293b;
+}
+
+.bot-description {
+    font-size: 1rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.bot-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.feature-tag {
+    padding: 6px 14px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.chatbot-card:hover .feature-tag {
+    background: rgba(255, 255, 255, 0.9);
+    color: #1e293b;
+}
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 2px solid #f1f5f9;
+}
+
+.chat-now {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #667eea;
+    transition: all 0.3s ease;
+}
+
+.chatbot-card:nth-child(2) .chat-now {
+    color: #f5576c;
+}
+
+.chatbot-card:hover .chat-now {
+    transform: translateX(4px);
+}
+
+.card-footer svg {
+    transition: all 0.3s ease;
+    color: #667eea;
+}
+
+.chatbot-card:nth-child(2) .card-footer svg {
+    color: #f5576c;
+}
+
+.chatbot-card:hover .card-footer svg {
+    transform: translateX(4px);
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+/* Mobile Responsive for ChatbotSelector */
+@media (max-width: 768px) {
+    .selector-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .chatbot-card {
+        padding: 24px;
+    }
+
+    .bot-icon-wrapper {
+        width: 64px;
+        height: 64px;
+    }
+
+    .card-content h2 {
+        font-size: 1.4rem;
     }
 }

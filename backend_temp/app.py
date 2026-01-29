@@ -60,6 +60,12 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserGoalUpdate(BaseModel):
+    start_weight: Optional[float] = None
+    target_weight: Optional[float] = None
+    goal_type: Optional[str] = None
+    goal_description: Optional[str] = None
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -74,6 +80,7 @@ class UserResponse(BaseModel):
     goal_type: Optional[str] = None
     activity_level: Optional[str] = None
     goal_description: Optional[str] = None
+    inbody_data: Optional[Dict[str, Any]] = None
 
 app = FastAPI(title="InBody OCR API", description="InBody 인쇄물 OCR 분석 API")
 
@@ -268,6 +275,32 @@ async def get_all_users(db: Session = Depends(get_db)):
             } for u in users
         ]
     }
+
+@app.put("/api/users/{user_id}/goal", response_model=UserResponse)
+async def update_user_goal(user_id: int, goal_data: UserGoalUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    
+    # 업데이트할 필드가 있으면 업데이트
+    if goal_data.start_weight is not None:
+        user.start_weight = goal_data.start_weight
+    if goal_data.target_weight is not None:
+        user.target_weight = goal_data.target_weight
+    if goal_data.goal_type is not None:
+        user.goal_type = goal_data.goal_type
+    if goal_data.goal_description is not None:
+        user.goal_description = goal_data.goal_description
+    
+    try:
+        db.commit()
+        db.refresh(user)
+        print(f"✅ 사용자 목표 수정 성공: {user.email}")
+        return user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"목표 수정 중 오류 발생: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

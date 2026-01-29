@@ -28,20 +28,39 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
-  /* Prevent horizontal and vertical shake */
-  overscroll-behavior: none;
-  /* Disable pull-to-refresh/bounce on mobile */
-  position: fixed;
-  /* Extra lock for mobile */
 }
 
-body {
-  display: flex;
-  place-items: center;
-  justify-content: center;
-  min-width: 320px;
+@media (max-width: 768px) {
+
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    /* Prevent horizontal and vertical shake */
+    overscroll-behavior: none;
+    /* Disable pull-to-refresh/bounce on mobile */
+    position: fixed;
+    /* Extra lock for mobile */
+  }
+}
+
+@media (min-width: 769px) {
+
+  html,
+  body {
+    height: auto !important;
+    overflow: auto !important;
+    position: static !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    display: flex;
+    place-items: center;
+    justify-content: center;
+    min-width: 320px;
+  }
 }
 
 h1 {

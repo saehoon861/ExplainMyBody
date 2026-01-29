@@ -4,10 +4,7 @@ import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight,
 import './LoginLight.css';
 
 const Signup = () => {
-    const [step, setStep] = useState(() => {
-        const saved = localStorage.getItem('signup_persist');
-        return saved ? JSON.parse(saved).step || 1 : 1;
-    });
+    const [step, setStep] = useState(1);
 
     const preferredExercisesList = [
         '유산소', '무산소', '러닝', '걷기', '고강도운동',
@@ -15,47 +12,28 @@ const Signup = () => {
         '맨몸운동', '실내운동', '실외운동', '기타'
     ];
 
-    const [formData, setFormData] = useState(() => {
-        const saved = localStorage.getItem('signup_persist');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            return { ...parsed.formData, password: '', confirmPassword: '' }; // Don't restore passwords
-        }
-        return {
-            email: '',
-            password: '',
-            confirmPassword: '',
-            inbodyImage: null,
-            inbodyData: null,
-            hasMedicalCondition: false,
-            medicalConditions: [],
-            medicalConditionsDetail: '',
-            preferredExercises: [],
-            gender: 'male',
-            age: '31',
-            height: '170',
-            startWeight: '30',
-            targetWeight: '58',
-            goalType: '감량',
-            activityLevel: '보통',
-            goal: ''
-        };
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        confirmPassword: '',
+        inbodyImage: null,
+        inbodyData: null,
+        hasMedicalCondition: false,
+        medicalConditions: [],
+        medicalConditionsDetail: '',
+        preferredExercises: [],
+        gender: 'male',
+        age: '31',
+        height: '170',
+        startWeight: '30',
+        targetWeight: '58',
+        goalType: '감량',
+        activityLevel: '보통',
+        goal: ''
     });
 
-    const [maxStep, setMaxStep] = useState(() => {
-        const saved = localStorage.getItem('signup_persist');
-        return saved ? JSON.parse(saved).maxStep || 1 : 1;
-    });
+    const [maxStep, setMaxStep] = useState(1);
 
-    // Save to localStorage effects
-    React.useEffect(() => {
-        const dataToSave = {
-            formData: { ...formData, password: '', confirmPassword: '', inbodyImage: null }, // Exclude sensitive/complex data
-            step,
-            maxStep
-        };
-        localStorage.setItem('signup_persist', JSON.stringify(dataToSave));
-    }, [formData, step, maxStep]);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [errors, setErrors] = useState({});
     const [passwordStrength, setPasswordStrength] = useState('');
@@ -141,6 +119,22 @@ const Signup = () => {
     };
 
     const handleInputChange = (field, value) => {
+        // Validation for numeric fields
+        if (['age', 'height', 'startWeight', 'targetWeight'].includes(field)) {
+            // 정규식: 숫자만 혹은 소수점 포함 숫자
+            if (!/^\d*\.?\d*$/.test(value)) {
+                return; // 숫자 이외의 문자 입력 시 무시
+            }
+            // 범위 체크
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue)) {
+                if (field === 'age' && numValue > 150) return;
+                if (field === 'height' && numValue > 300) return;
+                if ((field === 'startWeight' || field === 'targetWeight') && numValue > 500) return;
+            }
+            if (value.length > 7) return; // 길이 제한
+        }
+
         setFormData(prev => ({ ...prev, [field]: value }));
         setErrors(prev => ({ ...prev, [field]: '' }));
 
@@ -150,16 +144,42 @@ const Signup = () => {
     };
 
     const handleInbodyFieldChange = (category, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            inbodyData: {
-                ...prev.inbodyData,
-                [category]: {
-                    ...prev.inbodyData[category],
-                    [field]: value
+        // Validation Logic
+        let isValid = true;
+
+        if (field === '성별') {
+            // 성별은 텍스트 허용 (최대 10자)
+            if (value.length > 10) isValid = false;
+        } else {
+            // 그 외 수치 데이터는 숫자와 소수점만 허용
+            // 정규식: 숫자만 혹은 소수점 포함 숫자
+            if (!/^\d*\.?\d*$/.test(value)) {
+                isValid = false;
+            } else {
+                // 범위 제한 (터무니 없는 값 방지)
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                    if (field === '신장' && numValue > 300) isValid = false; // 300cm 초과 방지
+                    else if (field === '연령' && numValue > 150) isValid = false; // 150세 초과 방지
+                    else if ((field.includes('체중') || field.includes('몸무게')) && numValue > 500) isValid = false; // 500kg 초과 방지
+                    else if (field.includes('점수') && numValue > 120) isValid = false; // 인바디 점수 120 초과 방지
+                    else if (value.length > 7) isValid = false; // 그 외 너무 긴 숫자 방지
                 }
             }
-        }));
+        }
+
+        if (isValid) {
+            setFormData(prev => ({
+                ...prev,
+                inbodyData: {
+                    ...prev.inbodyData,
+                    [category]: {
+                        ...prev.inbodyData[category],
+                        [field]: value
+                    }
+                }
+            }));
+        }
     };
 
     const handleImageUpload = (e) => {
@@ -232,10 +252,33 @@ const Signup = () => {
             if (result.success) {
                 setOcrProgress(100); // 성공 시 100%로 점프
                 setTimeout(() => {
+                    const extracted = result.data.structured;
+                    const basicInfo = extracted?.['기본정보'] || {};
+                    // '골격근·지방분석' 섹션의 키가 '체중관리'로 매핑되어 있음 (reportSlides 참조)
+                    const weightInfo = extracted?.['체중관리'] || {};
+
+                    const autoFill = {};
+
+                    // 성별 자동 입력
+                    if (basicInfo['성별']) {
+                        if (basicInfo['성별'].includes('남') || basicInfo['성별'].toLowerCase().includes('m')) {
+                            autoFill.gender = 'male';
+                        } else if (basicInfo['성별'].includes('여') || basicInfo['성별'].toLowerCase().includes('f')) {
+                            autoFill.gender = 'female';
+                        }
+                    }
+
+                    // 나이, 키, 체중 자동 입력 (숫자와 점만 추출)
+                    if (basicInfo['연령']) autoFill.age = basicInfo['연령'].replace(/[^0-9]/g, '');
+                    if (basicInfo['신장']) autoFill.height = basicInfo['신장'].replace(/[^0-9.]/g, '');
+                    if (weightInfo['체중']) autoFill.startWeight = weightInfo['체중'].replace(/[^0-9.]/g, '');
+
                     setFormData(prev => ({
                         ...prev,
-                        inbodyData: result.data.structured
+                        inbodyData: extracted,
+                        ...autoFill
                     }));
+                    setIsProcessingOCR(false); // 로딩 종료 및 결과 화면 전환
                 }, 500); // 100%를 잠시 보여준 후 결과 화면으로 전환
             } else {
                 throw new Error(result.error || '필드 추출에 실패했습니다.');
@@ -332,6 +375,10 @@ const Signup = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Final submission only allowed on Step 4 (Medical Condition check)
+        if (step !== 4) return;
+
         if (validateStep4()) {
             try {
                 // [프론트엔드 -> 백엔드 데이터 전송 시작]
@@ -366,10 +413,11 @@ const Signup = () => {
                 }
                 console.log('Signup success:', result);
 
-                // 성공 시 대시보드로 이동
-                alert('회원가입이 완료되었습니다!');
-                localStorage.removeItem('signup_persist'); // Clear saved data
-                navigate('/dashboard');
+                // 성공 시 대시보드에 사용자 정보 전달 및 로컬 스토리지 저장
+                localStorage.setItem('user', JSON.stringify(result));
+
+                // alert('회원가입이 완료되었습니다!');
+                navigate('/signup-success');
             } catch (err) {
                 console.error('Signup Error:', err);
                 setErrors({ submit: err.message });
@@ -508,8 +556,8 @@ const Signup = () => {
                         {step === 2 && (
                             <div className="step-content fade-in report-view" key="step2">
                                 <div className="form-group">
-                                    {!formData.inbodyData && (
-                                        <div className={`upload-area ${imagePreview ? 'minimized' : ''} ${isProcessingOCR ? 'exit' : ''}`}>
+                                    {!formData.inbodyData && !isProcessingOCR && (
+                                        <div className={`upload-area ${imagePreview ? 'minimized' : ''}`}>
                                             {!imagePreview ? (
                                                 <label htmlFor="file-upload" className="upload-label">
                                                     <ImageIcon size={48} />
@@ -747,7 +795,7 @@ const Signup = () => {
                                     <div className="card-stats">
                                         <div className="stat-item">
                                             <span className="stat-label">목표</span>
-                                            <span className="stat-value highlight">{formData.goalType}</span>
+                                            <span className="stat-value highlight">{formData.goalType}{formData.goalType === '재활' && formData.goal ? ` (${formData.goal})` : ''}</span>
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">목표체중</span>
@@ -755,7 +803,15 @@ const Signup = () => {
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">변화</span>
-                                            <span className="stat-value">-{Math.max(0, parseInt(formData.startWeight || 0) - parseInt(formData.targetWeight || 0))} kg</span>
+                                            <span className="stat-value">
+                                                {(() => {
+                                                    const start = parseFloat(formData.startWeight || 0);
+                                                    const target = parseFloat(formData.targetWeight || 0);
+                                                    const diff = (target - start).toFixed(1);
+                                                    const sign = diff > 0 ? '+' : '';
+                                                    return `${sign}${diff}`;
+                                                })()} kg
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -857,25 +913,123 @@ const Signup = () => {
                             <ArrowLeft size={24} />
                         </button>
                         <div className="modal-header">
-                            <h2>기본 프로필을 먼저 확인해 주세요</h2>
+                            <h2>목표를 설정해 주세요</h2>
                         </div>
 
                         <div className="profile-fields-list">
-                            <div className="profile-field-row">
-                                <span className="field-label">목표</span>
-                                <div className="field-value-controls">
-                                    <select
-                                        value={formData.goalType}
-                                        onChange={(e) => handleInputChange('goalType', e.target.value)}
-                                    >
-                                        <option value="감량">감량</option>
-                                        <option value="증량">증량</option>
-                                        <option value="유지">유지</option>
-                                        <option value="재활">재활</option>
-                                    </select>
-                                    <ArrowRight size={16} className="chevron-icon" />
+                            <div className="profile-field-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
+                                <span className="field-label">목표 (다중 선택 가능)</span>
+                                <div className="checkbox-grid" style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                                    {['감량', '유지', '증량', '재활'].map(type => {
+                                        const selectedGoals = formData.goalType ? formData.goalType.split(',').map(g => g.trim()).filter(g => g !== '') : [];
+                                        const isSelected = selectedGoals.includes(type);
+                                        return (
+                                            <div
+                                                key={type}
+                                                className={`checkbox-item ${isSelected ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    let newGoals;
+                                                    if (isSelected) {
+                                                        newGoals = selectedGoals.filter(g => g !== type);
+                                                    } else {
+                                                        newGoals = [...selectedGoals, type];
+                                                        const order = ['감량', '유지', '증량', '재활'];
+                                                        newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+                                                    }
+                                                    handleInputChange('goalType', newGoals.join(', '));
+                                                    if (!newGoals.includes('재활')) {
+                                                        handleInputChange('goal', '');
+                                                    }
+                                                }}
+                                                style={{ padding: '12px', textAlign: 'center', backgroundColor: 'white' }}
+                                            >
+                                                <span>{type}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
+
+                            {formData.goalType && formData.goalType.includes('재활') && (
+                                <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }} className="fade-in">
+                                    <span style={{ display: 'block', marginBottom: '12px', fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>재활 부위 선택 (다중 선택 가능)</span>
+                                    <div className="checkbox-grid" style={{ marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                                        {['허리 재활', '어깨 재활', '무릎 재활', '목 재활', '발목 재활'].map(part => {
+                                            const selectedParts = (formData.goal || '').split(',').map(p => p.trim()).filter(p => p !== '');
+                                            const isSelected = selectedParts.includes(part);
+                                            return (
+                                                <div
+                                                    key={part}
+                                                    className={`checkbox-item ${isSelected ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        let newParts;
+                                                        if (isSelected) {
+                                                            newParts = selectedParts.filter(p => p !== part);
+                                                        } else {
+                                                            newParts = [...selectedParts, part];
+                                                        }
+                                                        handleInputChange('goal', newParts.join(', '));
+                                                    }}
+                                                    style={{ fontSize: '0.8rem', padding: '8px', textAlign: 'center', backgroundColor: 'white' }}
+                                                >
+                                                    <span>{part}</span>
+                                                </div>
+                                            );
+                                        })}
+                                        <div
+                                            className={`checkbox-item ${(() => {
+                                                const standardParts = ['허리 재활', '어깨 재활', '무릎 재활', '목 재활', '발목 재활'];
+                                                const parts = (formData.goal || '').split(',').map(p => p.trim()).filter(p => p !== '');
+                                                return parts.some(p => !standardParts.includes(p)) || (formData.goal && formData.goal.endsWith(' '));
+                                            })() ? 'active' : ''}`}
+                                            onClick={() => {
+                                                const standardParts = ['허리 재활', '어깨 재활', '무릎 재활', '목 재활', '발목 재활'];
+                                                const parts = (formData.goal || '').split(',').map(p => p.trim()).filter(p => p !== '');
+                                                const hasOther = parts.some(p => !standardParts.includes(p));
+
+                                                if (hasOther || (formData.goal && formData.goal.endsWith(' '))) {
+                                                    const newParts = parts.filter(p => standardParts.includes(p));
+                                                    handleInputChange('goal', newParts.join(', '));
+                                                } else {
+                                                    const prefix = formData.goal ? (formData.goal.endsWith(', ') ? formData.goal : formData.goal + ', ') : '';
+                                                    handleInputChange('goal', prefix + ' ');
+                                                }
+                                            }}
+                                            style={{ fontSize: '0.8rem', padding: '8px', textAlign: 'center', backgroundColor: 'white' }}
+                                        >
+                                            <span>기타</span>
+                                        </div>
+                                    </div>
+                                    {(() => {
+                                        const standardParts = ['허리 재활', '어깨 재활', '무릎 재활', '목 재활', '발목 재활'];
+                                        const fullDesc = formData.goal || '';
+                                        const parts = fullDesc.split(',').map(p => p.trim()).filter(p => p !== '');
+                                        const otherValue = parts.find(p => !standardParts.includes(p)) || (fullDesc.endsWith(' ') ? '' : null);
+
+                                        if (otherValue !== null) {
+                                            return (
+                                                <input
+                                                    type="text"
+                                                    placeholder="그 외 재활 부위를 입력해주세요"
+                                                    className="modal-input"
+                                                    style={{ width: '100%', padding: '10px', fontSize: '0.9rem' }}
+                                                    value={otherValue}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const baseParts = parts.filter(p => standardParts.includes(p));
+                                                        if (val) {
+                                                            handleInputChange('goal', [...baseParts, val].join(', '));
+                                                        } else {
+                                                            handleInputChange('goal', baseParts.join(', ') + (baseParts.length > 0 ? ', ' : '') + ' ');
+                                                        }
+                                                    }}
+                                                />
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
+                            )}
                             <div className="profile-field-row">
                                 <span className="field-label">성별</span>
                                 <div className="field-value-controls">
@@ -962,8 +1116,9 @@ const Signup = () => {
                         </button>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 
