@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 출력 파일
+outputs/*.json
+outputs/*.csv
+
+# 가상환경
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 개인 설정
+config_local.py
+.env
+
+# 로그
+*.log

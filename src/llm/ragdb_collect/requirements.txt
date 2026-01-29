@@ -1,0 +1,11 @@
+# RAG 코퍼스 수집 파이프라인 의존성
+
+# 기본 (PubMed 자동 수집)
+requests>=2.31.0
+pydantic>=2.0.0
+
+# 한국어 논문 자동 수집
+scholarly>=1.7.0          # Google Scholar 수집
+pdfplumber>=0.10.0        # PDF 보고서 파싱
+pandas>=2.0.0             # CSV/Excel 파싱
+openpyxl>=3.1.0           # Excel 파일 지원
