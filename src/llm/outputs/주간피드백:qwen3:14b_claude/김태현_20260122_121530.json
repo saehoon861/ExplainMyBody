@@ -1,0 +1,42 @@
+{
+  "profile": {
+    "name": "김태현",
+    "sex": "남자",
+    "age": 35,
+    "height_cm": 178.0,
+    "weight_kg": 65.0
+  },
+  "analysis": {
+    "basic_info": {
+      "sex": "남자",
+      "age": 35,
+      "weight_kg": 65.0
+    },
+    "stage1_2": {
+      "bmi": 20.5,
+      "bmi_category": "정상",
+      "fat_category": "비만",
+      "smm_ratio": 0.508,
+      "muscle_level": "근육 많음",
+      "stage1_type": "마른비만형",
+      "stage2_type": "근육형"
+    },
+    "muscle_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준이상",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "fat_seg": {
+      "왼팔": "표준",
+      "오른팔": "표준",
+      "몸통": "표준",
+      "왼다리": "표준",
+      "오른다리": "표준"
+    },
+    "stage3": "표준형"
+  },
+  "recommendations": "See: 김태현_20260122_121530_recommendations.md",
+  "generated_at": "2026-01-22T12:15:30.988247"
+}
