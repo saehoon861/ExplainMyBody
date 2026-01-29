@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays } from 'lucide-react';
+import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield } from 'lucide-react';
 import './LoginLight.css'; // 스타일 재사용
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
@@ -447,6 +447,42 @@ const Dashboard = () => {
                         <h3>AI 상담소</h3>
                         <p>궁금한 점 물어보기</p>
                     </div>
+                </Link>
+            </div>
+
+            <div className="section-title fade-in delay-2" style={{ marginTop: '32px', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>부위별 운동법 가이드</h3>
+            </div>
+
+            <div className="quick-actions-grid fade-in delay-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                <Link to="/exercise-guide?cat=상체" className="action-card">
+                    <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
+                        <Zap size={24} />
+                    </div>
+                    <div className="text-box">
+                        <h3>상체</h3>
+                    </div>
+                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
+                </Link>
+
+                <Link to="/exercise-guide?cat=복근" className="action-card">
+                    <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
+                        <Shield size={24} />
+                    </div>
+                    <div className="text-box">
+                        <h3>복근</h3>
+                    </div>
+                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
+                </Link>
+
+                <Link to="/exercise-guide?cat=하체" className="action-card">
+                    <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
+                        <Activity size={24} />
+                    </div>
+                    <div className="text-box">
+                        <h3>하체</h3>
+                    </div>
+                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </Link>
             </div>
 
