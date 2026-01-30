@@ -3,7 +3,7 @@ LLM Schemas - LLM 팀원 전담
 InbodyAnalysisReport, UserDetail, WeeklyPlan, LLM 입출력 (상태 분석 + 주간 계획) 관련 모든 스키마
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from datetime import datetime, date
 from typing import Optional, Dict, Any, List
 
@@ -85,31 +85,9 @@ class UserDetailResponse(UserDetailBase):
     class Config:
         from_attributes = True
 
-    @property
-    def target_weight(self) -> Optional[float]:
-        """goal_description JSON에서 target_weight 추출"""
-        try:
-            import json
-            if not self.goal_description:
-                return None
-            data = json.loads(self.goal_description)
-            if isinstance(data, dict):
-                return data.get("target_weight")
-        except (json.JSONDecodeError, TypeError):
-            pass
-        return None
-
-    @property
-    def goal_description_text(self) -> Optional[str]:
-        """goal_description JSON에서 description 텍스트만 추출 (프론트엔드 표시용)"""
-        # Pydantic이 자동으로 goal_description 필드를 덮어쓰지는 않으므로, 
-        # 프론트엔드가 'goal_description'을 쓸지 'goal_description_text'를 쓸지 결정 필요.
-        # 여기서는 goal_description 자체를 오버라이드 하거나 새로운 필드를 제공.
-        # UserDetailResponse는 Pydantic 모델이므로 @property로 getter를 만들면 json serialization 시 포함됨 (if configured).
-        # 하지만 validator로 root data를 수정하는 게 더 확실함.
-        return None 
-    
-    from pydantic import model_validator
+    # JSON 파싱 결과를 담을 필드 추가
+    target_weight: Optional[float] = None
+    start_weight: Optional[float] = None
     
     @model_validator(mode='after')
     def unpack_goal_description(self):
