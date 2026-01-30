@@ -8,8 +8,10 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-from schemas.llm import StatusAnalysisInput
-from .agent_graph import create_analysis_agent
+from services.llm.llm_clients import create_llm_client
+from services.llm.agent_graph import create_analysis_agent
+from .weekly_plan_graph import create_weekly_plan_agent
+from schemas.llm import StatusAnalysisInput, GoalPlanInput
 
 load_dotenv()
 
@@ -19,8 +21,11 @@ class LLMService:
 
     def __init__(self):
         """LLM 에이전트 및 클라이언트 초기화"""
-        self.analysis_agent = create_analysis_agent()
         self.model_version = "gpt-4o-mini"  # 또는 설정에서 가져옴
+        
+        # 에이전트 생성 (각 graph 파일 내부에서 client를 생성하므로 인자 없이 호출)
+        self.analysis_agent = create_analysis_agent()
+        self.weekly_plan_agent = create_weekly_plan_agent()
 
     def prepare_status_analysis_input(
         self,
@@ -155,15 +160,41 @@ class LLMService:
     async def call_goal_plan_llm(
         self,
         input_data: Dict[str, Any]
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
-        TODO: 팀원이 구현 예정
-        LLM2: 주간 계획서 생성 API 호출
+        LangGraph 에이전트를 호출하여 주간 계획 생성
 
         Args:
-            input_data: prepare_goal_plan_input()의 반환값
-
+            input_data: prepare_goal_plan_input()의 반환값 (GoalPlanInput 호환 딕셔너리)
+            
         Returns:
-            LLM이 생성한 주간 계획서 텍스트
+            {
+                "plan_text": str,
+                "thread_id": str
+            }
         """
-        raise NotImplementedError("LLM API 연동 미구현 - 팀원이 구현 예정")
+        thread_id = f"plan_{input_data['user_id']}_{input_data['record_id']}_{datetime.now().timestamp()}"
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # 입력 데이터를 Pydantic 모델로 변환
+        plan_input_obj = GoalPlanInput(**input_data)
+
+        # 2. LangGraph 에이전트 호출 (최초 계획 생성)
+        initial_state = self.weekly_plan_agent.invoke(
+            {"plan_input": plan_input_obj},
+            config=config
+        )
+
+        # 3. 결과 추출
+        plan_text = initial_state['messages'][-1].content
+        
+        return {"plan_text": plan_text, "thread_id": thread_id}
+
+    async def chat_with_weekly_plan(self, thread_id: str, user_message: str) -> str:
+        """주간 계획에 대한 휴먼 피드백 (Q&A)"""
+        config = {"configurable": {"thread_id": thread_id}}
+        result = self.weekly_plan_agent.invoke(
+            {"messages": [("human", user_message)]},
+            config=config
+        )
+        return result["messages"][-1].content

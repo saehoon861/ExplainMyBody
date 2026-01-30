@@ -142,6 +142,12 @@ def qa_general(state: AnalysisState) -> dict:
     return _generate_qa_response(state, "일반", system_prompt)
 
 
+def finalize_analysis(state: AnalysisState) -> dict:
+    """Node 3: 분석 확정 및 저장"""
+    print("--- LLM1: 분석 확정 ---")
+    return {"messages": [("ai", "네, 분석 결과를 확정하고 저장하겠습니다. 추가적인 질문이 있다면 언제든 다시 찾아주세요.")]}
+
+
 def route_qa(state: AnalysisState) -> str:
     """사용자 질문에 따라 적절한 Q&A 노드로 라우팅"""
     user_question = state["messages"][-1].content.strip()
@@ -154,6 +160,8 @@ def route_qa(state: AnalysisState) -> str:
         return "qa_impact"
     elif user_question.startswith("4"):
         return "qa_priority"
+    elif user_question.startswith("6"):
+        return "finalize_analysis"
     else:
         # 사용자가 카테고리 선택이 아닌 일반 질문을 한 경우
         # 또는 이전 카테고리 대화에 이어서 질문하는 경우,
@@ -179,6 +187,7 @@ def create_analysis_agent():
     workflow.add_node("qa_impact", qa_impact)
     workflow.add_node("qa_priority", qa_priority)
     workflow.add_node("qa_general", qa_general)
+    workflow.add_node("finalize_analysis", finalize_analysis)
     
     # 진입점 설정
     workflow.set_entry_point("initial_analysis")
@@ -194,25 +203,29 @@ def create_analysis_agent():
             "qa_impact": "qa_impact",
             "qa_priority": "qa_priority",
             "qa_general": "qa_general",
+            "finalize_analysis": "finalize_analysis",
         }
     )
     
     # 각 Q&A 노드는 다시 라우터를 거쳐 다음 질문을 처리합니다. (루프)
     workflow.add_conditional_edges("qa_strength_weakness", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
+        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
     })
     workflow.add_conditional_edges("qa_health_status", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
+        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
     })
     workflow.add_conditional_edges("qa_impact", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
+        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
     })
     workflow.add_conditional_edges("qa_priority", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
+        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
     })
     workflow.add_conditional_edges("qa_general", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
+        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
     })
+
+    # 확정 후 종료
+    workflow.add_edge("finalize_analysis", END)
 
     # 체크포인터 설정 (인메모리 저장소)
     # 실제 운영 환경에서는 PostgresSaver 등을 사용하여 DB에 저장하는 것이 좋습니다.
