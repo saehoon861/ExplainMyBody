@@ -135,3 +135,79 @@ class GoalPlanInput(BaseModel):
     status_analysis_id: Optional[int] = None
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+
+
+class GoalPlanRequest(BaseModel):
+    """LLM2: 주간 계획 생성 요청 (프론트엔드 -> 백엔드 API)"""
+    record_id: int
+    user_goal_type: Optional[str] = None
+    user_goal_description: Optional[str] = None
+
+
+class StatusAnalysisResponse(BaseModel):
+    """LLM1: 상태 분석 결과 응답"""
+    report_id: int
+    content: str
+    summary: Optional[str] = None
+
+
+class GoalPlanResponse(BaseModel):
+    """LLM2: 주간 계획 생성 결과 응답"""
+    plan_id: int
+    report_id: int
+    weekly_plan: Dict[str, Any]
+    message: Optional[str] = None
+
+
+# ============================================================================
+# WeeklyPlan Schemas
+# ============================================================================
+
+class WeeklyPlanBase(BaseModel):
+    """주간 계획 기본 스키마"""
+    week_number: int = 1
+    start_date: date
+    end_date: date
+    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
+    weekly_goal: Optional[str] = None
+
+
+class WeeklyPlanCreate(WeeklyPlanBase):
+    """주간 계획 생성 요청"""
+    report_id: int
+
+
+class WeeklyPlanUpdate(BaseModel):
+    """주간 계획 수정 요청"""
+    daily_plans: Optional[Dict[str, Any]] = None
+    weekly_goal: Optional[str] = None
+    is_completed: Optional[bool] = None
+
+
+class WeeklyPlanResponse(WeeklyPlanBase):
+    """주간 계획 응답"""
+    id: int
+    report_id: int
+    created_at: datetime
+    is_completed: bool
+    
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# Chat / Human Feedback Schemas
+# ============================================================================
+
+class AnalysisChatRequest(BaseModel):
+    """분석/계획에 대한 대화 요청 (Human Feedback)"""
+    report_id: int
+    message: str
+    thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
+
+
+class AnalysisChatResponse(BaseModel):
+    """대화 응답"""
+    reply: str
+    thread_id: str
+    updated_plan: Optional[Dict[str, Any]] = None  # 대화로 인해 계획이 변경된 경우 갱신된 데이터 반환
