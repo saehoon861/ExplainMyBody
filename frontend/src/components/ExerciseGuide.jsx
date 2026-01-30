@@ -4,7 +4,7 @@ import { Dumbbell, Youtube, ChevronRight, ArrowUp, Circle, ArrowDown, X, Play } 
 import '../AppLight.css';
 
 const ExerciseGuide = () => {
-    const [activeCategory, setActiveCategory] = useState('상체');
+    const [activeCategory, setActiveCategory] = useState(null);
     const [selectedVideo, setSelectedVideo] = useState(null);
     const location = useLocation();
 
@@ -35,6 +35,8 @@ const ExerciseGuide = () => {
         const cat = params.get('cat');
         if (cat && EXERCISE_GUIDES[cat]) {
             setActiveCategory(cat);
+        } else {
+            setActiveCategory(null);
         }
     }, [location]);
 
@@ -60,47 +62,86 @@ const ExerciseGuide = () => {
                 <p>전문가가 추천하는 부위별 정확한 운동법을 확인하세요.</p>
             </header>
 
-            <div className="category-tabs-container">
-                <div className="category-tabs">
-                    {Object.keys(EXERCISE_GUIDES).map(cat => (
-                        <button
-                            key={cat}
-                            className={`tab-item ${activeCategory === cat ? 'active' : ''}`}
-                            onClick={() => setActiveCategory(cat)}
-                        >
-                            {cat === '상체' && <ArrowUp size={16} />}
-                            {cat === '복근' && <Circle size={16} />}
-                            {cat === '하체' && <ArrowDown size={16} />}
-                            <span>{cat}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="exercise-grid">
-                {EXERCISE_GUIDES[activeCategory].map((ex, index) => (
-                    <div
-                        key={ex.id}
-                        className="guide-card fade-in"
-                        style={{ animationDelay: `${index * 0.1}s`, cursor: 'pointer' }}
-                        onClick={() => openVideo(ex)}
-                    >
-                        <div className="guide-card-header">
-                            <span className="tag-badge">{ex.tag}</span>
-                            <div className="youtube-badge">
-                                <Youtube size={18} />
-                                <span>가이드 보기</span>
-                            </div>
+            {!activeCategory ? (
+                <div className="quick-actions-grid fade-in">
+                    <div className="action-card" onClick={() => setActiveCategory('상체')}>
+                        <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
+                            <ArrowUp size={24} />
                         </div>
-                        <h3 className="exercise-name">{ex.name}</h3>
-                        <p className="exercise-desc">{ex.desc}</p>
-                        <div className="guide-card-footer">
-                            <span className="learn-more">영상으로 배우기</span>
-                            <Play size={16} fill="currentColor" />
+                        <div className="text-box">
+                            <h3>상체 루틴</h3>
+                            <p>어깨, 가슴, 등, 팔 운동 가이드</p>
                         </div>
                     </div>
-                ))}
-            </div>
+                    <div className="action-card" onClick={() => setActiveCategory('복근')}>
+                        <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
+                            <Circle size={24} />
+                        </div>
+                        <div className="text-box">
+                            <h3>복부 & 코어</h3>
+                            <p>식스팩과 탄탄한 코어 집중 강화</p>
+                        </div>
+                    </div>
+                    <div className="action-card" onClick={() => setActiveCategory('하체')}>
+                        <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
+                            <ArrowDown size={24} />
+                        </div>
+                        <div className="text-box">
+                            <h3>하체 루틴</h3>
+                            <p>하체 대근육과 둔근 강화 가이드</p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="category-tabs-container">
+                        <div className="category-tabs">
+                            <button
+                                className="tab-item"
+                                onClick={() => setActiveCategory(null)}
+                                style={{ background: '#f1f5f9', color: '#64748b' }}
+                            >
+                                <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+                                <span>전체 메뉴</span>
+                            </button>
+                            {Object.keys(EXERCISE_GUIDES).map(cat => (
+                                <button
+                                    key={cat}
+                                    className={`tab-item ${activeCategory === cat ? 'active' : ''}`}
+                                    onClick={() => setActiveCategory(cat)}
+                                >
+                                    <span>{cat}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="exercise-grid">
+                        {EXERCISE_GUIDES[activeCategory].map((ex, index) => (
+                            <div
+                                key={ex.id}
+                                className="guide-card fade-in"
+                                style={{ animationDelay: `${index * 0.1}s`, cursor: 'pointer' }}
+                                onClick={() => openVideo(ex)}
+                            >
+                                <div className="guide-card-header">
+                                    <span className="tag-badge">{ex.tag}</span>
+                                    <div className="youtube-badge">
+                                        <Youtube size={18} />
+                                        <span>가이드 보기</span>
+                                    </div>
+                                </div>
+                                <h3 className="exercise-name">{ex.name}</h3>
+                                <p className="exercise-desc">{ex.desc}</p>
+                                <div className="guide-card-footer">
+                                    <span className="learn-more">영상으로 배우기</span>
+                                    <Play size={16} fill="currentColor" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             {/* Video Modal Popup */}
             {selectedVideo && (

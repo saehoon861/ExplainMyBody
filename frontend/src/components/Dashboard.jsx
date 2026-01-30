@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield } from 'lucide-react';
+import {
+    Activity, Apple, ArrowDown, ArrowUp, Calendar, ChevronRight, Dumbbell,
+    Edit2, HelpCircle, Info, LogOut, Settings, Shield, Target, TrendingUp, User, Zap
+} from 'lucide-react';
 import './LoginLight.css'; // 스타일 재사용
 
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -477,10 +480,10 @@ const Dashboard = () => {
                 </div >
             )}
 
-            <div className="quick-actions-grid fade-in delay-1">
-                <Link to="/workout-plan" className="action-card primary">
-                    <div className="icon-box">
-                        <CalendarDays size={24} />
+            <div className="quick-actions-grid fade-in delay-2">
+                <Link to="/workout-plan" className="action-card">
+                    <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
+                        <Calendar size={24} />
                     </div>
                     <div className="text-box">
                         <h3>주간 운동 계획표</h3>
@@ -488,8 +491,8 @@ const Dashboard = () => {
                     </div>
                 </Link>
 
-                <Link to="/chatbot" className="action-card primary">
-                    <div className="icon-box">
+                <Link to="/chatbot" className="action-card">
+                    <div className="icon-box" style={{ background: '#f5f3ff', color: '#8b5cf6' }}>
                         <User size={24} />
                     </div>
                     <div className="text-box">
@@ -497,43 +500,38 @@ const Dashboard = () => {
                         <p>궁금한 점 물어보기</p>
                     </div>
                 </Link>
-            </div>
 
-            <div className="section-title fade-in delay-2" style={{ marginTop: '32px', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>부위별 운동법 가이드</h3>
-            </div>
-
-            <div className="quick-actions-grid fade-in delay-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-                <Link to="/exercise-guide?cat=상체" className="action-card">
-                    <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
+                <Link to="/exercise-guide" className="action-card">
+                    <div className="icon-box" style={{ background: '#f0f9ff', color: '#0ea5e9' }}>
                         <Zap size={24} />
                     </div>
                     <div className="text-box">
-                        <h3>상체</h3>
+                        <h3>부위별 운동 가이드</h3>
+                        <p>상체, 하체, 복근 등 부위별 전문 가이드</p>
                     </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </Link>
 
-                <Link to="/exercise-guide?cat=복근" className="action-card">
-                    <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
-                        <Shield size={24} />
+                <Link to="/chatbot" className="action-card">
+                    <div className="icon-box" style={{ background: '#fef3c7', color: '#d97706' }}>
+                        <Dumbbell size={24} />
                     </div>
                     <div className="text-box">
-                        <h3>복근</h3>
+                        <h3>추천 루틴 & 상담</h3>
+                        <p>나에게 맞는 운동 루틴 추천받기</p>
                     </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </Link>
 
-                <Link to="/exercise-guide?cat=하체" className="action-card">
-                    <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
-                        <Activity size={24} />
+                <Link to="/diet-plan" className="action-card">
+                    <div className="icon-box" style={{ background: '#f0fdf4', color: '#10b981' }}>
+                        <Apple size={24} />
                     </div>
                     <div className="text-box">
-                        <h3>하체</h3>
+                        <h3>오늘의 식단</h3>
+                        <p>나에게 맞는 맞춤형 영양 가이드</p>
                     </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </Link>
             </div>
+
 
             <div style={{ height: '100px' }}></div> {/* Spacer for bottom nav */}
 

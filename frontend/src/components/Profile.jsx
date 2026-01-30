@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, LogOut, ChevronRight, Settings, Shield, Bell } from 'lucide-react';
+import { User, Mail, LogOut, ChevronRight, Settings, Shield, Bell, Activity } from 'lucide-react';
 import './LoginLight.css';
 
 const Profile = () => {
@@ -11,6 +11,32 @@ const Profile = () => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             setUserData(JSON.parse(storedUser));
+        } else {
+            // Mock 데이터 (로그인 없이도 프로필 확인 가능)
+            const mockUser = {
+                email: 'user@example.com',
+                gender: 'male',
+                age: 25,
+                height: 175,
+                goal_type: '근육 증가',
+                start_weight: 70,
+                inbody_data: {
+                    "체중관리": {
+                        "체중": 70.5,
+                        "골격근량": 32.1,
+                        "체지방량": 10.7
+                    },
+                    "비만분석": {
+                        "BMI": 23.1,
+                        "체지방률": 15.2
+                    },
+                    "연구항목": {
+                        "기초대사량": 1650
+                    }
+                }
+            };
+            setUserData(mockUser);
+            localStorage.setItem('user', JSON.stringify(mockUser));
         }
     }, []);
 

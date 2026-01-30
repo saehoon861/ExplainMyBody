@@ -30,5 +30,8 @@ class User(Base):
     # 인바디 데이터 (JSON으로 전체 구조 저장)
     inbody_data = Column(JSON, nullable=True)
     
+    # 일일 기록 (JSON으로 날짜별 저장: {"2026-01-29": {"food": [], "exercise": []}})
+    daily_records = Column(JSON, default={})
+    
     # 시스템 필드
     is_active = Column(Boolean, default=True)

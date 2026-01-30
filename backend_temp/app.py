@@ -66,6 +66,11 @@ class UserGoalUpdate(BaseModel):
     goal_type: Optional[str] = None
     goal_description: Optional[str] = None
 
+class UserRecordUpdate(BaseModel):
+    date: str  # YYYY-MM-DD
+    food: Optional[list] = None
+    exercise: Optional[list] = None
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -81,6 +86,7 @@ class UserResponse(BaseModel):
     activity_level: Optional[str] = None
     goal_description: Optional[str] = None
     inbody_data: Optional[Dict[str, Any]] = None
+    daily_records: Optional[Dict[str, Any]] = None
 
 app = FastAPI(title="InBody OCR API", description="InBody 인쇄물 OCR 분석 API")
 
@@ -300,6 +306,35 @@ async def update_user_goal(user_id: int, goal_data: UserGoalUpdate, db: Session 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"목표 수정 중 오류 발생: {str(e)}")
+
+@app.post("/api/users/{user_id}/records", response_model=UserResponse)
+async def update_user_records(user_id: int, record_data: UserRecordUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    
+    # daily_records JSON 구조: {"2026-01-29": {"food": [], "exercise": []}}
+    current_records = user.daily_records or {}
+    date_key = record_data.date
+    
+    if date_key not in current_records:
+        current_records[date_key] = {"food": [], "exercise": []}
+    
+    if record_data.food is not None:
+        current_records[date_key]["food"] = record_data.food
+    if record_data.exercise is not None:
+        current_records[date_key]["exercise"] = record_data.exercise
+        
+    user.daily_records = current_records
+    
+    try:
+        db.commit()
+        db.refresh(user)
+        print(f"✅ 사용자 일일 기록 업데이트 성공: {user.email} (날짜: {date_key})")
+        return user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"기록 업데이트 중 오류 발생: {str(e)}")
 
 
 if __name__ == "__main__":
