@@ -144,6 +144,13 @@ class GoalPlanRequest(BaseModel):
     user_goal_description: Optional[str] = None
 
 
+class GoalPlanPrepareResponse(BaseModel):
+    """LLM2: 주간 계획 생성용 input 데이터 준비 응답"""
+    success: bool
+    message: str
+    input_data: 'GoalPlanInput'
+
+
 class StatusAnalysisResponse(BaseModel):
     """LLM1: 상태 분석 결과 응답"""
     report_id: int
@@ -152,11 +159,12 @@ class StatusAnalysisResponse(BaseModel):
 
 
 class GoalPlanResponse(BaseModel):
-    """LLM2: 주간 계획 생성 결과 응답"""
+    """LLM2: 주간 계획 생성 결과 응답 (실제 계획 생성 후)"""
     plan_id: int
     report_id: int
     weekly_plan: Dict[str, Any]
     message: Optional[str] = None
+
 
 
 # ============================================================================
@@ -167,29 +175,39 @@ class WeeklyPlanBase(BaseModel):
     """주간 계획 기본 스키마"""
     week_number: int = 1
     start_date: date
-    end_date: date
-    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
-    weekly_goal: Optional[str] = None
+    # end_date: date    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
+    # weekly_goal: Optional[str] = None
+    plan_data: Optional[Dict[str, Any]] = None  # LLM 생성 결과를 저장
+    model_version: Optional[str] = None
 
 
-class WeeklyPlanCreate(WeeklyPlanBase):
+class WeeklyPlanCreate(BaseModel):
     """주간 계획 생성 요청"""
-    report_id: int
+    week_number: int = 1
+    start_date: date
+    end_date: date
+    plan_data: Dict[str, Any]  # LLM 생성 결과 (content, raw_response 등)
+    model_version: Optional[str] = None
 
 
 class WeeklyPlanUpdate(BaseModel):
     """주간 계획 수정 요청"""
-    daily_plans: Optional[Dict[str, Any]] = None
-    weekly_goal: Optional[str] = None
+    # daily_plans: Optional[Dict[str, Any]] = None
+    # weekly_goal: Optional[str] = None
+    plan_data: Optional[Dict[str, Any]] = None
     is_completed: Optional[bool] = None
 
 
-class WeeklyPlanResponse(WeeklyPlanBase):
+class WeeklyPlanResponse(BaseModel):
     """주간 계획 응답"""
     id: int
-    report_id: int
+    user_id: int
+    week_number: int
+    start_date: date
+    end_date: date
+    plan_data: Optional[Dict[str, Any]] = None
+    model_version: Optional[str] = None
     created_at: datetime
-    is_completed: bool
     
     class Config:
         from_attributes = True
@@ -211,3 +229,18 @@ class AnalysisChatResponse(BaseModel):
     reply: str
     thread_id: str
     updated_plan: Optional[Dict[str, Any]] = None  # 대화로 인해 계획이 변경된 경우 갱신된 데이터 반환
+
+
+# ============================================================================
+# Weekly Plan Chat Schemas
+# ============================================================================
+
+class WeeklyPlanChatRequest(BaseModel):
+    """주간 계획 채팅 요청 스키마"""
+    thread_id: str
+    message: str
+
+
+class WeeklyPlanChatResponse(BaseModel):
+    """주간 계획 채팅 응답 스키마"""
+    response: str

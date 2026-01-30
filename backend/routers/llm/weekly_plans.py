@@ -6,12 +6,80 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.llm import WeeklyPlanCreate, WeeklyPlanResponse, WeeklyPlanUpdate
+from schemas.llm import (
+    WeeklyPlanCreate, 
+    WeeklyPlanResponse, 
+    WeeklyPlanUpdate,
+    GoalPlanRequest,
+    WeeklyPlanChatRequest,
+    WeeklyPlanChatResponse
+)
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
+from services.llm.weekly_plan_service import WeeklyPlanService
 from typing import List
 from datetime import date
 
 router = APIRouter()
+weekly_plan_service = WeeklyPlanService()
+
+
+@router.post("/generate", response_model=WeeklyPlanResponse, status_code=201)
+async def generate_weekly_plan(
+    user_id: int,
+    request: GoalPlanRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    AI 주간 계획서 생성
+    
+    - **user_id**: 사용자 ID
+    - **request**: 목표 계획 요청 데이터 (record_id, user_goal_type, user_goal_description)
+    
+    Returns:
+        생성된 주간 계획 (마크다운 형식의 content 포함)
+    """
+    try:
+        new_plan = await weekly_plan_service.generate_plan(db, user_id, request)
+        return new_plan
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"주간 계획 생성 중 오류가 발생했습니다: {str(e)}")
+
+
+@router.post("/{plan_id}/chat", response_model=WeeklyPlanChatResponse)
+async def chat_with_plan(
+    plan_id: int,
+    chat_request: WeeklyPlanChatRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    생성된 주간 계획에 대한 질의응답 및 수정 요청
+    
+    - **plan_id**: 주간 계획 ID
+    - **chat_request**: 채팅 요청 (thread_id, message)
+    
+    Returns:
+        AI의 응답 메시지
+    """
+    try:
+        # 계획이 존재하는지 확인
+        plan = WeeklyPlanRepository.get_by_id(db, plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="주간 계획을 찾을 수 없습니다.")
+        
+        response = await weekly_plan_service.chat_with_plan(
+            plan_id=plan_id,
+            thread_id=chat_request.thread_id,
+            message=chat_request.message
+        )
+        return WeeklyPlanChatResponse(response=response)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"채팅 중 오류가 발생했습니다: {str(e)}")
+
+
 
 
 @router.post("/", response_model=WeeklyPlanResponse, status_code=201)
