@@ -181,3 +181,22 @@ class LLMService:
 
         # 3. 결과 반환 (마지막 AI 메시지)
         return initial_state['messages'][-1].content
+
+    async def chat_with_plan(
+        self,
+        thread_id: str,
+        user_message: str
+    ) -> str:
+        """
+        LLM2 휴먼 피드백 (Q&A) 처리: 주간 계획 수정 및 질의응답
+        """
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # LangGraph 실행 (이전 상태에서 이어서 실행)
+        result = self.weekly_plan_agent.invoke(
+            {"messages": [("human", user_message)]},
+            config=config
+        )
+        
+        # 마지막 AI 응답 반환
+        return result["messages"][-1].content

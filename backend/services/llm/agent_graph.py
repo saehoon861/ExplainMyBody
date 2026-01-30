@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional, Annotated, Dict
+from typing import TypedDict, Optional, Annotated, Dict, List
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from services.llm.llm_clients import create_llm_client, OpenAIClient
-from schemas.llm import StatusAnalysisInput, GoalPlanInput
+from schemas.llm import StatusAnalysisInput
 from .prompt_generator import create_inbody_analysis_prompt
 from schemas.inbody import InBodyData as InBodyMeasurements
 
@@ -21,7 +21,7 @@ class AnalysisState(TypedDict):
     # add_messages는 새로운 메시지를 기존 리스트에 추가하는 역할을 합니다.
     messages: Annotated[list, add_messages]
     # 생성된 임베딩 벡터
-    embedding: Optional[Dict[str, list]]
+    embedding: Optional[Dict[str, List[float]]]
     
     
 # --- 3. 그래프 생성 ---
@@ -165,6 +165,16 @@ def create_analysis_agent(llm_client):
         else:
             return "qa_general"
 
+    # 라우팅 맵 정의
+    routing_map = {
+        "qa_strength_weakness": "qa_strength_weakness",
+        "qa_health_status": "qa_health_status",
+        "qa_impact": "qa_impact",
+        "qa_priority": "qa_priority",
+        "qa_general": "qa_general",
+        "finalize_analysis": "finalize_analysis",
+    }
+
     workflow = StateGraph(AnalysisState)
     
     # 노드 추가
@@ -184,32 +194,13 @@ def create_analysis_agent(llm_client):
     workflow.add_conditional_edges(
         "initial_analysis",
         route_qa,
-        {
-            "qa_strength_weakness": "qa_strength_weakness",
-            "qa_health_status": "qa_health_status",
-            "qa_impact": "qa_impact",
-            "qa_priority": "qa_priority",
-            "qa_general": "qa_general",
-            "finalize_analysis": "finalize_analysis",
-        }
+        routing_map
     )
     
     # 각 Q&A 노드는 다시 라우터를 거쳐 다음 질문을 처리합니다. (루프)
-    workflow.add_conditional_edges("qa_strength_weakness", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
-    })
-    workflow.add_conditional_edges("qa_health_status", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
-    })
-    workflow.add_conditional_edges("qa_impact", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
-    })
-    workflow.add_conditional_edges("qa_priority", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
-    })
-    workflow.add_conditional_edges("qa_general", route_qa, {
-        "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general", "finalize_analysis": "finalize_analysis"
-    })
+    qa_nodes = ["qa_strength_weakness", "qa_health_status", "qa_impact", "qa_priority", "qa_general"]
+    for node in qa_nodes:
+        workflow.add_conditional_edges(node, route_qa, routing_map)
 
     # 확정 후 종료
     workflow.add_edge("finalize_analysis", END)
@@ -220,7 +211,7 @@ def create_analysis_agent(llm_client):
 
     # 휴먼 피드백을 위해, LLM이 답변을 생성한 후에는 항상 멈춥니다.
     # 서비스(API)는 이 멈춘 지점에서 사용자 입력을 받아 다음 단계로 진행합니다.
-    agent = workflow.compile(checkpointer=memory, interrupt_after=["initial_analysis", "qa_strength_weakness", "qa_health_status", "qa_impact", "qa_priority", "qa_general"])
+    agent = workflow.compile(checkpointer=memory, interrupt_after=["initial_analysis"] + qa_nodes)
     
     return agent
     
