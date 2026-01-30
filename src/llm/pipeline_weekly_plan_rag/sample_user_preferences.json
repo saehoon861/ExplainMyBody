@@ -1,0 +1,13 @@
+{
+  "preferred_exercise_types": ["웨이트", "유산소", "스트레칭"],
+  "exercise_frequency": 4,
+  "exercise_duration": 60,
+  "exercise_intensity": "medium",
+  "dietary_restrictions": [],
+  "preferred_cuisine": ["한식", "샐러드"],
+  "disliked_foods": ["패스트푸드", "인스턴트"],
+  "meal_frequency": 3,
+  "health_conditions": [],
+  "injuries": ["왼쪽 무릎 약간 불편"],
+  "medications": []
+}

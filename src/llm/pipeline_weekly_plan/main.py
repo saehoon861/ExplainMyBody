@@ -75,30 +75,12 @@ def run_weekly_plan_generation(
             start_date=start_date,
         )
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         # 4. DB 저장 (선택적)
         plan_id = planner.save_plan_to_db(weekly_plan)
 
         # 5. 성공 응답
         return WeeklyPlanResponse(
             success=True, plan_id=plan_id, weekly_plan=weekly_plan
-=======
-=======
->>>>>>> feature/llm2-new
-        # 4. DB 저장 및 2차 정제
-        plan_id, refined_text = planner.save_plan_to_db(weekly_plan)
-
-        # 5. 성공 응답
-        return WeeklyPlanResponse(
-            success=True,
-            plan_id=plan_id,
-            weekly_plan=weekly_plan,
-            refined_text=refined_text
-<<<<<<< HEAD
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
->>>>>>> feature/llm2-new
         )
 
     except Exception as e:
@@ -209,15 +191,7 @@ def main():
             print(f"\n## 주간 목표")
             print(response.weekly_plan.weekly_goal)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         # 파일로 저장 (TXT 형식 - LLM 원본 출력)
-=======
-        # 파일로 저장 (TXT 형식 - LLM 원본 출력 + 정제된 요약)
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
-        # 파일로 저장 (TXT 형식 - LLM 원본 출력 + 정제된 요약)
->>>>>>> feature/llm2-new
         if args.output_file:
             output_path = Path(args.output_file)
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -238,22 +212,6 @@ def main():
                     # Fallback
                     f.write(response.weekly_plan.weekly_summary)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> feature/llm2-new
-                # 정제된 요약 추가
-                if response.refined_text:
-                    f.write("\n\n" + "=" * 80 + "\n")
-                    f.write("📱 사용자 친화적 요약\n")
-                    f.write("=" * 80 + "\n\n")
-                    f.write(response.refined_text)
-
-<<<<<<< HEAD
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
->>>>>>> feature/llm2-new
             print(f"\n💾 결과 저장: {output_path.absolute()}")
 
     else:

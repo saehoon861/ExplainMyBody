@@ -75,14 +75,6 @@ def run_inbody_analysis(
             record_id=result["record_id"],
             analysis_id=result["analysis_id"],
             analysis_text=result["analysis_text"],
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-            refined_text=result.get("refined_text"),
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
-            refined_text=result.get("refined_text"),
->>>>>>> feature/llm2-new
         )
 
     except Exception as e:
@@ -167,15 +159,7 @@ def main():
             # 디렉토리가 없으면 생성
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             # TXT 파일로 저장 (분석 텍스트만)
-=======
-            # TXT 파일로 저장 (분석 텍스트 + 정제된 요약)
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
-            # TXT 파일로 저장 (분석 텍스트 + 정제된 요약)
->>>>>>> feature/llm2-new
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write("=" * 60 + "\n")
                 f.write("InBody 분석 결과\n")
@@ -185,22 +169,6 @@ def main():
                 f.write("-" * 60 + "\n\n")
                 f.write(response.analysis_text)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> feature/llm2-new
-                # 정제된 요약 추가
-                if response.refined_text:
-                    f.write("\n\n" + "=" * 60 + "\n")
-                    f.write("📱 사용자 친화적 요약\n")
-                    f.write("=" * 60 + "\n\n")
-                    f.write(response.refined_text)
-
-<<<<<<< HEAD
->>>>>>> 7e539dd (branch이동중 불필요 egg파일삭제)
-=======
->>>>>>> feature/llm2-new
             print(f"\n💾 결과 저장 완료: {output_path.absolute()}")
         except Exception as e:
             print(f"\n⚠️  파일 저장 실패: {e}")

@@ -22,7 +22,7 @@ DATABASE_URL = os.getenv(
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,  # 연결 유효성 검사
-    echo=True  # SQL 로그 출력 # 추후에 False로 변경 #fixme
+    echo=False  # SQL 로그 출력 (필요시 True로 변경)
     #pool_size=5 (default) # 커넥션 풀의 기본 크기
     #max_overflow=10 (default) # 최대 연결 수
 )
