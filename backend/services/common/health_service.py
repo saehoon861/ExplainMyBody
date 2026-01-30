@@ -77,7 +77,9 @@ class HealthService:
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
-            measurements=health_record.measurements
+            measurements=health_record.measurements,
+            body_type1=health_record.body_type1,
+            body_type2=health_record.body_type2
         )
 
         return StatusAnalysisResponse(
@@ -180,12 +182,21 @@ class HealthService:
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
-            measurements=health_record.measurements
+            measurements=health_record.measurements,
+            body_type1=health_record.body_type1,
+            body_type2=health_record.body_type2
         )
         
-        # 4. LLM 호출 (현재는 Mocking)
+        # 4. LLM 호출
         try:
-            llm_output = await self.llm_service.call_status_analysis_llm(input_data)
+            # dict를 Pydantic 모델로 변환하여 전달해야 함 (llm_service가 객체 속성 접근을 사용하므로)
+            analysis_input = StatusAnalysisInput(**input_data)
+            llm_result = await self.llm_service.call_status_analysis_llm(analysis_input)
+            llm_output = llm_result["analysis_text"]
+            thread_id = llm_result.get("thread_id")
+            embedding_data = llm_result.get("embedding") or {}
+            embedding_1536 = embedding_data.get("embedding_1536")
+            embedding_1024 = embedding_data.get("embedding_1024")
         except NotImplementedError:
              # LLM 서비스가 아직 구현되지 않았을 경우 Mock 데이터 사용
             llm_output = f"""
@@ -198,19 +209,28 @@ class HealthService:
 현재 건강 상태는 전반적으로 양호합니다. 
 꾸준한 운동과 식단 관리를 통해 현재 상태를 유지하는 것을 권장합니다.
 """
+            thread_id = None
+            embedding_1536 = None
+            embedding_1024 = None
 
         # 5. 분석 리포트 저장
         report_data = AnalysisReportCreate(
             record_id=record_id,
             llm_output=llm_output,
             model_version=self.llm_service.model_version,
-            analysis_type="status_analysis"
+            analysis_type="status_analysis",
+            thread_id=thread_id,
+            embedding_1536=embedding_1536,
+            embedding_1024=embedding_1024
         )
         
         analysis_report = AnalysisReportRepository.create(db, user_id, report_data)
         
         # 6. Pydantic 모델로 변환하여 반환
-        return AnalysisReportResponse.model_validate(analysis_report)
+        # DB에는 thread_id가 저장되지 않았으므로, 응답 객체에 수동으로 주입하여 프론트엔드에 전달
+        response = AnalysisReportResponse.model_validate(analysis_report)
+        response.thread_id = thread_id
+        return response
 
     def get_record_with_analysis(
         self,
