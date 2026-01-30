@@ -8,7 +8,8 @@ import os
 
 # 기존 체형 분류 코드 경로 추가
 # 추후에 각 기능의 파일 코드들을 정리할 때 삭제나 수정 필요 #fixme
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../src/rule_based_bodytype"))
+# backend/services/ocr/ → backend/ → ExplainMyBody/ → src/rule_based_bodytype
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../../src/rule_based_bodytype"))
 
 from typing import Dict, Any, Optional
 from schemas.body_type import BodyTypeAnalysisInput, BodyTypeAnalysisOutput

@@ -52,19 +52,19 @@ def init_db():
     데이터베이스 초기화
     모든 테이블 생성
     """
+    # pgvector extension 먼저 설치 (테이블 생성 전에 필요)
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.commit()
+            print("✅ pgvector extension 준비 완료")
+    except Exception as e:
+        print(f"⚠️  pgvector extension을 설치할 수 없습니다: {e}")
+        print(f"   PostgreSQL에 pgvector가 설치되어 있는지 확인하세요.")
+    
     # 모든 모델 임포트 (테이블 생성을 위해 필요)
     from models import user, health_record, analysis_report, user_detail, weekly_plan
     
     # 테이블 생성
     Base.metadata.create_all(bind=engine)
-    
-    # # pgvector extension 설치 시도
-    # 추후에 pgvector를 사용할 때 필요 
-    # (추후에 RAG 사용 시 벡터 DB를 사용하려면, 해당 부분을 다시 활성화시켜야 함)
-    # try:
-    #     with engine.connect() as conn:
-    #         conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    #         conn.commit()
-    #         print("✅ pgvector extension 준비 완료")
-    # except Exception as e:
-    #     print(f"⚠️  pgvector extension을 설치할 수 없습니다: {e}")

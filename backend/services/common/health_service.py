@@ -11,7 +11,7 @@ from schemas.llm import (
     StatusAnalysisInput,
     GoalPlanInput,
     StatusAnalysisResponse,
-    GoalPlanResponse,
+    GoalPlanPrepareResponse,
     AnalysisReportResponse,
     AnalysisReportCreate
 )
@@ -96,7 +96,7 @@ class HealthService:
         record_id: int,
         user_goal_type: Optional[str] = None,
         user_goal_description: Optional[str] = None
-    ) -> Optional[GoalPlanResponse]:
+    ) -> Optional[GoalPlanPrepareResponse]:
         """
         LLM2: 주간 계획서 생성용 input 데이터 준비 (goal_plan)
 
@@ -111,7 +111,7 @@ class HealthService:
             user_goal_description: 사용자 목표 상세
 
         Returns:
-            GoalPlanResponse: LLM input 데이터
+            GoalPlanPrepareResponse: LLM input 데이터
         """
         # 선택된 건강 기록 조회
         health_record = HealthRecordRepository.get_by_id(db, record_id)
@@ -141,11 +141,12 @@ class HealthService:
             status_analysis_id=status_analysis_id
         )
 
-        return GoalPlanResponse(
+        return GoalPlanPrepareResponse(
             success=True,
             message="LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요.",
             input_data=GoalPlanInput(**input_data)
         )
+
 
     async def analyze_health_record(
         self,
