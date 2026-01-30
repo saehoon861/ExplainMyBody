@@ -142,7 +142,7 @@
     min-width: 340px;
     box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1);
     /* Lighter shadow */
-    animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1), cardFloat 6s ease-in-out infinite alternate 1s;
+    animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1;
     position: relative;
     will-change: transform, opacity;
@@ -1597,11 +1597,11 @@
     }
 
     .login-header h1 {
-        font-size: 1.8rem;
+        font-size: 2.4rem;
     }
 
     .login-header p {
-        font-size: 0.95rem;
+        font-size: 1.15rem;
     }
 
     .progress-indicator {
@@ -1675,11 +1675,11 @@
 
 @media (max-width: 480px) {
     .login-header h1 {
-        font-size: 1.6rem;
+        font-size: 2.2rem;
     }
 
     .login-header p {
-        font-size: 0.85rem;
+        font-size: 1.05rem;
     }
 
     .form-group label {
@@ -1996,4 +1996,22 @@
 .progress-bar-fill.complete {
     background: linear-gradient(90deg, var(--success), #4ade80);
     box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+/* Dynamic Animations for Chatbot Selector */
+@keyframes blobBreath {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.04; }
+    50% { transform: scale(1.15) rotate(5deg); opacity: 0.07; }
+}
+
+@keyframes iconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.animate-blob {
+    animation: blobBreath 4s infinite ease-in-out;
+}
+
+.animate-float {
+    animation: iconFloat 3s infinite ease-in-out;
 }

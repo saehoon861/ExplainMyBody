@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Activity, Dumbbell } from 'lucide-react';
+import { Send, User, Bot, UserCheck, UserCog } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 const BOT_CONFIG = {
     'inbody-analyst': {
-        name: '인바디 분석관',
-        icon: Activity,
+        name: '인바디 분석 전문가',
+        icon: '🧑‍⚕️',
         greeting: "안녕하세요! 인바디 분석 전문가입니다. 당신의 체성분 데이터를 분석하고 건강한 신체를 위한 조언을 드리겠습니다. 무엇이 궁금하신가요?",
         color: '#667eea',
         responses: {
@@ -19,9 +19,9 @@ const BOT_CONFIG = {
         }
     },
     'workout-planner': {
-        name: '운동 플래너',
-        icon: Dumbbell,
-        greeting: "안녕하세요! 운동 계획 전문가입니다. 당신의 목표에 맞는 최적의 운동 루틴을 제안하고, 올바른 자세와 동기부여를 제공하겠습니다. 어떤 운동이 필요하신가요?",
+        name: '운동 플래너 전문가',
+        icon: '🏋️',
+        greeting: "안녕하세요! 운동 플래너 전문가입니다. 당신의 목표에 맞는 최적의 운동 루틴을 제안하고, 올바른 자세와 동기부여를 제공하겠습니다. 어떤 운동이 필요하신가요?",
         color: '#f5576c',
         responses: {
             keywords: {
@@ -100,8 +100,14 @@ const Chatbot = () => {
         <div className="chatbot-container fade-in">
             <header className="chatbot-header" style={{ borderBottomColor: config.color }}>
                 <div className="bot-info">
-                    <div className="bot-avatar" style={{ background: config.color }}>
-                        <BotIcon size={20} strokeWidth={2} />
+                    <div className="bot-avatar" style={{
+                        background: config.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px'
+                    }}>
+                        {typeof config.icon === 'string' ? config.icon : <BotIcon size={20} strokeWidth={2} />}
                     </div>
                     <div>
                         <h3>{config.name}</h3>

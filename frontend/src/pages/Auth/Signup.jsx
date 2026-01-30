@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
-import './LoginLight.css';
+import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, User, Clock, Ruler, Camera } from 'lucide-react';
+import '../../styles/LoginLight.css';
 
 const Signup = () => {
     const [step, setStep] = useState(1);
@@ -43,7 +43,42 @@ const Signup = () => {
     const [reportSlideIndex, setReportSlideIndex] = useState(0);
     const [touchStart, setTouchStart] = useState(null);
     const [touchEnd, setTouchEnd] = useState(null);
+    const [emailCheckStatus, setEmailCheckStatus] = useState('idle'); // idle, checking, available, duplicate, error
+    const [emailCheckMessage, setEmailCheckMessage] = useState('');
     const navigate = useNavigate();
+
+    const checkEmailDuplicate = async (email) => {
+        if (!email || !validateEmail(email)) return;
+
+        setEmailCheckStatus('checking');
+        setEmailCheckMessage('');
+
+        try {
+            const response = await fetch('/api/auth/check-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+            });
+
+            if (response.ok) {
+                setEmailCheckStatus('available');
+                setEmailCheckMessage('사용 가능한 이메일입니다.');
+                setErrors(prev => ({ ...prev, email: '' }));
+            } else if (response.status === 409) {
+                setEmailCheckStatus('duplicate');
+                setEmailCheckMessage('이미 사용 중인 이메일입니다.');
+                setErrors(prev => ({ ...prev, email: '이미 사용 중인 이메일입니다.' }));
+            } else {
+                throw new Error('Server Error');
+            }
+        } catch (error) {
+            console.error('Email check failed:', error);
+            setEmailCheckStatus('error');
+            // Don't show generic error to user to avoid confusion, validation will catch it later if needed
+        }
+    };
 
     // 스와이프 감지를 위한 최소 거리 (픽셀)
     const minSwipeDistance = 50;
@@ -352,7 +387,21 @@ const Signup = () => {
 
     const validateStep1 = () => {
         const errors = {};
-        if (!validateEmail(formData.email)) errors.email = '유효한 이메일 주소를 입력해주세요.';
+        if (!validateEmail(formData.email)) {
+            errors.email = '유효한 이메일 주소를 입력해주세요.';
+        } else if (emailCheckStatus === 'duplicate') {
+            errors.email = '이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.';
+        } else if (emailCheckStatus === 'checking') {
+            // 로딩 중이면 진행 막음
+            setErrors(prev => ({ ...prev, email: '이메일 중복 확인 중입니다. 잠시만 기다려주세요.' }));
+            return false;
+        } else if (emailCheckStatus !== 'available') {
+            // 아직 확인 안 된 경우 (e.g. 빠르게 입력 후 바로 버튼 클릭)
+            checkEmailDuplicate(formData.email);
+            setErrors(prev => ({ ...prev, email: '이메일 중복 확인이 필요합니다.' }));
+            return false;
+        }
+
         if (formData.password.length < 6) errors.password = '비밀번호는 6자 이상이어야 합니다.';
         if (formData.password !== formData.confirmPassword) errors.confirmPassword = '비밀번호가 일치하지 않습니다.';
 
@@ -525,11 +574,39 @@ const Signup = () => {
                                             type="email"
                                             placeholder="example@email.com"
                                             value={formData.email}
-                                            onChange={(e) => handleInputChange('email', e.target.value)}
+                                            onChange={(e) => {
+                                                handleInputChange('email', e.target.value);
+                                                // Reset check status on change
+                                                setEmailCheckStatus('idle');
+                                                setEmailCheckMessage('');
+                                            }}
+                                            onBlur={() => checkEmailDuplicate(formData.email)}
                                             autoFocus
                                         />
+                                        {/* Status Text inside input */}
+                                        <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: 'bold' }}>
+                                            {emailCheckStatus === 'checking' && <span style={{ color: '#94a3b8' }}>확인중...</span>}
+                                            {emailCheckStatus === 'available' && <span style={{ color: '#10b981' }}>사용가능</span>}
+                                            {emailCheckStatus === 'duplicate' && <span style={{ color: '#ef4444' }}>중복</span>}
+                                        </div>
                                     </div>
-                                    {errors.email && <div className="error-message">{errors.email}</div>}
+
+                                    {/* Helper Message Area */}
+                                    <div style={{ minHeight: '20px', marginTop: '4px' }}>
+                                        {emailCheckStatus === 'available' && (
+                                            <div className="success-message fade-in" style={{ fontSize: '0.85rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                {emailCheckMessage}
+                                            </div>
+                                        )}
+                                        {emailCheckStatus === 'duplicate' && (
+                                            <div className="error-message fade-in" style={{ fontSize: '0.85rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                {emailCheckMessage}
+                                            </div>
+                                        )}
+                                        {errors.email && emailCheckStatus !== 'duplicate' && (
+                                            <div className="error-message">{errors.email}</div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="form-group">
@@ -1049,43 +1126,7 @@ const Signup = () => {
                                     })()}
                                 </div>
                             )}
-                            <div className="profile-field-row">
-                                <span className="field-label">성별</span>
-                                <div className="field-value-controls">
-                                    <select
-                                        value={formData.gender}
-                                        onChange={(e) => handleInputChange('gender', e.target.value)}
-                                    >
-                                        <option value="male">남자</option>
-                                        <option value="female">여자</option>
-                                    </select>
-                                    <ArrowRight size={16} className="chevron-icon" />
-                                </div>
-                            </div>
-                            <div className="profile-field-row">
-                                <span className="field-label">나이</span>
-                                <div className="field-value-controls">
-                                    <input
-                                        type="number"
-                                        value={formData.age}
-                                        onChange={(e) => handleInputChange('age', e.target.value)}
-                                    />
-                                    <span>세</span>
-                                    <ArrowRight size={16} className="chevron-icon" />
-                                </div>
-                            </div>
-                            <div className="profile-field-row">
-                                <span className="field-label">키</span>
-                                <div className="field-value-controls">
-                                    <input
-                                        type="number"
-                                        value={formData.height}
-                                        onChange={(e) => handleInputChange('height', e.target.value)}
-                                    />
-                                    <span>cm</span>
-                                    <ArrowRight size={16} className="chevron-icon" />
-                                </div>
-                            </div>
+                            {/* Gender, Age, Height fields removed as per request */}
                             <div className="profile-field-row">
                                 <span className="field-label">평소 활동량</span>
                                 <div className="field-value-controls">

@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import InBodyAnalysis from './components/InBodyAnalysis';
-import SplashScreen from './components/SplashScreen';
-import Dashboard from './components/Dashboard';
-import Chatbot from './components/Chatbot';
-import ChatbotSelector from './components/ChatbotSelector';
-import WorkoutPlan from './components/WorkoutPlan';
-import MainLayout from './components/MainLayout';
-import Profile from './components/Profile';
-import SignupSuccess from './components/SignupSuccess';
-import ExerciseGuide from './components/ExerciseGuide';
 
-import './AppLight.css';
+// Pages
+import Login from './pages/Auth/Login';
+import Signup from './pages/Auth/Signup';
+import SignupSuccess from './pages/Auth/SignupSuccess';
+import SplashScreen from './pages/Auth/SplashScreen';
+import Dashboard from './pages/Dashboard/Dashboard';
+import InBodyAnalysis from './pages/InBody/InBodyAnalysis';
+import Chatbot from './pages/Chatbot/Chatbot';
+import ChatbotSelector from './pages/Chatbot/ChatbotSelector';
+import WorkoutPlan from './pages/Exercise/WorkoutPlan';
+import ExerciseGuide from './pages/Exercise/ExerciseGuide';
+import Profile from './pages/Profile/Profile';
+
+// Layout
+import MainLayout from './components/layout/MainLayout';
+
+// Styles
+import './styles/AppLight.css';
 
 function App() {
   const [showSplash, setShowSplash] = useState(false);  // 임시로 false - SplashScreen 비활성화

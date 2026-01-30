@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Dumbbell, Youtube, ChevronRight, Activity, Zap, Shield } from 'lucide-react';
-import '../AppLight.css';
+import '../../styles/AppLight.css';
 
 const ExerciseGuide = () => {
     const [activeCategory, setActiveCategory] = useState('상체');
@@ -197,8 +197,32 @@ const ExerciseGuide = () => {
                         grid-template-columns: 1fr;
                     }
                     .tab-item {
-                        padding: 10px 18px;
+                        padding: 12px 20px;
+                        font-size: 0.95rem;
+                    }
+                    .guide-card {
+                        padding: 20px;
+                    }
+                    .exercise-name {
+                        font-size: 1.15rem;
+                    }
+                    .exercise-desc {
+                        font-size: 0.95rem;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .tab-item {
+                        padding: 10px 16px;
                         font-size: 0.9rem;
+                    }
+                    .guide-card {
+                        padding: 18px;
+                    }
+                    .exercise-name {
+                        font-size: 1.1rem;
+                    }
+                    .youtube-badge {
+                        font-size: 0.75rem;
                     }
                 }
             `}</style>

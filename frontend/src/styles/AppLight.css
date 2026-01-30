@@ -515,23 +515,137 @@ body {
 /* Mobile Responsive Optimization */
 @media (max-width: 768px) {
     .main-content {
-        padding: 24px 16px;
+        padding: 20px 16px;
     }
 
     .dashboard-header h1 {
-        font-size: 1.52rem;
+        font-size: 1.8rem;
+    }
+
+    .dashboard-header p {
+        font-size: 1rem;
     }
 
     .dashboard-card {
         padding: 24px 20px;
-        margin-bottom: 100px;
+        margin-bottom: 20px;
         border-radius: 20px;
     }
 
-    .bottom-nav {
-        bottom: 10px;
-        left: 10px;
-        right: 10px;
+    /* 퀵 액션 그리드 - 모바일에서 1열로 */
+    .quick-actions-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* 목표 카드 */
+    .goal-overview-card {
+        padding: 24px 20px;
+        border-radius: 20px;
+    }
+
+    .user-greeting {
+        font-size: 1rem;
+    }
+
+    .goal-badge {
+        font-size: 0.8rem;
+        padding: 4px 10px;
+    }
+
+    .weight-progress-container {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .weight-info .value {
+        font-size: 1.6rem;
+    }
+
+    .progress-arrow {
+        transform: rotate(90deg);
+        margin: 8px 0;
+    }
+
+    /* 액션 카드 */
+    .action-card {
+        padding: 20px;
+    }
+
+    .action-card .icon-box {
+        width: 44px;
+        height: 44px;
+    }
+
+    .action-card .text-box h3 {
+        font-size: 1.05rem;
+    }
+
+    .action-card .text-box p {
+        font-size: 0.85rem;
+    }
+
+    /* 챗봇 */
+    .chatbot-container {
+        height: calc(100vh - 80px);
+    }
+
+    .chat-messages {
+        padding: 16px;
+        padding-bottom: 80px;
+    }
+
+    .message-bubble-wrapper {
+        max-width: 90%;
+    }
+
+    .message-bubble p {
+        font-size: 0.95rem;
+    }
+
+    .chat-input-area {
+        bottom: 80px;
+        left: 16px;
+        right: 16px;
+    }
+
+    .bottom-nav.fixed-nav {
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        padding: 12px 10px 16px 10px;
+    }
+
+    .nav-item span {
+        font-size: 0.65rem;
+    }
+}
+
+/* 더 작은 모바일 (480px 이하) */
+@media (max-width: 480px) {
+    .dashboard-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .dashboard-header p {
+        font-size: 0.95rem;
+    }
+
+    .goal-overview-card {
+        padding: 20px 16px;
+    }
+
+    .weight-info .value {
+        font-size: 1.4rem;
+    }
+
+    .action-card {
+        padding: 16px;
+    }
+
+    .chat-input-area {
         padding: 10px;
     }
 }
@@ -771,7 +885,47 @@ body {
 /* Mobile Responsive for ChatbotSelector */
 @media (max-width: 768px) {
     .selector-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .selector-header p {
+        font-size: 1rem;
+    }
+
+    .chatbot-card {
+        padding: 28px;
+    }
+
+    .bot-icon-wrapper {
+        width: 72px;
+        height: 72px;
+    }
+
+    .card-content h2 {
         font-size: 1.5rem;
+    }
+
+    .bot-description {
+        font-size: 1rem;
+    }
+
+    .feature-tag {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+    }
+
+    .chat-now {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .selector-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .selector-header p {
+        font-size: 0.95rem;
     }
 
     .chatbot-card {
@@ -784,6 +938,10 @@ body {
     }
 
     .card-content h2 {
-        font-size: 1.4rem;
+        font-size: 1.35rem;
+    }
+
+    .bot-description {
+        font-size: 0.95rem;
     }
 }

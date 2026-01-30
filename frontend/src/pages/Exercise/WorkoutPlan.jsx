@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, ChevronRight, CheckCircle2, Clock, Dumbbell } from 'lucide-react';
-import './LoginLight.css';
+import '../../styles/LoginLight.css';
 
 const WorkoutPlan = () => {
     const days = ['월', '화', '수', '목', '금', '토', '일'];
@@ -73,6 +73,40 @@ const WorkoutPlan = () => {
             </div>
 
             <div style={{ height: '80px' }}></div>
+
+            <style>{`
+                @media (max-width: 768px) {
+                    .workout-item {
+                        padding: 16px !important;
+                        gap: 12px !important;
+                    }
+                    .workout-item h3 {
+                        font-size: 1rem !important;
+                    }
+                    .workout-item .day-badge {
+                        width: 36px !important;
+                        height: 36px !important;
+                        font-size: 0.9rem !important;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .workout-item {
+                        padding: 14px !important;
+                        gap: 10px !important;
+                    }
+                    .workout-item h3 {
+                        font-size: 0.95rem !important;
+                    }
+                    .workout-item .day-badge {
+                        width: 32px !important;
+                        height: 32px !important;
+                        font-size: 0.85rem !important;
+                    }
+                    .workout-item > div:last-child {
+                        font-size: 0.8rem !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

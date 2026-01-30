@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, Home, RefreshCw, Camera } from 'lucide-react';
-import './LoginLight.css';
+import { Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, Home, RefreshCw, Camera, Save, History } from 'lucide-react';
+import '../../styles/LoginLight.css';
 
 const InBodyAnalysis = () => {
     const [inbodyImage, setInbodyImage] = useState(null);
@@ -13,6 +13,11 @@ const InBodyAnalysis = () => {
     const [errors, setErrors] = useState({});
     const [touchStart, setTouchStart] = useState(null);
     const [touchEnd, setTouchEnd] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [viewMode, setViewMode] = useState('new'); // 'new' or 'history'
+    const [historyRecords, setHistoryRecords] = useState([]);
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const navigate = useNavigate();
 
     const minSwipeDistance = 50;
@@ -173,6 +178,80 @@ const InBodyAnalysis = () => {
         }));
     };
 
+    const handleSaveInbodyData = async () => {
+        if (!inbodyData) return;
+
+        const userData = JSON.parse(localStorage.getItem('user'));
+        if (!userData || !userData.id) {
+            alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+            navigate('/login');
+            return;
+        }
+
+        setIsSaving(true);
+        setErrors({});
+
+        try {
+            const response = await fetch(`/api/health-records/ocr/validate?user_id=${userData.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(inbodyData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail?.message || '저장 중 오류가 발생했습니다.');
+            }
+
+            const savedRecord = await response.json();
+            alert('인바디 데이터가 성공적으로 저장되었습니다!');
+
+            // 저장 후 초기화
+            setInbodyData(null);
+            setImagePreview(null);
+            setInbodyImage(null);
+            setReportSlideIndex(0);
+        } catch (error) {
+            console.error('Save Error:', error);
+            setErrors({ save: error.message });
+            alert(`저장 실패: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const loadHistoryRecords = async () => {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        if (!userData || !userData.id) {
+            alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+            navigate('/login');
+            return;
+        }
+
+        setIsLoadingHistory(true);
+        try {
+            const response = await fetch(`/api/health-records/user/${userData.id}?limit=20`);
+            if (!response.ok) {
+                throw new Error('기록을 불러오는데 실패했습니다.');
+            }
+            const records = await response.json();
+            setHistoryRecords(records);
+        } catch (error) {
+            console.error('Load History Error:', error);
+            alert(`기록 불러오기 실패: ${error.message}`);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    useEffect(() => {
+        if (viewMode === 'history' && historyRecords.length === 0) {
+            loadHistoryRecords();
+        }
+    }, [viewMode]);
+
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = inbodyData?.[categoryKey];
         if (!categoryData) return null;
@@ -216,19 +295,38 @@ const InBodyAnalysis = () => {
                         <h1>InBody Analysis</h1>
                         <p>AI가 분석하는 나의 건강 리포트</p>
                     </div>
-                    <button
-                        className="secondary-button compact"
-                        onClick={() => navigate('/dashboard')}
-                        style={{ width: 'auto', padding: '8px 16px' }}
-                    >
-                        <Home size={18} />
-                        대시보드
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            className={`secondary-button compact ${viewMode === 'history' ? '' : 'active'}`}
+                            onClick={() => setViewMode('new')}
+                            style={{ width: 'auto', padding: '8px 16px' }}
+                        >
+                            <Camera size={18} />
+                            새 분석
+                        </button>
+                        <button
+                            className={`secondary-button compact ${viewMode === 'history' ? 'active' : ''}`}
+                            onClick={() => setViewMode('history')}
+                            style={{ width: 'auto', padding: '8px 16px' }}
+                        >
+                            <History size={18} />
+                            이전 기록
+                        </button>
+                        <button
+                            className="secondary-button compact"
+                            onClick={() => navigate('/dashboard')}
+                            style={{ width: 'auto', padding: '8px 16px' }}
+                        >
+                            <Home size={18} />
+                            대시보드
+                        </button>
+                    </div>
                 </div>
 
-                <div className="step-content fade-in report-view">
-                    <div className="form-group">
-                        {!inbodyData && !isProcessingOCR && (
+                {viewMode === 'new' && (
+                    <div className="step-content fade-in report-view">
+                        <div className="form-group">
+                            {!inbodyData && !isProcessingOCR && (
                             <div className={`upload-area ${imagePreview ? 'minimized' : ''}`}>
                                 {!imagePreview ? (
                                     <label htmlFor="file-upload" className="upload-label">
@@ -464,10 +562,163 @@ const InBodyAnalysis = () => {
                                 </div>
                             </div>
 
+                            {/* 저장 버튼 */}
+                            <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                <button
+                                    type="button"
+                                    className="primary-button"
+                                    onClick={handleSaveInbodyData}
+                                    disabled={isSaving}
+                                    style={{ width: 'auto', minWidth: '200px' }}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 size={18} className="spinning" />
+                                            저장 중...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={18} />
+                                            데이터 저장하기
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    </div>
+                )}
+
+                {/* 이전 기록 보기 */}
+                {viewMode === 'history' && (
+                        <div className="history-container fade-in">
+                            {isLoadingHistory ? (
+                                <div style={{ textAlign: 'center', padding: '40px' }}>
+                                    <Loader2 size={32} className="spinning" />
+                                    <p>기록을 불러오는 중...</p>
+                                </div>
+                            ) : historyRecords.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                    <History size={48} style={{ marginBottom: '16px' }} />
+                                    <p>아직 저장된 기록이 없습니다.</p>
+                                    <button
+                                        className="secondary-button"
+                                        onClick={() => setViewMode('new')}
+                                        style={{ marginTop: '16px' }}
+                                    >
+                                        새 분석 시작하기
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="history-list">
+                                    <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: '700' }}>저장된 인바디 기록</h3>
+                                    {historyRecords.map((record) => (
+                                        <div
+                                            key={record.id}
+                                            className="history-item"
+                                            onClick={() => {
+                                                setSelectedRecord(record);
+                                                setInbodyData(record.measurements);
+                                                setViewMode('new');
+                                            }}
+                                        >
+                                            <div className="history-item-header">
+                                                <span className="history-date">
+                                                    {new Date(record.created_at).toLocaleDateString('ko-KR', {
+                                                        year: 'numeric',
+                                                        month: 'long',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </span>
+                                                {record.body_type1 && (
+                                                    <span className="history-badge">{record.body_type1}</span>
+                                                )}
+                                            </div>
+                                            <div className="history-item-content">
+                                                {record.measurements?.["체중관리"]?.["체중"] && (
+                                                    <span className="history-stat">체중: {record.measurements["체중관리"]["체중"]}kg</span>
+                                                )}
+                                                {record.measurements?.["비만분석"]?.["체지방률"] && (
+                                                    <span className="history-stat">체지방률: {record.measurements["비만분석"]["체지방률"]}%</span>
+                                                )}
+                                            </div>
+                                            <ArrowRight size={20} style={{ marginLeft: 'auto', color: '#94a3b8' }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
-            </div>
+
+            <style>{`
+                .history-container {
+                    padding: 20px 0;
+                }
+                .history-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .history-item {
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    padding: 16px 20px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .history-item:hover {
+                    border-color: #818cf8;
+                    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.1);
+                    transform: translateY(-2px);
+                }
+                .history-item-header {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    flex: 1;
+                }
+                .history-date {
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: #1e293b;
+                }
+                .history-badge {
+                    background: #e0e7ff;
+                    color: #4f46e5;
+                    padding: 2px 8px;
+                    border-radius: 8px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    width: fit-content;
+                }
+                .history-item-content {
+                    display: flex;
+                    gap: 12px;
+                    flex: 1;
+                }
+                .history-stat {
+                    font-size: 0.85rem;
+                    color: #64748b;
+                }
+                .spinning {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .secondary-button.compact.active {
+                    background: #4f46e5;
+                    color: white;
+                }
+            `}</style>
         </div>
     );
 };

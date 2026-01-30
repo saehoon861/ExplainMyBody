@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, PartyPopper, ArrowRight } from 'lucide-react';
-import './LoginLight.css';
+import '../../styles/LoginLight.css';
 
 const SignupSuccess = () => {
     const navigate = useNavigate();

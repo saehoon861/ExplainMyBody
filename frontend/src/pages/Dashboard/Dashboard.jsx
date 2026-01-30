@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield } from 'lucide-react';
-import './LoginLight.css'; // 스타일 재사용
+import '../../styles/LoginLight.css'; // 스타일 재사용
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 
@@ -11,6 +11,7 @@ const Dashboard = () => {
 
     // 목표 수정 모달 상태
     const [isEditing, setIsEditing] = useState(false);
+    const [showRehabOptions, setShowRehabOptions] = useState(false); // 재활 부위 선택지 표시 여부
     const [editForm, setEditForm] = useState({
         start_weight: '',
         target_weight: '',
@@ -49,6 +50,7 @@ const Dashboard = () => {
                 goal_type: userData.goal_type || '감량',
                 goal_description: userData.goal_description || ''
             });
+            setShowRehabOptions(false); // 모달 열 때 재활 선택지 숨김
             setIsEditing(true);
         }
     };
@@ -289,18 +291,34 @@ const Dashboard = () => {
                                                 type="button"
                                                 className={`gender-btn ${isSelected ? 'selected' : ''}`}
                                                 onClick={() => {
+                                                    const generalGoals = ['감량', '유지', '증량'];
                                                     let newGoals;
-                                                    if (isSelected) {
-                                                        newGoals = selectedGoals.filter(g => g !== type);
+
+                                                    if (generalGoals.includes(type)) {
+                                                        // 감량/유지/증량은 배타적 선택 (라디오 버튼처럼)
+                                                        if (isSelected) {
+                                                            // 이미 선택된 것을 다시 클릭하면 해제
+                                                            newGoals = selectedGoals.filter(g => g !== type);
+                                                        } else {
+                                                            // 다른 일반 목표를 모두 제거하고 현재 선택만 추가
+                                                            newGoals = selectedGoals.filter(g => !generalGoals.includes(g));
+                                                            newGoals.push(type);
+                                                        }
                                                     } else {
-                                                        // 일반 목표(감량/유지/증량)는 상호 배타적일 수 있지만, 
-                                                        // 사용자가 다중 선택을 원하므로 모두 허용하거나 감량/유지/증량 중 하나만 선택하게 할 수도 있음.
-                                                        // 여기서는 사용자의 "중복 선택" 요청에 따라 모두 허용함.
-                                                        newGoals = [...selectedGoals, type];
-                                                        // 순서 보장: 일반 목표 우선, 재활 마지막
-                                                        const order = ['감량', '유지', '증량', '재활'];
-                                                        newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+                                                        // 재활은 독립적으로 토글
+                                                        if (isSelected) {
+                                                            newGoals = selectedGoals.filter(g => g !== type);
+                                                            setShowRehabOptions(false); // 재활 해제 시 선택지 숨김
+                                                        } else {
+                                                            newGoals = [...selectedGoals, type];
+                                                            setShowRehabOptions(true); // 재활 선택 시 선택지 표시
+                                                        }
                                                     }
+
+                                                    // 순서 보장: 일반 목표 우선, 재활 마지막
+                                                    const order = ['감량', '유지', '증량', '재활'];
+                                                    newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
                                                     setEditForm(prev => ({
                                                         ...prev,
                                                         goal_type: newGoals.join(', '),
@@ -315,7 +333,7 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            {editForm.goal_type && editForm.goal_type.includes('재활') && (
+                            {editForm.goal_type && editForm.goal_type.includes('재활') && showRehabOptions && (
                                 <div className="form-group fade-in">
                                     <label>재활 부위 (다중 선택 가능)</label>
                                     <div className="gender-select" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
@@ -454,7 +472,7 @@ const Dashboard = () => {
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>부위별 운동법 가이드</h3>
             </div>
 
-            <div className="quick-actions-grid fade-in delay-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+            <div className="quick-actions-grid fade-in delay-2 exercise-category-grid">
                 <Link to="/exercise-guide?cat=상체" className="action-card">
                     <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
                         <Zap size={24} />
@@ -653,6 +671,35 @@ const Dashboard = () => {
                     color: #fff;
                     font-weight: 500;
                     backdrop-filter: blur(4px);
+                }
+                .exercise-category-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+                @media (max-width: 768px) {
+                    .exercise-category-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .dashboard-modal-card {
+                        max-width: 90%;
+                        padding: 20px;
+                    }
+                    .form-group-row {
+                        flex-direction: column;
+                    }
+                    .gender-select {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+                @media (max-width: 480px) {
+                    .edit-goal-button span {
+                        display: none;
+                    }
+                    .dashboard-modal-card {
+                        padding: 16px;
+                    }
+                    .modal-input {
+                        font-size: 0.95rem;
+                    }
                 }
             `}</style>
         </div >

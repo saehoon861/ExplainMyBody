@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Chrome, Github, MessageCircle } from 'lucide-react';
-import './LoginLight.css';
+import '../../styles/LoginLight.css';
 
 // 카카오 로그인 설정 (환경 변수 사용 권장)
 const KAKAO_CLIENT_ID = import.meta.env.VITE_KAKAO_CLIENT_ID || "YOUR_KAKAO_CLIENT_ID";

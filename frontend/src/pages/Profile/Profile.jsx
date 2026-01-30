@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Mail, LogOut, ChevronRight, Settings, Shield, Bell } from 'lucide-react';
-import './LoginLight.css';
+import '../../styles/LoginLight.css';
 
 const Profile = () => {
     const navigate = useNavigate();
