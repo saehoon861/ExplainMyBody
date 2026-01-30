@@ -6,21 +6,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.common import UserCreate, UserResponse, UserLogin
+from schemas.common import UserCreate, UserResponse, UserLogin, UserSignupRequest
 from services.common.auth_service import AuthService
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserSignupRequest, db: Session = Depends(get_db)):
     """
-    회원가입
-    
-    - **username**: 사용자 이름
-    - **email**: 이메일 주소
+    회원가입 (확장)
+    - 사용자 기본 정보
+    - 인바디 데이터 (선택)
+    - 목표 및 건강 정보 (선택)
     """
-    new_user = AuthService.register(db, user_data)
+    new_user = AuthService.register_extended(db, user_data)
     return new_user
 
 

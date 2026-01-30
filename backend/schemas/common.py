@@ -23,6 +23,30 @@ class UserCreate(UserBase):
     password: Optional[str] = None  # 추후 인증 구현 시 사용
 
 
+class UserSignupRequest(UserCreate):
+    """회원가입 요청 스키마 (확장)"""
+    # 신체 정보
+    gender: str
+    age: int
+    height: float
+    # 인바디 데이터 (Step 2) - 선택 사항 (건너뛰기 가능할 수도 있음)
+    inbodyData: Optional[Dict[str, Any]] = None
+    inbodyImage: Optional[Any] = None # 이미지는 별도 처리하거나 URL로 받을 수 있음. 여기선 제외.
+    # 목표 설정 (Step 3)
+    startWeight: float
+    targetWeight: float
+    goalType: str
+    activityLevel: str
+    preferredExercises: Optional[list[str]] = []
+    goal: Optional[str] = None
+    # 건강 체크 (Step 4)
+    medicalConditions: Optional[list[str]] = []
+    medicalConditionsDetail: Optional[str] = None
+    
+    confirmPassword: Optional[str] = None # 프론트에서 보내지만 백엔드에선 검증만 하거나 무시
+
+
+
 class UserLogin(BaseModel):
     """로그인 요청 스키마"""
     email: EmailStr
@@ -33,6 +57,12 @@ class UserResponse(UserBase):
     """사용자 응답 스키마"""
     id: int
     created_at: datetime
+    
+    # Computed fields from User model properties
+    goal_type: Optional[str] = None
+    goal_description: Optional[str] = None
+    start_weight: Optional[float] = None
+    target_weight: Optional[float] = None
     
     class Config:
         from_attributes = True  # ORM 모델과 호환
