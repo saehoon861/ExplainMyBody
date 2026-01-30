@@ -3,16 +3,14 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from dotenv import load_dotenv
+from functools import partial
 
 load_dotenv()
 
-from services.llm.llm_clients import create_llm_client, OpenAIClient
+from services.llm.llm_clients import BaseLLMClient
 from schemas.llm import StatusAnalysisInput, GoalPlanInput
 from .prompt_generator import create_inbody_analysis_prompt
 from schemas.inbody import InBodyData as InBodyMeasurements
-
-# LLM 클라이언트 인스턴스 (실제로는 서비스에서 주입받는 것이 좋음)
-llm_client = create_llm_client("gpt-4o-mini")
 
 
 # --- 1. 상태 정의 ---
@@ -28,7 +26,7 @@ class AnalysisState(TypedDict):
     
     
 # --- 2. 노드(그래프의 각 단계) 정의 ---
-def generate_initial_analysis(state: AnalysisState) -> dict:
+def generate_initial_analysis(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 1: 최초 분석 결과 생성 및 임베딩"""
     print("--- LLM1: 최초 분석 생성 ---")
     analysis_input = state["analysis_input"]
@@ -53,9 +51,8 @@ def generate_initial_analysis(state: AnalysisState) -> dict:
 
     # 3-1. OpenAI 임베딩 생성 (1536차원)
     try:
-        openai_client = OpenAIClient()
-        embedding_1536 = openai_client.create_embedding(text=response)
-        print(f"OpenAI 임베딩 생성 완료 (차원: {len(embedding_1536)})")
+        embedding_1536 = llm_client.create_embedding(text=response)
+        print(f"임베딩 생성 완료 (차원: {len(embedding_1536)})")
     except Exception as e:
         print(f"OpenAI 임베딩 생성 실패: {e}")
 
@@ -72,7 +69,7 @@ def generate_initial_analysis(state: AnalysisState) -> dict:
         "embedding": final_embedding
     }
 
-def _generate_qa_response(state: AnalysisState, category_name: str, system_prompt: str) -> dict:
+def _generate_qa_response(state: AnalysisState, category_name: str, system_prompt: str, llm_client: BaseLLMClient) -> dict:
     """공통 Q&A 답변 생성 로직"""
     print(f"--- LLM1: Q&A 답변 생성 ({category_name}) ---")
 
@@ -95,7 +92,7 @@ def _generate_qa_response(state: AnalysisState, category_name: str, system_promp
     return {"messages": [("ai", response)]}
 
 
-def qa_strength_weakness(state: AnalysisState) -> dict:
+def qa_strength_weakness(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 2-1: 강점/약점 Q&A"""
     system_prompt = """당신은 데이터 기반의 체성분 분석 전문가입니다.
     사용자가 자신의 신체 강점과 약점에 대해 질문했습니다.
@@ -103,9 +100,9 @@ def qa_strength_weakness(state: AnalysisState) -> dict:
     - **강점**: 표준 범위 이상이거나 긍정적인 지표 (예: 높은 골격근량, 적정 체수분 등)
     - **약점**: 개선이 필요한 지표 (예: 높은 체지방률, 부위별 불균형, 낮은 기초대사량 등)
     - **종합 평가**: 현재 신체의 가장 큰 특징을 요약해주세요."""
-    return _generate_qa_response(state, "강점/약점", system_prompt)
+    return _generate_qa_response(state, "강점/약점", system_prompt, llm_client)
 
-def qa_health_status(state: AnalysisState) -> dict:
+def qa_health_status(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 2-2: 건강 상태 Q&A"""
     system_prompt = """당신은 예방 의학 관점에서 조언하는 건강 컨설턴트입니다.
     사용자가 현재 자신의 전반적인 건강 상태에 대해 질문했습니다.
@@ -113,18 +110,18 @@ def qa_health_status(state: AnalysisState) -> dict:
     - **긍정적 신호**: 정상 범위에 있는 BMI, 근육량, 혈압 관련 지표 등
     - **주의/경고 신호**: 복부지방률, 내장지방레벨 등 건강 위험도와 직결되는 지표를 중심으로 설명하고, 어떤 질병의 위험을 높일 수 있는지 알려주세요. (의학적 진단이 아님을 명시)
     - **결론**: 현재 상태가 '매우 건강', '건강한 편', '주의 필요', '관리 필요' 중 어디에 가까운지 종합적으로 판단해주세요."""
-    return _generate_qa_response(state, "건강 상태", system_prompt)
+    return _generate_qa_response(state, "건강 상태", system_prompt, llm_client)
 
-def qa_impact(state: AnalysisState) -> dict:
+def qa_impact(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 2-3: 일상/운동 영향 Q&A"""
     system_prompt = """당신은 운동생리학자이자 라이프스타일 코치입니다.
     사용자가 현재 신체 상태가 일상과 운동 수행능력에 미치는 영향에 대해 질문했습니다.
     이전 대화 내용을 바탕으로, 현재 체성분 상태가 어떤 결과로 이어질 수 있는지 구체적인 예시를 들어 설명해주세요.
     - **운동 수행능력**: 현재 근육량과 체지방량이 근력, 지구력, 순발력 등에 미치는 영향 (예: '하체 근육이 발달하여 스쿼트나 등산에 유리하지만, 체중 대비 상체 근력이 부족하여 턱걸이 같은 운동은 어려울 수 있습니다.')
     - **일상 생활**: 기초대사량, 체력 수준이 일상적인 피로도, 활동성, 자세 유지 등에 미치는 영향 (예: '기초대사량이 낮아 쉽게 피로감을 느낄 수 있으며, 코어 근육 부족으로 오래 앉아있을 때 허리 통증을 유발할 수 있습니다.')"""
-    return _generate_qa_response(state, "일상/운동 영향", system_prompt)
+    return _generate_qa_response(state, "일상/운동 영향", system_prompt, llm_client)
 
-def qa_priority(state: AnalysisState) -> dict:
+def qa_priority(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 2-4: 개선 우선순위 Q&A"""
     system_prompt = """당신은 동기부여가 뛰어난 현실적인 퍼스널 트레이너입니다.
     사용자가 가장 먼저 개선해야 할 우선순위에 대해 질문했습니다.
@@ -133,13 +130,13 @@ def qa_priority(state: AnalysisState) -> dict:
     - **2순위 (체감 효과가 큰 것)**: 단기간에 변화를 느끼거나, 다른 운동 능력 향상에 기반이 되는 것 (예: 코어 근력 강화)
     - **3순위 (장기적 관점)**: 꾸준히 개선해나가야 할 생활 습관이나 보조적인 운동 (예: 식단 기록 시작, 수면 시간 확보)
     각 항목에 대해 '왜' 그것이 중요한지 이유를 명확히 설명해주세요."""
-    return _generate_qa_response(state, "개선 우선순위", system_prompt)
+    return _generate_qa_response(state, "개선 우선순위", system_prompt, llm_client)
 
-def qa_general(state: AnalysisState) -> dict:
+def qa_general(state: AnalysisState, llm_client: BaseLLMClient) -> dict:
     """Node 2-5: 일반 Q&A"""
     system_prompt = """당신은 전문 피트니스 코치입니다. 
     이전 대화의 맥락을 유지하면서 사용자의 질문에 답변해주세요."""
-    return _generate_qa_response(state, "일반", system_prompt)
+    return _generate_qa_response(state, "일반", system_prompt, llm_client)
 
 
 def route_qa(state: AnalysisState) -> str:
@@ -162,7 +159,7 @@ def route_qa(state: AnalysisState) -> str:
 
 
 # --- 3. 그래프 생성 ---
-def create_analysis_agent():
+def create_analysis_agent(llm_client: BaseLLMClient):
     """
     건강 분석 및 휴먼 피드백 Q&A 에이전트 그래프를 생성하고 컴파일합니다.
     
@@ -172,13 +169,13 @@ def create_analysis_agent():
     """
     workflow = StateGraph(AnalysisState)
     
-    # 노드 추가
-    workflow.add_node("initial_analysis", generate_initial_analysis)
-    workflow.add_node("qa_strength_weakness", qa_strength_weakness)
-    workflow.add_node("qa_health_status", qa_health_status)
-    workflow.add_node("qa_impact", qa_impact)
-    workflow.add_node("qa_priority", qa_priority)
-    workflow.add_node("qa_general", qa_general)
+    # 노드 추가 (partial을 사용하여 llm_client 주입)
+    workflow.add_node("initial_analysis", partial(generate_initial_analysis, llm_client=llm_client))
+    workflow.add_node("qa_strength_weakness", partial(qa_strength_weakness, llm_client=llm_client))
+    workflow.add_node("qa_health_status", partial(qa_health_status, llm_client=llm_client))
+    workflow.add_node("qa_impact", partial(qa_impact, llm_client=llm_client))
+    workflow.add_node("qa_priority", partial(qa_priority, llm_client=llm_client))
+    workflow.add_node("qa_general", partial(qa_general, llm_client=llm_client))
     
     # 진입점 설정
     workflow.set_entry_point("initial_analysis")
