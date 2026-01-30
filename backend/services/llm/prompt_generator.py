@@ -2,16 +2,22 @@
 인바디 분석용 프롬프트 생성
 """
 
-from typing import Tuple
-from shared.models import InBodyMeasurements
+from typing import Tuple, Optional
+from schemas.inbody import InBodyData as InBodyMeasurements
 
 
-def create_inbody_analysis_prompt(measurements: InBodyMeasurements) -> Tuple[str, str]:
+def create_inbody_analysis_prompt(
+    measurements: InBodyMeasurements,
+    body_type1: Optional[str] = None,
+    body_type2: Optional[str] = None
+) -> Tuple[str, str]:
     """
     인바디 분석용 프롬프트 생성
 
     Args:
         measurements: InBody 측정 데이터
+        body_type1: 1차 체형 (예: 비만형)
+        body_type2: 2차 체형 (예: 상체발달형)
 
     Returns:
         (system_prompt, user_prompt)
@@ -153,71 +159,75 @@ def create_inbody_analysis_prompt(measurements: InBodyMeasurements) -> Tuple[str
 
     # 기본 정보
     user_prompt_parts.append("## 기본 정보")
-    user_prompt_parts.append(f"- 성별: {measurements.성별}")
-    user_prompt_parts.append(f"- 나이: {measurements.나이}세")
-    user_prompt_parts.append(f"- 신장: {measurements.신장} cm")
-    user_prompt_parts.append(f"- 체중: {measurements.체중} kg")
+    user_prompt_parts.append(f"- 성별: {measurements.기본정보.성별}")
+    user_prompt_parts.append(f"- 나이: {measurements.기본정보.연령}세")
+    user_prompt_parts.append(f"- 신장: {measurements.기본정보.신장} cm")
+    user_prompt_parts.append(f"- 체중: {measurements.체중관리.체중} kg")
 
     # 체성분
     user_prompt_parts.append("\n## 체성분 분석")
-    user_prompt_parts.append(f"- BMI: {measurements.BMI}")
-    user_prompt_parts.append(f"- 체지방률: {measurements.체지방률}%")
-    user_prompt_parts.append(f"- 골격근량: {measurements.골격근량} kg")
+    user_prompt_parts.append(f"- BMI: {measurements.비만분석.BMI}")
+    user_prompt_parts.append(f"- 체지방률: {measurements.비만분석.체지방률}%")
+    user_prompt_parts.append(f"- 골격근량: {measurements.체중관리.골격근량} kg")
 
-    if measurements.체수분:
-        user_prompt_parts.append(f"- 체수분: {measurements.체수분} L")
-    if measurements.단백질:
-        user_prompt_parts.append(f"- 단백질: {measurements.단백질} kg")
-    if measurements.무기질:
-        user_prompt_parts.append(f"- 무기질: {measurements.무기질} kg")
-    if measurements.체지방:
-        user_prompt_parts.append(f"- 체지방량: {measurements.체지방} kg")
+    if measurements.체성분.체수분:
+        user_prompt_parts.append(f"- 체수분: {measurements.체성분.체수분} L")
+    if measurements.체성분.단백질:
+        user_prompt_parts.append(f"- 단백질: {measurements.체성분.단백질} kg")
+    if measurements.체성분.무기질:
+        user_prompt_parts.append(f"- 무기질: {measurements.체성분.무기질} kg")
+    if measurements.체성분.체지방:
+        user_prompt_parts.append(f"- 체지방량: {measurements.체성분.체지방} kg")
 
     # 비만 지표
     user_prompt_parts.append("\n## 비만 지표")
-    if measurements.복부지방률:
-        user_prompt_parts.append(f"- 복부지방률: {measurements.복부지방률}")
-    if measurements.내장지방레벨:
-        user_prompt_parts.append(f"- 내장지방레벨: {measurements.내장지방레벨}")
-    if measurements.비만도:
-        user_prompt_parts.append(f"- 비만도: {measurements.비만도}%")
+    if measurements.비만분석.복부지방률:
+        user_prompt_parts.append(f"- 복부지방률: {measurements.비만분석.복부지방률}")
+    if measurements.비만분석.내장지방레벨:
+        user_prompt_parts.append(f"- 내장지방레벨: {measurements.비만분석.내장지방레벨}")
+    if measurements.비만분석.비만도:
+        user_prompt_parts.append(f"- 비만도: {measurements.비만분석.비만도}%")
 
     # 대사
     user_prompt_parts.append("\n## 대사 정보")
-    if measurements.기초대사량:
-        user_prompt_parts.append(f"- 기초대사량: {measurements.기초대사량} kcal")
-    if measurements.권장섭취열량:
-        user_prompt_parts.append(f"- 권장 섭취 열량: {measurements.권장섭취열량} kcal")
-    if measurements.적정체중:
-        user_prompt_parts.append(f"- 적정 체중: {measurements.적정체중} kg")
+    if measurements.연구항목.기초대사량:
+        user_prompt_parts.append(f"- 기초대사량: {measurements.연구항목.기초대사량} kcal")
+    if measurements.연구항목.권장섭취열량:
+        user_prompt_parts.append(f"- 권장 섭취 열량: {measurements.연구항목.권장섭취열량} kcal")
+    if measurements.체중관리.적정체중:
+        user_prompt_parts.append(f"- 적정 체중: {measurements.체중관리.적정체중} kg")
 
     # 조절 목표
     user_prompt_parts.append("\n## 조절 목표")
-    if measurements.체중조절:
-        user_prompt_parts.append(f"- 체중 조절: {measurements.체중조절:+.1f} kg")
-    if measurements.지방조절:
-        user_prompt_parts.append(f"- 지방 조절: {measurements.지방조절:+.1f} kg")
-    if measurements.근육조절:
-        user_prompt_parts.append(f"- 근육 조절: {measurements.근육조절:+.1f} kg")
+    if measurements.체중관리.체중조절 is not None:
+        user_prompt_parts.append(f"- 체중 조절: {measurements.체중관리.체중조절:+.1f} kg")
+    if measurements.체중관리.지방조절 is not None:
+        user_prompt_parts.append(f"- 지방 조절: {measurements.체중관리.지방조절:+.1f} kg")
+    if measurements.체중관리.근육조절 is not None:
+        user_prompt_parts.append(f"- 근육 조절: {measurements.체중관리.근육조절:+.1f} kg")
 
     # 부위별 근육
     user_prompt_parts.append("\n## 부위별 근육 등급")
-    for part, grade in measurements.근육_부위별등급.items():
-        user_prompt_parts.append(f"- {part}: {grade}")
+    if measurements.부위별근육분석:
+        # Pydantic 모델을 dict로 변환하여 순회
+        for part, grade in measurements.부위별근육분석.model_dump().items():
+            if grade:
+                user_prompt_parts.append(f"- {part}: {grade}")
 
     # 부위별 체지방
-    if measurements.체지방_부위별등급:
+    if measurements.부위별체지방분석:
         user_prompt_parts.append("\n## 부위별 체지방 등급")
-        for part, grade in measurements.체지방_부위별등급.items():
-            user_prompt_parts.append(f"- {part}: {grade}")
+        for part, grade in measurements.부위별체지방분석.model_dump().items():
+            if grade:
+                user_prompt_parts.append(f"- {part}: {grade}")
 
     # Stage 분석
     user_prompt_parts.append("\n## 규칙 기반 체형 분석")
     user_prompt_parts.append(
-        f"- Stage 2 (근육 보정 체형): {measurements.stage2_근육보정체형 or 'N/A'}"
+        f"- Stage 2 (근육 보정 체형): {body_type1 or 'N/A'}"
     )
     user_prompt_parts.append(
-        f"- Stage 3 (상하체 밸런스): {measurements.stage3_상하체밸런스 or 'N/A'}"
+        f"- Stage 3 (상하체 밸런스): {body_type2 or 'N/A'}"
     )
 
     user_prompt = "\n".join(user_prompt_parts)
