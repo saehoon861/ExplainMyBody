@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { healthService } from '../services/healthService';
 import { analysisService } from '../services/analysisService';
 import Layout from '../components/Layout';
+import LoadingAnimation from '../components/LoadingAnimation';
 import './LlmAnalysisPage.css';
 
 const LlmAnalysisPage = () => {
@@ -11,10 +12,16 @@ const LlmAnalysisPage = () => {
     const { user } = useAuth();
     const [records, setRecords] = useState([]);
     const [selectedRecordId, setSelectedRecordId] = useState(searchParams.get('recordId') || '');
-    const [llmInput, setLlmInput] = useState(null);
+    const [analysisResult, setAnalysisResult] = useState(null);
     const [pastReports, setPastReports] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Chat state
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
+    const chatEndRef = useRef(null);
 
     useEffect(() => {
         if (user) {
@@ -25,10 +32,14 @@ const LlmAnalysisPage = () => {
 
     useEffect(() => {
         if (selectedRecordId) {
-            // 기존 분석 결과가 있는지 확인
             loadExistingAnalysis(selectedRecordId);
         }
     }, [selectedRecordId]);
+
+    useEffect(() => {
+        // Auto-scroll to bottom when new messages arrive
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
 
     const loadRecords = async () => {
         try {
@@ -52,19 +63,16 @@ const LlmAnalysisPage = () => {
         try {
             const report = await analysisService.getAnalysisByRecord(recordId);
             if (report) {
-                // 기존 분석이 있으면 표시
-                setLlmInput({
-                    type: 'existing',
-                    data: report
-                });
+                setAnalysisResult(report);
+                setChatMessages([]);
             }
         } catch (error) {
-            // 분석이 없으면 무시
-            setLlmInput(null);
+            setAnalysisResult(null);
+            setChatMessages([]);
         }
     };
 
-    const handlePrepareAnalysis = async () => {
+    const handleAnalyzeWithLLM = async () => {
         if (!selectedRecordId) {
             setError('건강 기록을 선택해주세요.');
             return;
@@ -72,133 +80,124 @@ const LlmAnalysisPage = () => {
 
         setLoading(true);
         setError('');
+        setChatMessages([]);
 
         try {
-            const response = await analysisService.prepareStatusAnalysis(user.id, selectedRecordId);
-            setLlmInput({
-                type: 'prepared',
-                data: response
-            });
+            const result = await analysisService.analyzeWithLLM(user.id, selectedRecordId);
+            setAnalysisResult(result);
+            await loadPastReports(); // Refresh past reports
         } catch (err) {
-            setError(err.response?.data?.detail || 'LLM 데이터 준비 중 오류가 발생했습니다.');
+            setError(err.response?.data?.detail || 'AI 분석 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
     };
 
-    const formatMeasurements = (measurements) => {
-        if (!measurements) return null;
+    const handleSendMessage = async () => {
+        if (!chatInput.trim() || !analysisResult) return;
 
-        return Object.entries(measurements).map(([category, values]) => (
-            <div key={category} className="measurement-category">
-                <h4>{category}</h4>
-                <div className="measurement-items">
-                    {typeof values === 'object' ? (
-                        Object.entries(values).map(([key, value]) => (
-                            <div key={key} className="measurement-item">
-                                <span className="key">{key}:</span>
-                                <span className="value">{value}</span>
-                            </div>
-                        ))
-                    ) : (
-                        <span>{values}</span>
-                    )}
-                </div>
-            </div>
-        ));
+        const userMessage = chatInput.trim();
+        setChatInput('');
+        setChatLoading(true);
+
+        // Add user message to chat
+        setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+
+        try {
+            const response = await analysisService.chatWithAnalysis(
+                analysisResult.id,
+                userMessage,
+                analysisResult.thread_id
+            );
+
+            // Add AI response to chat
+            setChatMessages(prev => [...prev, { role: 'assistant', content: response.response }]);
+        } catch (err) {
+            setError('AI와 대화 중 오류가 발생했습니다.');
+            console.error('Chat error:', err);
+        } finally {
+            setChatLoading(false);
+        }
     };
 
-    const renderPreparedInput = () => {
-        const inputData = llmInput?.data?.input_data;
-        if (!inputData) return null;
+    const renderAnalysisResult = () => {
+        if (!analysisResult) return null;
 
         return (
             <div className="result-card">
                 <div className="result-header">
-                    <h2>LLM Input 데이터 (status_analysis)</h2>
-                    <span className="result-badge prepared">준비 완료</span>
-                </div>
-
-                <div className="result-content">
-                    {/* 기본 정보 */}
-                    <div className="result-section">
-                        <h3>기본 정보</h3>
-                        <div className="info-grid">
-                            <div className="info-item">
-                                <span className="label">기록 ID:</span>
-                                <span className="value">{inputData.record_id}</span>
-                            </div>
-                            <div className="info-item">
-                                <span className="label">측정일:</span>
-                                <span className="value">
-                                    {inputData.measured_at
-                                        ? new Date(inputData.measured_at).toLocaleDateString('ko-KR')
-                                        : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="info-item">
-                                <span className="label">체형 분류 (Stage2):</span>
-                                <span className="value badge-inline">
-                                    {inputData.body_type1 || 'N/A'}
-                                </span>
-                            </div>
-                            <div className="info-item">
-                                <span className="label">체형 분류 (Stage3):</span>
-                                <span className="value badge-inline">
-                                    {inputData.body_type2 || 'N/A'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 인바디 측정 데이터 */}
-                    <div className="result-section">
-                        <h3>인바디 측정 데이터</h3>
-                        <div className="measurements-container">
-                            {formatMeasurements(inputData.measurements)}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="result-footer">
-                    <p className="message">{llmInput.data.message}</p>
-                    <p className="helper">* 팀원이 LLM API 연동 완료 후, 이 데이터가 자동으로 LLM에 전달됩니다.</p>
-                </div>
-            </div>
-        );
-    };
-
-    const renderExistingAnalysis = () => {
-        const report = llmInput?.data;
-        if (!report) return null;
-
-        return (
-            <div className="result-card">
-                <div className="result-header">
-                    <h2>분석 결과</h2>
+                    <h2>🤖 AI 분석 결과</h2>
                     <span className="result-date">
-                        {new Date(report.created_at).toLocaleDateString('ko-KR')}
+                        {new Date(analysisResult.generated_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
                     </span>
                 </div>
 
                 <div className="result-content">
                     <div className="result-section">
-                        <h3>종합 요약</h3>
-                        <p className="summary-text">{report.summary || 'N/A'}</p>
-                    </div>
-
-                    <div className="result-section">
-                        <h3>상세 분석</h3>
+                        <h3>종합 분석</h3>
                         <div className="analysis-text">
-                            {report.analysis_text || 'N/A'}
+                            {analysisResult.llm_output}
                         </div>
                     </div>
 
-                    {report.recommendations && (
+                    {analysisResult.thread_id && (
                         <div className="result-section">
-                            <h3>추천 사항</h3>
-                            <div className="recommendations">
-                                {report.recommendations}
+                            <h3>💬 AI와 대화하기</h3>
+                            <p className="helper-text" style={{ marginBottom: '1rem', textAlign: 'left' }}>
+                                분석 결과에 대해 궁금한 점을 물어보세요!
+                            </p>
+
+                            {/* Chat messages */}
+                            <div className="chat-container">
+                                {chatMessages.map((msg, idx) => (
+                                    <div key={idx} className={`chat-message ${msg.role}`}>
+                                        <div className="message-avatar">
+                                            {msg.role === 'user' ? '👤' : '🤖'}
+                                        </div>
+                                        <div className="message-content">
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ))}
+                                {chatLoading && (
+                                    <div className="chat-message assistant">
+                                        <div className="message-avatar">🤖</div>
+                                        <div className="message-content">
+                                            <div className="typing-indicator">
+                                                <span></span>
+                                                <span></span>
+                                                <span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+
+                            {/* Chat input */}
+                            <div className="chat-input-container">
+                                <input
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                    placeholder="질문을 입력하세요..."
+                                    className="chat-input"
+                                    disabled={chatLoading}
+                                />
+                                <button
+                                    onClick={handleSendMessage}
+                                    disabled={!chatInput.trim() || chatLoading}
+                                    className="chat-send-btn"
+                                >
+                                    전송
+                                </button>
                             </div>
                         </div>
                     )}
@@ -209,8 +208,9 @@ const LlmAnalysisPage = () => {
 
     return (
         <Layout>
+            {loading && <LoadingAnimation type="analysis" />}
             <div className="analysis-page">
-                <h1>AI 건강 분석</h1>
+                <h1>🧬 AI 건강 분석</h1>
                 <p className="subtitle">인바디 데이터를 기반으로 AI가 종합적인 건강 상태를 분석합니다</p>
 
                 <div className="analysis-layout">
@@ -235,35 +235,45 @@ const LlmAnalysisPage = () => {
                             {error && <div className="error-message">{error}</div>}
 
                             <button
-                                onClick={handlePrepareAnalysis}
+                                onClick={handleAnalyzeWithLLM}
                                 disabled={!selectedRecordId || loading}
                                 className="analyze-btn"
                             >
-                                {loading ? 'LLM 데이터 준비 중...' : 'LLM Input 데이터 생성'}
+                                {loading ? (
+                                    <>
+                                        <span className="spinner"></span>
+                                        AI 분석 중...
+                                    </>
+                                ) : (
+                                    '🚀 AI 분석 실행'
+                                )}
                             </button>
 
                             <p className="helper-text">
-                                * LLM API 연동 전 단계입니다
+                                * LLM이 건강 기록을 분석합니다
                             </p>
                         </div>
 
                         <div className="control-card past-reports">
-                            <h2>과거 분석 리포트</h2>
+                            <h2>📋 과거 분석 리포트</h2>
                             {pastReports.length === 0 ? (
                                 <p className="empty-text">아직 분석 리포트가 없습니다</p>
                             ) : (
                                 <div className="report-list">
                                     {pastReports.map((report) => (
                                         <div
-                                            key={report.report_id || report.id}
-                                            className="report-item"
-                                            onClick={() => setLlmInput({ type: 'existing', data: report })}
+                                            key={report.id}
+                                            className={`report-item ${analysisResult?.id === report.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setAnalysisResult(report);
+                                                setChatMessages([]);
+                                            }}
                                         >
                                             <div className="report-date">
-                                                {new Date(report.created_at || report.generated_at).toLocaleDateString('ko-KR')}
+                                                {new Date(report.generated_at).toLocaleDateString('ko-KR')}
                                             </div>
                                             <div className="report-preview">
-                                                {report.summary?.substring(0, 50) || report.llm_output?.substring(0, 50) || 'AI 분석 결과'}...
+                                                {report.llm_output?.substring(0, 60) || 'AI 분석 결과'}...
                                             </div>
                                         </div>
                                     ))}
@@ -273,12 +283,10 @@ const LlmAnalysisPage = () => {
                     </div>
 
                     <div className="analysis-result">
-                        {llmInput ? (
-                            llmInput.type === 'prepared' ? renderPreparedInput() : renderExistingAnalysis()
-                        ) : (
+                        {analysisResult ? renderAnalysisResult() : (
                             <div className="no-result">
                                 <span className="icon">🤖</span>
-                                <p>건강 기록을 선택하고 AI 분석 데이터를 준비하세요</p>
+                                <p>건강 기록을 선택하고 AI 분석을 실행하세요</p>
                             </div>
                         )}
                     </div>
@@ -289,3 +297,4 @@ const LlmAnalysisPage = () => {
 };
 
 export default LlmAnalysisPage;
+
