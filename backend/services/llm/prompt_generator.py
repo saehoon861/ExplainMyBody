@@ -4,6 +4,7 @@
 
 from typing import Tuple, Optional
 from schemas.inbody import InBodyData as InBodyMeasurements
+from schemas.llm import GoalPlanInput
 
 
 def create_inbody_analysis_prompt(
@@ -232,4 +233,55 @@ def create_inbody_analysis_prompt(
 
     user_prompt = "\n".join(user_prompt_parts)
 
+    return system_prompt, user_prompt
+
+
+def create_weekly_plan_prompt(
+    goal_input: GoalPlanInput,
+    measurements: InBodyMeasurements
+) -> Tuple[str, str]:
+    """
+    주간 계획 생성용 프롬프트 생성
+
+    Args:
+        goal_input: 사용자 목표 및 분석 결과 입력
+        measurements: InBody 측정 데이터
+
+    Returns:
+        (system_prompt, user_prompt)
+    """
+    system_prompt = """당신은 사용자의 건강 데이터와 목표를 분석하여 맞춤형 주간 운동 및 식단 계획을 수립하는 전문 퍼스널 트레이너입니다.
+사용자의 신체 상태(인바디), 목표, 그리고 이전 건강 분석 결과를 종합적으로 고려하여 실천 가능하고 효과적인 1주차 계획을 작성해주세요.
+
+## 작성 지침
+1. **개인화**: 사용자의 체중, 근육량, 체지방률과 구체적인 목표를 반영하세요.
+2. **구체성**: 운동 종목, 세트 수, 식단 메뉴 등을 구체적으로 제시하세요.
+3. **안전성**: 사용자의 신체 상태에 무리가 가지 않는 수준으로 설정하세요.
+4. **동기부여**: 계획의 의도와 기대 효과를 함께 설명하여 동기를 부여하세요.
+
+## 출력 형식
+자연스러운 줄글과 리스트 형식을 혼용하여 가독성 있게 작성해주세요.
+- **주간 목표 요약**: 이번 주 집중할 포인트
+- **운동 계획**: 요일별 또는 분할별 운동 루틴 (유산소/무산소 비중 포함)
+- **식단 가이드**: 아침/점심/저녁/간식 추천 메뉴 및 영양 섭취 포인트
+- **생활 습관 팁**: 수면, 수분 섭취 등
+"""
+
+    user_prompt_parts = []
+    user_prompt_parts.append(f"# 사용자 목표")
+    user_prompt_parts.append(f"- 목표 유형: {goal_input.user_goal_type}")
+    user_prompt_parts.append(f"- 상세 내용: {goal_input.user_goal_description}")
+    
+    user_prompt_parts.append(f"\n# 신체 정보")
+    user_prompt_parts.append(f"- 성별: {measurements.기본정보.성별}")
+    user_prompt_parts.append(f"- 체중: {measurements.체중관리.체중}kg")
+    user_prompt_parts.append(f"- 골격근량: {measurements.체중관리.골격근량}kg")
+    user_prompt_parts.append(f"- 체지방률: {measurements.비만분석.체지방률}%")
+    
+    if goal_input.status_analysis_result:
+        user_prompt_parts.append(f"\n# 건강 상태 분석 결과 (참고)")
+        user_prompt_parts.append(goal_input.status_analysis_result)
+        
+    user_prompt = "\n".join(user_prompt_parts)
+    
     return system_prompt, user_prompt
