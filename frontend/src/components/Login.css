@@ -6,7 +6,7 @@
   box-sizing: border-box;
 }
 
-:root {
+**:root {
   --primary: #818cf8;
   --primary-glow: rgba(129, 140, 248, 0.4);
   --primary-hover: #6366f1;
@@ -180,7 +180,7 @@
   outline: none;
   border-color: var(--primary);
   background: rgba(15, 23, 42, 0.6);
-  box-shadow: 0 0 0 4px var(--primary-glow);
+  box-shadow: 0 0 0 2px var(--primary), 0 0 20px var(--primary-glow);
   transform: translateY(-1px);
 }
 
@@ -200,7 +200,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 10px 25px -5px var(--primary-glow);
+  box-shadow: 0 0 20px var(--primary-glow), 0 0 10px rgba(129, 140, 248, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,7 +212,7 @@
 .primary-button:hover:not(:disabled) {
   background: var(--primary-hover);
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 15px 30px -5px var(--primary-glow);
+  box-shadow: 0 0 30px var(--primary-glow), 0 0 15px rgba(129, 140, 248, 0.4);
 }
 
 .primary-button:active:not(:disabled) {
@@ -666,35 +666,46 @@
 }
 
 .slide-nav-btn {
-  background: rgba(129, 140, 248, 0.08);
-  border: 1px solid rgba(129, 140, 248, 0.15);
-  color: var(--primary);
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  width: auto;
+  height: auto;
+  padding: 8px;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  /* Remove mobile tap highlight */
+}
+
+.slide-nav-btn:focus {
+  outline: none;
+  /* Remove focus ring */
 }
 
 .slide-nav-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
-.slide-nav-btn:hover:not(:disabled) {
-  background: var(--primary);
-  color: white;
-  transform: scale(1.1) rotate(5deg);
-  box-shadow: 0 10px 20px -5px var(--primary-glow);
+@media (hover: hover) {
+  .slide-nav-btn:hover:not(:disabled) {
+    background: transparent;
+    color: var(--primary);
+    transform: scale(1.2);
+    box-shadow: none;
+  }
+}
+
+.slide-nav-btn:active:not(:disabled) {
+  transform: scale(0.95);
+  background: transparent;
+  /* Ensure no background on active */
 }
 
 .slide-nav-btn:disabled {
-  opacity: 0.2;
-  cursor: not-allowed;
-  filter: grayscale(1);
+  opacity: 0.1;
+  cursor: default;
 }
 
 .slide-dots {
@@ -1188,6 +1199,50 @@
   flex: 1;
   height: 1px;
   background: var(--glass-border);
+}
+
+/* Selection Grid Styles */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.checkbox-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.checkbox-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  border-color: rgba(129, 140, 248, 0.3);
+  color: white;
+}
+
+.checkbox-item.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px var(--primary-glow);
+  transform: scale(1.02);
+  font-weight: 600;
+}
+
+.checkbox-item span {
+  font-size: 0.95rem;
 }
 
 .social-divider span {

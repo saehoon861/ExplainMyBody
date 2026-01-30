@@ -264,6 +264,43 @@
     border-color: #667eea;
 }
 
+/* Select 박스 스타일 */
+.form-group select,
+.form-select {
+    padding: 0.875rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s;
+    background: white;
+    cursor: pointer;
+}
+
+.form-group.null-field select {
+    border-color: #ffc107;
+    background: white;
+}
+
+.form-group.error-field select {
+    border-color: #dc3545;
+    background: white;
+}
+
+.form-group select:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group.null-field select:focus {
+    border-color: #667eea;
+}
+
+.form-group.error-field select:focus {
+    border-color: #667eea;
+}
+
 .button-group {
     display: flex;
     gap: 1rem;

@@ -16,7 +16,7 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "alembic>=1.13.0",
     "python-dotenv>=1.2.1",
-    "pgvector>=0.2.0"
+    "pgvector>=0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +31,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = {find = {}}
+package-dir = {"" = "src"}
+packages = ["rule_based_bodytype", "rule_based_bodytype.body_analysis"]
 
 [tool.black]
 line-length = 100

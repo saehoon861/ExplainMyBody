@@ -31,4 +31,24 @@ export const analysisService = {
         );
         return response.data;
     },
+
+    // LLM 분석 실행 (실제 AI 분석 호출)
+    async analyzeWithLLM(userId, recordId) {
+        const response = await api.post(
+            `/analysis/${recordId}?user_id=${userId}`
+        );
+        return response.data;
+    },
+
+    // AI와 채팅 (분석 결과에 대한 질문)
+    async chatWithAnalysis(reportId, message, threadId) {
+        const response = await api.post(
+            `/analysis/${reportId}/chat`,
+            {
+                message: message,
+                thread_id: threadId
+            }
+        );
+        return response.data;
+    },
 };

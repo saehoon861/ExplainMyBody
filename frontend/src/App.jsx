@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Login from './components/Login';
 import Signup from './components/Signup';
+import InBodyAnalysis from './components/InBodyAnalysis';
 import SplashScreen from './components/SplashScreen';
+import Dashboard from './components/Dashboard';
+import Chatbot from './components/Chatbot';
+import ChatbotSelector from './components/ChatbotSelector';
+import WorkoutPlan from './components/WorkoutPlan';
+import MainLayout from './components/MainLayout';
+import Profile from './components/Profile';
+import SignupSuccess from './components/SignupSuccess';
+import ExerciseGuide from './components/ExerciseGuide';
 
-import './App.css';
+import './AppLight.css';
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);  // 임시로 false - SplashScreen 비활성화
 
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
@@ -19,21 +28,16 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={
-          <div className="main-content">
-            <header className="dashboard-header">
-              <h1>메인 대시보드</h1>
-              <p>내 몸을 위한 스마트한 관리, 지금 시작하세요.</p>
-            </header>
-            <div className="dashboard-card">
-              <h3>환영합니다! 👋</h3>
-              <p>이곳에 당신의 운동 계획과 건강 리포트가 요약되어 표시될 예정입니다.</p>
-              <div style={{ marginTop: '20px', color: '#818cf8', fontSize: '0.9rem' }}>
-                기능이 차례로 구현될 예정입니다. 준비 중이니 조금만 기다려주세요!
-              </div>
-            </div>
-          </div>
-        } />
+        <Route path="/signup-success" element={<SignupSuccess />} />
+
+        {/* Protected Routes with MainLayout */}
+        <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
+        <Route path="/exercise-guide" element={<MainLayout><ExerciseGuide /></MainLayout>} />
+        <Route path="/inbody" element={<MainLayout><InBodyAnalysis /></MainLayout>} />
+        <Route path="/workout-plan" element={<MainLayout><WorkoutPlan /></MainLayout>} />
+        <Route path="/chatbot" element={<MainLayout><ChatbotSelector /></MainLayout>} />
+        <Route path="/chatbot/:botType" element={<MainLayout><Chatbot /></MainLayout>} />
+        <Route path="/profile" element={<MainLayout><Profile /></MainLayout>} />
       </Routes>
     </Router>
   );
