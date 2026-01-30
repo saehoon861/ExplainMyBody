@@ -38,7 +38,7 @@ def generate_initial_analysis(state: AnalysisState, llm_client: BaseLLMClient) -
     system_prompt, user_prompt = create_inbody_analysis_prompt(
         measurements,
         body_type1=analysis_input.body_type1,
-        body_type2=analysis_input.body_type2
+        body_type2=analysis_input.body_type2  # 문제없음.
     )
     response = llm_client.generate_chat(system_prompt, user_prompt)
     
