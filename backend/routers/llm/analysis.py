@@ -6,13 +6,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.llm import AnalysisReportResponse, ChatbotRequest, ChatbotResponse
+from schemas.llm import AnalysisReportResponse
 from services.common.health_service import HealthService
 from repositories.llm.analysis_report_repository import AnalysisReportRepository
-from services.llm.agent_graph import create_analysis_agent
-from schemas.llm import StatusAnalysisInput
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 router = APIRouter()
 health_service = HealthService()
@@ -76,58 +73,3 @@ def get_user_analysis_reports(
     """
     analysis_reports = AnalysisReportRepository.get_by_user(db, user_id, limit=limit)
     return analysis_reports
-
-
-@router.post("/chat", response_model=ChatbotResponse)
-async def chat_with_ai(
-    request: ChatbotRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    대화형 건강 분석 (챗봇)
-    
-    - **user_id**: 사용자 ID
-    - **message**: 사용자 질문 메시지
-    - **record_id**: (선택) 분석 대상 건강 기록 ID
-    - **thread_id**: (선택) 대화 세션 ID (맥락 유지용)
-    """
-    # 1. 에이전트 생성 (컴파일된 그래프)
-    agent = create_analysis_agent()
-    
-    # 2. 스레드 설정 (대화 맥락 유지)
-    thread_id = request.thread_id or f"user_{request.user_id}_chat_{datetime.now().strftime('%Y%m%d%H%M')}"
-    config = {"configurable": {"thread_id": thread_id}}
-    
-    # 3. 입력 데이터 준비 (건강 기록이 제공된 경우)
-    input_state = {}
-    if request.record_id:
-        record = HealthService().get_record_with_analysis(db, request.user_id, request.record_id)
-        if record and record.get("health_record"):
-            hr = record["health_record"]
-            analysis_input = StatusAnalysisInput(
-                record_id=hr.id,
-                user_id=hr.user_id,
-                measured_at=hr.measured_at,
-                measurements=hr.measurements
-            )
-            # 최초 분석용 입력
-            input_state["analysis_input"] = analysis_input
-
-    # 4. 에이전트 호출
-    # messages에 사용자 질문 추가
-    input_state["messages"] = [("human", request.message)]
-    
-    try:
-        # invoke 호출 (그래프의 상태 업데이트 및 다음 단계 실행)
-        state = agent.invoke(input_state, config=config)
-        
-        # 마지막 AI 메시지 추출
-        ai_response = state["messages"][-1].content
-        
-        return ChatbotResponse(
-            success=True,
-            response=ai_response,
-            thread_id=thread_id
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 응답 생성 중 오류 발생: {str(e)}")

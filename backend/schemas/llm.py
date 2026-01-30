@@ -176,22 +176,3 @@ class GoalPlanRequest(BaseModel):
     record_id: int  # 프론트에서 선택한 건강 기록 ID
     user_goal_type: Optional[str] = None  # 목표 타입 (다이어트, 근육 증가 등)
     user_goal_description: Optional[str] = None  # 상세 목표 설명
-
-
-# ============================================================================
-# Chatbot Schemas (신규)
-# ============================================================================
-
-class ChatbotRequest(BaseModel):
-    """챗봇 대화 요청 스키마"""
-    user_id: int
-    message: str
-    record_id: Optional[int] = None
-    thread_id: Optional[str] = None  # 대화 맥락 유지를 위한 세션 ID
-
-
-class ChatbotResponse(BaseModel):
-    """챗봇 대화 응답 스키마"""
-    success: bool = True
-    response: str
-    thread_id: str
