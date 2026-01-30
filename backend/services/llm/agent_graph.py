@@ -1,17 +1,15 @@
 from typing import TypedDict, Optional, Annotated, Dict
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
+from dotenv import load_dotenv
 
-# Add paths for imports
-import sys
-from pathlib import Path
+load_dotenv()
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from shared.llm_clients import create_llm_client, OpenAIClient, OllamaClient
+from services.llm.llm_clients import create_llm_client, OpenAIClient
 from schemas.llm import StatusAnalysisInput, GoalPlanInput
 from .prompt_generator import create_inbody_analysis_prompt
-from shared.models import InBodyMeasurements
+from schemas.inbody import InBodyData as InBodyMeasurements
 
 # LLM 클라이언트 인스턴스 (실제로는 서비스에서 주입받는 것이 좋음)
 llm_client = create_llm_client("gpt-4o-mini")
@@ -36,19 +34,20 @@ def generate_initial_analysis(state: AnalysisState) -> dict:
     analysis_input = state["analysis_input"]
 
     # 1. InBodyMeasurements 모델로 변환 (prompt_generator가 요구하는 타입)
-    measurements_dict = analysis_input.measurements.copy()
-    measurements_dict["stage2_근육보정체형"] = analysis_input.body_type1
-    measurements_dict["stage3_상하체밸런스"] = analysis_input.body_type2
-    measurements = InBodyMeasurements(**measurements_dict)
+    measurements = InBodyMeasurements(**analysis_input.measurements)
 
     # 2. 프롬프트 생성 및 LLM 호출
-    system_prompt, user_prompt = create_inbody_analysis_prompt(measurements)
+    system_prompt, user_prompt = create_inbody_analysis_prompt(
+        measurements,
+        body_type1=analysis_input.body_type1,
+        body_type2=analysis_input.body_type2
+    )
     response = llm_client.generate_chat(system_prompt, user_prompt)
     
     # --- 3. 임베딩 생성 (embedder.py 로직 반영) ---
     # 이 단계에서는 벡터만 생성합니다.
     # 실제 DB 저장은 서비스 계층에서 이 노드의 결과(response, embedding)를 받아 처리합니다.
-    print("\n🔢 임베딩 생성 중...")
+    print("\n임베딩 생성 중...")
     embedding_1536 = None
     embedding_1024 = None
 
@@ -56,18 +55,10 @@ def generate_initial_analysis(state: AnalysisState) -> dict:
     try:
         openai_client = OpenAIClient()
         embedding_1536 = openai_client.create_embedding(text=response)
-        print(f"  ✓ OpenAI 임베딩 생성 완료 (차원: {len(embedding_1536)})")
+        print(f"OpenAI 임베딩 생성 완료 (차원: {len(embedding_1536)})")
     except Exception as e:
-        print(f"  ⚠️  OpenAI 임베딩 생성 실패: {e}")
+        print(f"OpenAI 임베딩 생성 실패: {e}")
 
-    # 3-2. Ollama bge-m3 임베딩 생성 (1024차원)
-    try:
-        ollama_client = OllamaClient(model="bge-m3:latest", embedding_model="bge-m3:latest")
-        embedding_1024 = ollama_client.create_embedding(text=response)
-        print(f"  ✓ Ollama bge-m3 임베딩 생성 완료 (차원: {len(embedding_1024)})")
-    except Exception as e:
-        print(f"  ⚠️  Ollama 임베딩 생성 실패: {e}")
-        
     final_embedding = {
         "embedding_1536": embedding_1536,
         "embedding_1024": embedding_1024,
@@ -75,8 +66,9 @@ def generate_initial_analysis(state: AnalysisState) -> dict:
 
     # AI의 첫 답변과 생성된 임베딩을 상태에 추가
     # 서비스 계층에서는 이 응답(response)에 덧붙여 사용자에게 선택지를 보여줍니다.
+    # 중요: Q&A 때 AI가 데이터를 알 수 있도록 'user_prompt(인바디 데이터)'도 대화 기록에 추가합니다.
     return {
-        "messages": [("ai", response)],
+        "messages": [("human", user_prompt), ("ai", response)],
         "embedding": final_embedding
     }
 
@@ -87,16 +79,18 @@ def _generate_qa_response(state: AnalysisState, category_name: str, system_promp
     # 사용자의 마지막 질문
     user_question = state["messages"][-1].content
     
-    # LLM 클라이언트가 대화 기록을 지원한다고 가정
-    # system_prompt와 전체 대화 기록(messages)을 함께 전달
-    # TODO: generate_chat_with_history 메서드를 LLM 클라이언트에 구현해야 합니다.
-    # response = llm_client.generate_chat_with_history(
-    #     system_prompt=system_prompt, 
-    #     messages=state["messages"]
-    # )
+    # LangGraph 메시지 객체를 LLM 클라이언트가 이해하는 튜플 리스트로 변환
+    # LangChain Message.type: 'human' -> 'user', 'ai' -> 'assistant'
+    history = []
+    for msg in state["messages"]:
+        role = "user" if msg.type == "human" else "assistant"
+        history.append((role, msg.content))
 
-    # 임시 Mock 응답
-    response = f"'{user_question}'에 대한 답변입니다. 이 부분은 '{category_name}' 주제에 맞춰 생성됩니다. (시스템 프롬프트 적용됨)"
+    # 실제 LLM 호출 (대화 기록 포함)
+    response = llm_client.generate_chat_with_history(
+        system_prompt=system_prompt, 
+        messages=history
+    )
 
     return {"messages": [("ai", response)]}
 
@@ -220,182 +214,13 @@ def create_analysis_agent():
         "qa_strength_weakness": "qa_strength_weakness", "qa_health_status": "qa_health_status", "qa_impact": "qa_impact", "qa_priority": "qa_priority", "qa_general": "qa_general"
     })
 
+    # 체크포인터 설정 (인메모리 저장소)
+    # 실제 운영 환경에서는 PostgresSaver 등을 사용하여 DB에 저장하는 것이 좋습니다.
+    memory = MemorySaver()
 
     # 휴먼 피드백을 위해, LLM이 답변을 생성한 후에는 항상 멈춥니다.
     # 서비스(API)는 이 멈춘 지점에서 사용자 입력을 받아 다음 단계로 진행합니다.
-    agent = workflow.compile(interrupt_after=["initial_analysis", "qa_strength_weakness", "qa_health_status", "qa_impact", "qa_priority", "qa_general"])
+    agent = workflow.compile(checkpointer=memory, interrupt_after=["initial_analysis", "qa_strength_weakness", "qa_health_status", "qa_impact", "qa_priority", "qa_general"])
     
     return agent
-
-
-### 사용 예시 (FastAPI 라우터에서 어떻게 활용될지에 대한 개념) ###
-# 이 부분은 실제 서비스 코드에는 포함되지 않으며, 그래프의 동작을 설명하기 위함입니다.
-if __name__ == "__main__":
-    from datetime import datetime
     
-    # 1. 에이전트 생성
-    analysis_agent = create_analysis_agent()
-    
-    # 2. 서비스 계층에서 최초 분석 실행
-    # 사용자의 health_record에서 analysis_input을 준비했다고 가정
-    mock_analysis_input = StatusAnalysisInput(
-        record_id=1, user_id=1, measured_at=datetime.now(),
-        measurements={"성별": "남성", "나이": 30, "신장": 175, "체중": 75, "BMI": 24.5, "체지방률": 20.1, "골격근량": 35.2, "근육_부위별등급": {"왼팔": "표준", "오른팔": "표준", "복부": "표준", "왼다리": "표준이상", "오른다리": "표준이상"}},
-        body_type1="표준형", body_type2="하체발달형"
-    )
-    config = {"configurable": {"thread_id": "user_123_thread"}}
-    
-    # 최초 분석 실행 -> `initial_analysis` 노드 실행 후 멈춤
-    # 이 시점에서는 아직 다음 노드로 가지 않음.
-    initial_state = analysis_agent.invoke(
-        {"analysis_input": mock_analysis_input}, 
-        config=config
-    )
-    initial_response = initial_state['messages'][-1].content
-    print(f"AI (Initial): {initial_response[:200]}...")
-    
-    # 임베딩 생성 확인
-    if initial_state.get("embedding"):
-        print("\n[임베딩 생성 확인]")
-        if initial_state["embedding"].get("embedding_1536"):
-            print("  ✓ OpenAI (1536d) 임베딩 생성됨")
-        if initial_state["embedding"].get("embedding_1024"):
-            print("  ✓ Ollama (1024d) 임베딩 생성됨")
-            
-    print("\n[프론트엔드: 사용자에게 5가지 선택지 표시]")
-    
-    # 3. 사용자가 '1번' 카테고리를 선택했다고 가정
-    user_choice = "1. 어디가 부족하고, 어디가 괜찮은가요?"
-    print(f"\nUser: {user_choice}")
-    
-    # `route_qa`가 'qa_strength_weakness'를 선택하고, 해당 노드 실행 후 멈춤
-    qa_state_1 = analysis_agent.invoke(
-        {"messages": [("human", user_choice)]}, 
-        config=config
-    )
-    qa_response_1 = qa_state_1['messages'][-1].content
-    print(f"AI (Q&A - 강점/약점): {qa_response_1}")
-    
-    # 4. 사용자가 1번 카테고리에 대해 후속 질문을 한다고 가정
-    follow_up_question = "그럼 하체 근육을 키우려면 어떻게 해야 하나요?"
-    print(f"\nUser: {follow_up_question}")
-    
-    # `route_qa`가 'qa_general' 또는 'qa_strength_weakness'로 가서, 해당 노드 실행 후 멈춤
-    qa_state_2 = analysis_agent.invoke(
-        {"messages": [("human", follow_up_question)]}, 
-        config=config
-    )
-    qa_response_2 = qa_state_2['messages'][-1].content
-    print(f"AI (Q&A - 일반): {qa_response_2}")
-
-    # 5. 사용자가 '2번' 카테고리를 선택했다고 가정
-    user_choice_2 = "2. 지금 건강적으로 괜찮은 상태인가요?"
-    print(f"\nUser: {user_choice_2}")
-
-    # `route_qa`가 'qa_health_status'를 선택하고, 해당 노드 실행 후 멈춤
-    qa_state_3 = analysis_agent.invoke(
-        {"messages": [("human", user_choice_2)]},
-        config=config
-    )
-    qa_response_3 = qa_state_3['messages'][-1].content
-    print(f"AI (Q&A - 건강 상태): {qa_response_3}")
-    
-    # 6. 사용자가 '5번'을 선택하면, 서비스는 더 이상 invoke를 호출하지 않고 종료.
-    
-    # 임시 Mock 응답
-    response = f"'{user_question}'에 대한 답변입니다. 이 부분은 '{category_keywords.get(chosen_category, '일반')}' 주제에 맞춰 생성됩니다."
-
-    return {"messages": [("ai", response)]}
-
-
-# --- 3. 그래프 생성 ---
-def create_analysis_agent():
-    """
-    건강 분석 및 휴먼 피드백 Q&A 에이전트 그래프를 생성하고 컴파일합니다.
-    
-    - `interrupt_after`를 사용하여 각 AI 응답 후에 멈추고 사용자 입력을 기다립니다.
-    - 사용자가 '5. 괜찮습니다'를 선택하는 것은 서비스 계층에서 처리하며,
-      더 이상 그래프를 호출하지 않는 방식으로 구현됩니다.
-    """
-    workflow = StateGraph(AnalysisState)
-    
-    # 노드 추가
-    workflow.add_node("initial_analysis", generate_initial_analysis)
-    workflow.add_node("qa_response", generate_qa_response)
-    
-    # 진입점 설정
-    workflow.set_entry_point("initial_analysis")
-    
-    # 엣지 연결
-    # 최초 분석 후에는 Q&A 노드로 연결됩니다.
-    workflow.add_edge("initial_analysis", "qa_response")
-    # Q&A 응답 후에는 다시 Q&A 노드로 돌아와 연속적인 대화(루프)가 가능합니다.
-    workflow.add_edge("qa_response", "qa_response")
-
-    # 휴먼 피드백을 위해, LLM이 답변을 생성한 후에는 항상 멈춥니다.
-    # 서비스(API)는 이 멈춘 지점에서 사용자 입력을 받아 다음 단계로 진행합니다.
-    agent = workflow.compile(interrupt_after=["initial_analysis", "qa_response"])
-    
-    return agent
-
-
-### 사용 예시 (FastAPI 라우터에서 어떻게 활용될지에 대한 개념) ###
-# 이 부분은 실제 서비스 코드에는 포함되지 않으며, 그래프의 동작을 설명하기 위함입니다.
-if __name__ == "__main__":
-    from datetime import datetime
-    
-    # 1. 에이전트 생성
-    analysis_agent = create_analysis_agent()
-    
-    # 2. 서비스 계층에서 최초 분석 실행
-    # 사용자의 health_record에서 analysis_input을 준비했다고 가정
-    mock_analysis_input = StatusAnalysisInput(
-        record_id=1, user_id=1, measured_at=datetime.now(),
-        measurements={"성별": "남성", "나이": 30, "신장": 175, "체중": 75, "BMI": 24.5, "체지방률": 20.1, "골격근량": 35.2, "근육_부위별등급": {"왼팔": "표준", "오른팔": "표준", "복부": "표준", "왼다리": "표준이상", "오른다리": "표준이상"}},
-        body_type1="표준형", body_type2="하체발달형"
-    )
-    config = {"configurable": {"thread_id": "user_123_thread"}}
-    
-    # 최초 분석 실행 -> `initial_analysis` 노드 실행 후 멈춤
-    initial_state = analysis_agent.invoke(
-        {"analysis_input": mock_analysis_input}, 
-        config=config
-    )
-    initial_response = initial_state['messages'][-1].content
-    print(f"AI (Initial): {initial_response[:200]}...")
-    
-    # 임베딩 생성 확인
-    if initial_state.get("embedding"):
-        print("\n[임베딩 생성 확인]")
-        if initial_state["embedding"].get("embedding_1536"):
-            print("  ✓ OpenAI (1536d) 임베딩 생성됨")
-        if initial_state["embedding"].get("embedding_1024"):
-            print("  ✓ Ollama (1024d) 임베딩 생성됨")
-            
-    print("\n[프론트엔드: 사용자에게 5가지 선택지 표시]")
-    
-    # 3. 사용자가 '1번' 카테고리를 선택했다고 가정
-    user_choice = "1. 어디가 부족하고, 어디가 괜찮은가요?"
-    print(f"\nUser: {user_choice}")
-    
-    # `qa_response` 노드 실행 후 멈춤
-    qa_state_1 = analysis_agent.invoke(
-        {"messages": [("human", user_choice)]}, 
-        config=config
-    )
-    qa_response_1 = qa_state_1['messages'][-1].content
-    print(f"AI (Q&A): {qa_response_1}")
-    
-    # 4. 사용자가 후속 질문을 한다고 가정
-    follow_up_question = "그럼 하체 근육을 키우려면 어떻게 해야 하나요?"
-    print(f"\nUser: {follow_up_question}")
-    
-    # 다시 `qa_response` 노드 실행 후 멈춤 (루프)
-    qa_state_2 = analysis_agent.invoke(
-        {"messages": [("human", follow_up_question)]}, 
-        config=config
-    )
-    qa_response_2 = qa_state_2['messages'][-1].content
-    print(f"AI (Q&A): {qa_response_2}")
-    
-    # 5. 사용자가 '5번'을 선택하면, 서비스는 더 이상 invoke를 호출하지 않고 종료.

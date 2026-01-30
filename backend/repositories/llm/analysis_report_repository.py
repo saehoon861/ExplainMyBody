@@ -21,7 +21,8 @@ class AnalysisReportRepository:
             llm_output=report_data.llm_output,
             model_version=report_data.model_version,
             analysis_type=report_data.analysis_type,
-            embedding_1536=report_data.embedding_1536 if hasattr(report_data, 'embedding_1536') else None
+            embedding_1536=report_data.embedding_1536,
+            embedding_1024=report_data.embedding_1024
         )
         db.add(db_report)
         db.commit()

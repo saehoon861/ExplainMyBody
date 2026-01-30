@@ -17,12 +17,14 @@ class AnalysisReportBase(BaseModel):
     llm_output: str
     model_version: Optional[str] = None
     analysis_type: Optional[str] = None  # "status_analysis" 또는 "goal_plan"
+    thread_id: Optional[str] = None      # LangGraph 대화 스레드 ID
 
 
 class AnalysisReportCreate(AnalysisReportBase):
     """분석 리포트 생성 요청 스키마"""
     record_id: int
     embedding_1536: Optional[List[float]] = None  # OpenAI embedding (1536 차원)
+    embedding_1024: Optional[List[float]] = None  # Ollama bge-m3 embedding (1024 차원)
 
 
 class AnalysisReportResponse(AnalysisReportBase):
@@ -31,7 +33,9 @@ class AnalysisReportResponse(AnalysisReportBase):
     user_id: int
     record_id: int
     generated_at: datetime
+    thread_id: Optional[str] = None
     embedding_1536: Optional[List[float]] = None  # OpenAI embedding (1536 차원)
+    embedding_1024: Optional[List[float]] = None  # Ollama bge-m3 embedding (1024 차원)
     
     class Config:
         from_attributes = True
@@ -123,7 +127,8 @@ class StatusAnalysisInput(BaseModel):
     user_id: int
     measured_at: datetime
     measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
-    # body_type1, body_type2 필드 삭제!
+    body_type1: Optional[str] = None
+    body_type2: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -134,6 +139,17 @@ class StatusAnalysisResponse(BaseModel):
     success: bool = True
     message: str = "LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요."
     input_data: StatusAnalysisInput
+
+
+class AnalysisChatRequest(BaseModel):
+    """분석 결과에 대한 채팅 요청"""
+    message: str
+    thread_id: str  # DB에 저장하지 않으므로 클라이언트가 직접 보내줘야 함
+
+
+class AnalysisChatResponse(BaseModel):
+    """채팅 응답"""
+    response: str
 
 
 # ============================================================================
@@ -154,7 +170,8 @@ class GoalPlanInput(BaseModel):
     user_id: int
     measured_at: datetime
     measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
-    # body_type1, body_type2 필드 삭제!
+    body_type1: Optional[str] = None
+    body_type2: Optional[str] = None
 
     # LLM1(status_analysis)의 분석 결과
     status_analysis_result: Optional[str] = None

@@ -6,13 +6,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.llm import AnalysisReportResponse
+from schemas.llm import AnalysisReportResponse, AnalysisChatRequest, AnalysisChatResponse
 from services.common.health_service import HealthService
+from services.llm.llm_service import LLMService
 from repositories.llm.analysis_report_repository import AnalysisReportRepository
 from typing import List
 
 router = APIRouter()
 health_service = HealthService()
+llm_service = LLMService()  # LLM 서비스 인스턴스 (메모리 공유를 위해 전역 사용)
 
 
 @router.post("/{record_id}", response_model=AnalysisReportResponse, status_code=201)
@@ -73,3 +75,24 @@ def get_user_analysis_reports(
     """
     analysis_reports = AnalysisReportRepository.get_by_user(db, user_id, limit=limit)
     return analysis_reports
+
+
+@router.post("/{report_id}/chat", response_model=AnalysisChatResponse)
+async def chat_about_report(
+    report_id: int,
+    chat_request: AnalysisChatRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    분석 결과에 대해 AI와 대화 (휴먼 피드백)
+    
+    - **report_id**: 분석 리포트 ID
+    - **message**: 사용자 질문
+    """
+    # DB에서 thread_id를 조회하지 않고, 클라이언트가 보낸 thread_id를 사용합니다.
+    # (팀원이 DB 설계를 완료할 때까지 임시로 메모리 기반 대화 유지)
+    
+    # 2. LLM 서비스 호출 (대화 진행)
+    response_text = await llm_service.chat_with_analysis(chat_request.thread_id, chat_request.message)
+    
+    return {"response": response_text}

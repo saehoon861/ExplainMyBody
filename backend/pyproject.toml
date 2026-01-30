@@ -28,6 +28,9 @@ dependencies = [
     "httpx>=0.27,<1.0",
     "python-multipart>=0.0.9",
     "pgvector>=0.4.2",
+    "langgraph>=1.0.7",
+    "openai>=2.16.0",
+    "anthropic>=0.77.0",
 ]
 
 [dependency-groups]
