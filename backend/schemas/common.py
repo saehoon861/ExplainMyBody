@@ -21,6 +21,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """사용자 생성 요청 스키마"""
     password: Optional[str] = None  # 추후 인증 구현 시 사용
+    
+class EmailCheckRequest(BaseModel):
+    """이메일 중복 확인 요청 스키마"""
+    email: EmailStr
 
 
 class UserSignupRequest(UserCreate):

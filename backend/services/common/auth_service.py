@@ -18,19 +18,15 @@ class AuthService:
     """인증 관련 비즈니스 로직"""
     
     @staticmethod
-    def register(db: Session, user_data: UserCreate):
-        """회원가입"""
-        # 이메일 중복 확인
-        existing_user = UserRepository.get_by_email(db, user_data.email)
+    def check_email_availability(db: Session, email: str) -> bool:
+        """이메일 중복 확인 (생성 안함)"""
+        existing_user = UserRepository.get_by_email(db, email)
         if existing_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="이미 등록된 이메일입니다."
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 사용 중인 이메일입니다."
             )
-        
-        # 사용자 생성
-        new_user = UserRepository.create(db, user_data)
-        return new_user 
+        return True 
 
     @staticmethod
     def register_extended(db: Session, signup_data: UserSignupRequest):

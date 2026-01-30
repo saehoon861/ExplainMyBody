@@ -41,18 +41,68 @@ Content-Type: application/json
 
 Base Path: `/api/auth`
 
-### 1.1 회원가입
+### 1.1 이메일 중복 확인
 
-**POST** `/api/auth/register`
+**POST** `/api/auth/check-email`
 
-사용자 계정을 생성합니다.
+이메일 사용 가능 여부를 확인합니다.
 
 **Request Body:**
 ```json
 {
+  "email": "hong@example.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "available": true,
+  "message": "사용 가능한 이메일입니다."
+}
+```
+
+**Error Response (409 Conflict):**
+```json
+{
+  "detail": "이미 사용 중인 이메일입니다."
+}
+```
+
+---
+
+### 1.2 회원가입 (확장)
+
+**POST** `/api/auth/register`
+
+사용자 계정을 생성하고, 선택적으로 초기 신체 정보, 목표, 건강 상태 등을 함께 등록합니다.
+
+**Request Body:**
+
+> **참고**: `inbodyData`와 다른 선택 필드들은 회원가입 단계(Step 1~4)에서 수집된 정보를 포함합니다.
+
+```json
+{
   "username": "홍길동",
   "email": "hong@example.com",
-  "password": "password123"
+  "password": "password123",
+  "gender": "남성",
+  "age": 30,
+  "height": 175.5,
+  "startWeight": 78.5,
+  "targetWeight": 70.0,
+  "goalType": "다이어트",
+  "activityLevel": "중간",
+  "preferredExercises": ["헬스", "달리기"],
+  "goal": "여름까지 복근 만들기",
+  "medicalConditions": ["허리디스크"],
+  "medicalConditionsDetail": "무거운 것 들 때 조심해야 함",
+  "inbodyData": {
+    "weight": 78.5,
+    "percent_body_fat": 25.0,
+    "skeletal_muscle_mass": 32.0
+  },
+  "confirmPassword": "password123"
 }
 ```
 
@@ -62,13 +112,17 @@ Base Path: `/api/auth`
   "id": 1,
   "username": "홍길동",
   "email": "hong@example.com",
-  "created_at": "2026-01-29T10:00:00"
+  "created_at": "2026-01-29T10:00:00",
+  "goal_type": "증량",
+  "goal_description": "여름까지 복근 만들기",
+  "start_weight": 78.5,
+  "target_weight": 70.0
 }
 ```
 
 ---
 
-### 1.2 로그인
+### 1.3 로그인
 
 **POST** `/api/auth/login`
 
@@ -88,17 +142,21 @@ Base Path: `/api/auth`
   "id": 1,
   "username": "홍길동",
   "email": "hong@example.com",
-  "created_at": "2026-01-29T10:00:00"
+  "created_at": "2026-01-29T10:00:00",
+  "goal_type": "증량",
+  "goal_description": "여름까지 복근 만들기",
+  "start_weight": 78.5,
+  "target_weight": 70.0
 }
 ```
 
 ---
 
-### 1.3 현재 사용자 조회
+### 1.4 현재 사용자 조회
 
 **GET** `/api/auth/me?user_id={user_id}`
 
-현재 로그인한 사용자 정보를 조회합니다.
+현재 로그인한 사용자 정보를 조회합니다. (JWT 도입 전 임시로 `user_id` 사용)
 
 **Query Parameters:**
 - `user_id` (integer, required): 사용자 ID
@@ -109,13 +167,17 @@ Base Path: `/api/auth`
   "id": 1,
   "username": "홍길동",
   "email": "hong@example.com",
-  "created_at": "2026-01-29T10:00:00"
+  "created_at": "2026-01-29T10:00:00",
+  "goal_type": "다이어트",
+  "goal_description": "여름까지 복근 만들기",
+  "start_weight": 78.5,
+  "target_weight": 70.0
 }
 ```
 
 ---
 
-### 1.4 로그아웃
+### 1.5 로그아웃
 
 **POST** `/api/auth/logout?user_id={user_id}`
 
@@ -210,6 +272,41 @@ Base Path: `/api/users`
   "user_id": 1,
   "total_records": 5,
   "total_reports": 3
+}
+```
+
+---
+
+### 2.4 사용자 목표 수정
+
+**PUT** `/api/users/{user_id}/goal`
+
+사용자의 목표 및 시작 체중, 목표 체중을 수정합니다.
+
+**Path Parameters:**
+- `user_id` (integer, required): 사용자 ID
+
+**Request Body:**
+```json
+{
+  "start_weight": 78.5,
+  "target_weight": 70.0,
+  "goal_type": "다이어트",
+  "goal_description": "체지방 5% 감량 및 근육량 2kg 증량"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "username": "홍길동",
+  "email": "hong@example.com",
+  "created_at": "2026-01-29T10:00:00",
+  "goal_type": "다이어트",
+  "goal_description": "체지방 5% 감량 및 근육량 2kg 증량",
+  "start_weight": 78.5,
+  "target_weight": 70.0
 }
 ```
 
@@ -1285,11 +1382,19 @@ Base Path: `/api/weekly-plans`
 | 200 | 성공 (조회, 수정, 삭제) |
 | 201 | 생성 성공 |
 | 400 | 잘못된 요청 |
+| 401 | 인증 실패 (로그인 실패) |
 | 404 | 리소스를 찾을 수 없음 |
 | 422 | 데이터 검증 실패 |
 | 503 | 서비스 일시 사용 불가 (OCR 엔진 로딩 중) |
 
 ### 에러 응답 형식
+
+**401 Unauthorized:**
+```json
+{
+  "detail": "이메일 또는 비밀번호가 올바르지 않습니다."
+}
+```
 
 **404 Not Found:**
 ```json
@@ -1301,16 +1406,13 @@ Base Path: `/api/weekly-plans`
 **422 Validation Error:**
 ```json
 {
-  "detail": {
-    "message": "데이터 검증 실패. 입력값을 다시 확인해주세요.",
-    "errors": [
-      {
-        "loc": ["기본정보", "신장"],
-        "msg": "Input should be greater than 50",
-        "type": "greater_than"
-      }
-    ]
-  }
+  "detail": [
+    {
+      "loc": ["body", "기본정보", "신장"],
+      "msg": "Input should be greater than 50",
+      "type": "greater_than"
+    }
+  ]
 }
 ```
 

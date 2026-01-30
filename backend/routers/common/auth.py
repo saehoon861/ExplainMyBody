@@ -6,10 +6,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.common import UserCreate, UserResponse, UserLogin, UserSignupRequest
+from schemas.common import UserCreate, UserResponse, UserLogin, UserSignupRequest, EmailCheckRequest
 from services.common.auth_service import AuthService
 
 router = APIRouter()
+
+
+@router.post("/check-email", status_code=200)
+def check_email(email_data: EmailCheckRequest, db: Session = Depends(get_db)):
+    """
+    이메일 중복 확인
+    
+    - **email**: 확인할 이메일 주소
+    - 사용 가능하면 200 OK, 이미 존재하면 409 Conflict 반환
+    """
+    AuthService.check_email_availability(db, email_data.email)
+    return {"available": True, "message": "사용 가능한 이메일입니다."}
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
