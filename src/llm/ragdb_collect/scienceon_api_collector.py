@@ -5,78 +5,205 @@ KISTI의 ScienceON API를 사용하여 과학기술 논문을 자동으로 수�
 1억 3780만 건 이상의 논문 데이터베이스 (2026-01-19 기준)
 
 API 키 발급:
-https://scienceon.kisti.re.kr/apigateway/
+https://apigateway.kisti.re.kr/
+
+토큰 발급 방식:
+1. MAC 주소 + 현재 시간 → JSON
+2. 인증키로 AES256 암호화
+3. URI 인코딩
+4. Access Token 발급 (2시간 유효)
+5. Refresh Token으로 자동 갱신 (2주 유효)
 """
 
 import requests
 import time
 import json
+import uuid
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+import base64
 
 from models import PaperMetadata
 
 
-class ScienceOnAPICollector:
-    """ScienceON API Gateway 수집기"""
+class TokenManager:
+    """ScienceON API Gateway 토큰 관리"""
 
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id: str, auth_key: str, mac_address: Optional[str] = None):
         """
         Args:
-            client_id: API 클라이언트 ID
-            client_secret: API 클라이언트 시크릿
+            client_id: 클라이언트 ID (발급받은 64자리)
+            auth_key: 인증키 (32자리, AES256 암호화에 사용)
+            mac_address: MAC 주소 (없으면 자동 생성)
         """
         self.client_id = client_id
-        self.client_secret = client_secret
+        self.auth_key = auth_key
+        self.mac_address = mac_address or self._get_mac_address()
+        
+        # 토큰 저장
+        self.access_token: Optional[str] = None
+        self.access_token_expire: Optional[datetime] = None
+        self.refresh_token: Optional[str] = None
+        self.refresh_token_expire: Optional[datetime] = None
+        
+        # API 엔드포인트
+        self.token_url = "https://apigateway.kisti.re.kr/tokenrequest.do"
 
-        # ScienceON API Gateway 엔드포인트
-        self.base_url = "https://scienceon.kisti.re.kr/api"
-        self.token_url = f"{self.base_url}/auth/token"
-        self.search_url = f"{self.base_url}/article/search"
+    def _get_mac_address(self) -> str:
+        """시스템 MAC 주소 가져오기"""
+        mac = uuid.getnode()
+        mac_str = ':'.join(('%012X' % mac)[i:i+2] for i in range(0, 12, 2))
+        return mac_str
 
-        # 액세스 토큰 (2시간 유효)
-        self.access_token = None
-        self.token_expires_at = None
+    def _encrypt_accounts(self, mac_address: str, datetime_str: str) -> str:
+        """
+        accounts 파라미터 생성 (AES256 암호화 + URI 인코딩)
+        
+        Args:
+            mac_address: MAC 주소
+            datetime_str: 현재 시간 (YYYYMMDDHHmmss)
+        
+        Returns:
+            암호화된 accounts 값
+        """
+        # JSON 데이터 생성
+        data = {
+            "mac_address": mac_address,
+            "datetime": datetime_str
+        }
+        json_str = json.dumps(data, separators=(',', ':'))
+        
+        # AES256 암호화
+        cipher = AES.new(
+            self.auth_key.encode('utf-8'),
+            AES.MODE_ECB
+        )
+        padded_data = pad(json_str.encode('utf-8'), AES.block_size)
+        encrypted = cipher.encrypt(padded_data)
+        
+        # Base64 인코딩
+        encrypted_b64 = base64.b64encode(encrypted).decode('utf-8')
+        
+        # URI 인코딩
+        return quote(encrypted_b64)
 
-        # Rate limiting
-        self.rate_limit = 0.5  # 0.5초 대기
-
-    def _get_access_token(self) -> str:
-        """OAuth 2.0 액세스 토큰 발급"""
-
-        # 토큰이 유효하면 재사용
-        if self.access_token and self.token_expires_at:
-            if datetime.now().timestamp() < self.token_expires_at:
-                return self.access_token
-
-        print("🔑 액세스 토큰 발급 중...")
-
+    def request_token(self) -> bool:
+        """
+        Access Token과 Refresh Token 발급
+        
+        Returns:
+            성공 여부
+        """
         try:
+            # 현재 시간
+            now = datetime.now()
+            datetime_str = now.strftime('%Y%m%d%H%M%S')
+            
+            # accounts 파라미터 생성
+            accounts = self._encrypt_accounts(self.mac_address, datetime_str)
+            
             # 토큰 요청
-            payload = {
-                'grant_type': 'client_credentials',
-                'client_id': self.client_id,
-                'client_secret': self.client_secret
-            }
-
-            response = requests.post(self.token_url, data=payload, timeout=30)
-
+            url = f"{self.token_url}?accounts={accounts}&client_id={self.client_id}"
+            
+            print(f"🔑 토큰 발급 요청 중...")
+            print(f"   MAC 주소: {self.mac_address}")
+            print(f"   시간: {datetime_str}")
+            
+            response = requests.get(url, timeout=30)
+            
             if response.status_code != 200:
-                raise Exception(f"토큰 발급 실패 (status: {response.status_code})")
-
+                print(f"❌ 토큰 발급 실패 (status: {response.status_code})")
+                print(f"   응답: {response.text}")
+                return False
+            
+            # 응답 파싱
             data = response.json()
-
+            
+            # 에러 체크
+            if 'errorCode' in data:
+                print(f"❌ 토큰 발급 실패: {data.get('errorMessage')}")
+                print(f"   에러 코드: {data.get('errorCode')}")
+                return False
+            
+            # 토큰 저장
             self.access_token = data['access_token']
-            # 2시간 후 만료 (조금 여유있게 1시간 50분으로 설정)
-            self.token_expires_at = datetime.now().timestamp() + (110 * 60)
-
-            print("✅ 액세스 토큰 발급 완료")
-            return self.access_token
-
+            self.access_token_expire = datetime.strptime(
+                data['access_token_expire'], 
+                '%Y-%m-%d %H:%M:%S.%f'
+            )
+            self.refresh_token = data['refresh_token']
+            self.refresh_token_expire = datetime.strptime(
+                data['refresh_token_expire'],
+                '%Y-%m-%d %H:%M:%S.%f'
+            )
+            
+            print(f"✅ 토큰 발급 성공")
+            print(f"   Access Token 만료: {self.access_token_expire}")
+            print(f"   Refresh Token 만료: {self.refresh_token_expire}")
+            
+            return True
+            
         except Exception as e:
             print(f"❌ 토큰 발급 실패: {e}")
-            raise
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def get_valid_token(self) -> Optional[str]:
+        """
+        유효한 Access Token 반환 (자동 갱신)
+        
+        Returns:
+            Access Token 또는 None
+        """
+        now = datetime.now()
+        
+        # 토큰이 없거나 만료됨
+        if not self.access_token or not self.access_token_expire:
+            if not self.request_token():
+                return None
+            return self.access_token
+        
+        # Access Token이 5분 내 만료 예정
+        if now >= self.access_token_expire - timedelta(minutes=5):
+            print(f"🔄 Access Token 갱신 필요 (만료 임박)")
+            
+            # Refresh Token도 만료됨
+            if now >= self.refresh_token_expire:
+                print(f"⚠️ Refresh Token도 만료됨. 재발급 필요")
+                if not self.request_token():
+                    return None
+            else:
+                # TODO: Refresh Token으로 갱신 구현
+                # 현재는 새로 발급
+                if not self.request_token():
+                    return None
+        
+        return self.access_token
+
+
+class ScienceOnAPICollector:
+    """ScienceON API Gateway 수집기 (토큰 기반)"""
+
+    def __init__(self, client_id: str, auth_key: str, mac_address: Optional[str] = None):
+        """
+        Args:
+            client_id: 클라이언트 ID (64자리)
+            auth_key: 인증키 (32자리)
+            mac_address: MAC 주소 (선택, 없으면 자동)
+        """
+        # 토큰 매니저
+        self.token_manager = TokenManager(client_id, auth_key, mac_address)
+        
+        # ScienceON API Gateway 엔드포인트
+        self.search_url = "https://apigateway.kisti.re.kr/api/articlesearch"
+        
+        # Rate limiting
+        self.rate_limit = 2  # 2초 대기
 
     def search_papers(
         self,
@@ -103,73 +230,79 @@ class ScienceOnAPICollector:
 
         print(f"\n🔍 ScienceON 검색: '{query}' (최대 {max_results}개)")
 
-        # 액세스 토큰 획득
-        token = self._get_access_token()
-
         # 페이지네이션
         page_size = 100
         total_pages = (max_results + page_size - 1) // page_size
 
         for page in range(1, total_pages + 1):
             try:
-                # API 요청 헤더
-                headers = {
-                    'Authorization': f'Bearer {token}',
-                    'Content-Type': 'application/json'
-                }
-
+                # 유효한 토큰 가져오기
+                token = self.token_manager.get_valid_token()
+                if not token:
+                    print(f"  ❌ 유효한 토큰을 가져올 수 없습니다")
+                    break
+                
                 # API 요청 파라미터
                 params = {
-                    'q': query,
-                    'size': min(page_size, max_results - len(papers)),
-                    'from': (page - 1) * page_size,
-                    'lang': language,
+                    'access_token': token,
+                    'query': query,
+                    'pageNo': page,
+                    'numOfRows': min(page_size, max_results - len(papers))
                 }
-
+                
                 # 연도 필터
-                if start_year or end_year:
-                    year_filter = {}
-                    if start_year:
-                        year_filter['gte'] = start_year
-                    if end_year:
-                        year_filter['lte'] = end_year
-                    params['year'] = year_filter
+                if start_year:
+                    params['startYear'] = start_year
+                if end_year:
+                    params['endYear'] = end_year
 
                 # API 요청
                 response = requests.get(
                     self.search_url,
-                    headers=headers,
                     params=params,
                     timeout=30
                 )
 
-                if response.status_code == 401:
-                    # 토큰 만료, 재발급
-                    print("  🔄 토큰 만료, 재발급...")
-                    self.access_token = None
-                    token = self._get_access_token()
-                    headers['Authorization'] = f'Bearer {token}'
-                    response = requests.get(
-                        self.search_url,
-                        headers=headers,
-                        params=params,
-                        timeout=30
-                    )
-
                 if response.status_code != 200:
                     print(f"  ⚠️ API 요청 실패 (status: {response.status_code})")
+                    print(f"  📄 응답 내용: {response.text[:500]}")
                     break
 
                 # JSON 파싱
-                data = response.json()
+                try:
+                    data = response.json()
+                except json.JSONDecodeError as e:
+                    print(f"  ❌ JSON 파싱 실패: {e}")
+                    print(f"  📄 응답 내용 (처음 500자):")
+                    print(f"  {response.text[:500]}")
+                    print(f"  📋 Content-Type: {response.headers.get('Content-Type')}")
+                    break
 
-                # 총 결과 수
-                if page == 1 and 'total' in data:
-                    total = data['total']
-                    print(f"  📊 총 {total:,}개 논문 발견")
+                # API 응답 구조 확인 (첫 페이지만)
+                if page == 1:
+                    print(f"  🔍 API 응답 구조:")
+                    print(f"     키 목록: {list(data.keys())}")
+                    
+                # 총 결과 수 확인 (다양한 필드명 시도)
+                total = None
+                if page == 1:
+                    for total_key in ['total', 'totalCount', 'totalItems', 'count']:
+                        if total_key in data:
+                            total = data[total_key]
+                            print(f"  📊 총 {total:,}개 논문 발견 (필드: {total_key})")
+                            break
+                    
+                    if total is None:
+                        print(f"  ⚠️ 총 개수 정보를 찾을 수 없습니다")
 
-                # 논문 정보 추출
-                items = data.get('items', [])
+                # 논문 정보 추출 (다양한 필드명 시도)
+                items = []
+                for items_key in ['items', 'data', 'results', 'list', 'records']:
+                    if items_key in data:
+                        items = data[items_key]
+                        if page == 1:
+                            print(f"  📋 데이터 필드: {items_key} ({len(items) if isinstance(items, list) else 0}개)")
+                        break
 
                 if not items:
                     print(f"  ⚠️ {page}페이지에 결과 없음")
@@ -342,23 +475,32 @@ def main():
     print("=" * 60)
 
     # API 키 입력
-    print("\n📋 ScienceON API 키 발급:")
-    print("  1. https://scienceon.kisti.re.kr/apigateway/ 접속")
+    print("\n📋 ScienceON API Gateway 인증 정보:")
+    print("  1. https://apigateway.kisti.re.kr/ 접속")
     print("  2. 회원가입 → API 사용 신청")
-    print("  3. 승인 후 Client ID, Client Secret 발급")
+    print("  3. 승인 후 다음 정보 발급:")
+    print("     - Client ID (64자리)")
+    print("     - 인증키 (32자리, AES256 암호화용)")
+    print("     - MAC 주소 (신청 시 제출)")
     print("")
 
-    client_id = input("Client ID를 입력하세요: ").strip()
-    client_secret = input("Client Secret을 입력하세요: ").strip()
+    client_id = input("Client ID (64자리)를 입력하세요: ").strip()
+    auth_key = input("인증키 (32자리)를 입력하세요: ").strip()
+    mac_address = input("MAC 주소 (선택, 엔터=자동): ").strip() or None
 
-    if not client_id or not client_secret:
-        print("❌ Client ID와 Client Secret이 필요합니다.")
+    if not client_id or not auth_key:
+        print("❌ Client ID와 인증키가 필요합니다.")
+        return
+    
+    if len(auth_key) != 32:
+        print("❌ 인증키는 32자리여야 합니다.")
         return
 
     # 수집기 초기화
     collector = ScienceOnAPICollector(
         client_id=client_id,
-        client_secret=client_secret
+        auth_key=auth_key,
+        mac_address=mac_address
     )
 
     # 한국어 검색어

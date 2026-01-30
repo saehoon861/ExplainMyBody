@@ -9,3 +9,8 @@ scholarly>=1.7.0          # Google Scholar 수집
 pdfplumber>=0.10.0        # PDF 보고서 파싱
 pandas>=2.0.0             # CSV/Excel 파싱
 openpyxl>=3.1.0           # Excel 파일 지원
+
+# Graph RAG 구축
+networkx>=3.0             # 그래프 구조
+openai>=1.0.0             # 한국어 임베딩 생성 (text-embedding-3-small)
+ollama>=0.1.0             # 로컬 요약 생성 (llama3.2, gemma2, qwen2.5)

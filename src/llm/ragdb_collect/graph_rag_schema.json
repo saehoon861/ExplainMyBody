@@ -1,0 +1,471 @@
+{
+  "graph_rag_schema": {
+    "version": "1.0",
+    "description": "ExplainMyBody Graph RAG 구조 - 인바디 분석 및 운동/영양 처방",
+
+    "domains": [
+      {
+        "id": "protein_hypertrophy",
+        "name_ko": "단백질/근육 증가",
+        "name_en": "Protein & Muscle Hypertrophy",
+        "topics": [
+          "resistance_training",
+          "protein_intake",
+          "muscle_protein_synthesis",
+          "progressive_overload",
+          "recovery"
+        ]
+      },
+      {
+        "id": "fat_loss",
+        "name_ko": "체지방 감량",
+        "name_en": "Fat Loss",
+        "topics": [
+          "calorie_deficit",
+          "cardio_training",
+          "metabolic_rate",
+          "body_recomposition",
+          "weight_management"
+        ]
+      },
+      {
+        "id": "korean_diet",
+        "name_ko": "한국형 식단",
+        "name_en": "Korean Diet",
+        "topics": [
+          "traditional_foods",
+          "fermented_foods",
+          "meal_patterns",
+          "nutritional_balance",
+          "kimchi_health_effects"
+        ]
+      },
+      {
+        "id": "body_composition",
+        "name_ko": "체성분 분석",
+        "name_en": "Body Composition",
+        "topics": [
+          "bia_measurement",
+          "sarcopenia",
+          "visceral_fat",
+          "skeletal_muscle_mass",
+          "body_fat_percentage",
+          "segmental_analysis"
+        ]
+      }
+    ],
+
+    "concept_types": [
+      {"type": "Outcome", "description": "목표 또는 결과 (예: 근비대, 체지방 감소)"},
+      {"type": "Intervention", "description": "처방/운동 (예: 저항성 운동, 단백질 섭취)"},
+      {"type": "Biomarker", "description": "생체지표 (예: 근육량, 체지방률)"},
+      {"type": "Disease", "description": "질병 또는 증상 (예: 근감소증, 대사증후군)"},
+      {"type": "Measurement", "description": "측정 방법 (예: InBody, DEXA)"}
+    ],
+
+    "concept_categories": {
+      "body_metrics": {
+        "name_ko": "신체 지표",
+        "concepts": [
+          {
+            "id": "skeletal_muscle_mass",
+            "name_ko": "골격근량",
+            "name_en": "skeletal muscle mass",
+            "synonyms_ko": ["근육량", "SMM"],
+            "synonyms_en": ["muscle mass", "lean mass"],
+            "inbody_field": "SMM",
+            "unit": "kg",
+            "importance": 0.95,
+            "concept_type": "Biomarker"
+          },
+          {
+            "id": "body_fat_percentage",
+            "name_ko": "체지방률",
+            "name_en": "body fat percentage",
+            "synonyms_ko": ["체지방%", "BFP"],
+            "synonyms_en": ["fat percentage", "%BF"],
+            "inbody_field": "PBF",
+            "unit": "%",
+            "importance": 0.95,
+            "concept_type": "Biomarker"
+          },
+          {
+            "id": "visceral_fat_level",
+            "name_ko": "내장지방 레벨",
+            "name_en": "visceral fat level",
+            "synonyms_ko": ["내장지방", "VFL"],
+            "synonyms_en": ["visceral fat"],
+            "inbody_field": "VFL",
+            "unit": "level",
+            "importance": 0.90
+          },
+          {
+            "id": "basal_metabolic_rate",
+            "name_ko": "기초대사량",
+            "name_en": "basal metabolic rate",
+            "synonyms_ko": ["BMR", "기초대사"],
+            "synonyms_en": ["resting metabolic rate", "RMR"],
+            "inbody_field": "BMR",
+            "unit": "kcal",
+            "importance": 0.85
+          },
+          {
+            "id": "smi",
+            "name_ko": "골격근량지수",
+            "name_en": "skeletal muscle index",
+            "synonyms_ko": ["SMI", "근육량지수"],
+            "synonyms_en": ["muscle mass index"],
+            "formula": "SMM / height^2",
+            "unit": "kg/m²",
+            "importance": 0.90
+          }
+        ]
+      },
+
+      "fitness_goals": {
+        "name_ko": "운동 목표",
+        "concepts": [
+          {
+            "id": "muscle_hypertrophy",
+            "name_ko": "근비대",
+            "name_en": "muscle hypertrophy",
+            "synonyms_ko": ["근육 증가", "근육 성장"],
+            "synonyms_en": ["muscle growth", "muscle gain"],
+            "importance": 0.95,
+            "concept_type": "Outcome"
+          },
+          {
+            "id": "fat_loss",
+            "name_ko": "지방 감소",
+            "name_en": "fat loss",
+            "synonyms_ko": ["체지방 감량", "다이어트"],
+            "synonyms_en": ["weight loss", "fat reduction"],
+            "importance": 0.95
+          },
+          {
+            "id": "body_recomposition",
+            "name_ko": "체형 개선",
+            "name_en": "body recomposition",
+            "synonyms_ko": ["바디 리컴프", "체성분 개선"],
+            "synonyms_en": ["recomp"],
+            "importance": 0.85
+          },
+          {
+            "id": "strength_gain",
+            "name_ko": "근력 향상",
+            "name_en": "strength gain",
+            "synonyms_ko": ["근력 증가", "힘 증가"],
+            "synonyms_en": ["getting stronger"],
+            "importance": 0.80
+          }
+        ]
+      },
+
+      "exercise_types": {
+        "name_ko": "운동 유형",
+        "concepts": [
+          {
+            "id": "resistance_training",
+            "name_ko": "저항성 운동",
+            "name_en": "resistance training",
+            "synonyms_ko": ["웨이트 트레이닝", "근력 운동"],
+            "synonyms_en": ["weight training", "strength training"],
+            "type": "exercise",
+            "importance": 0.90,
+            "concept_type": "Intervention"
+          },
+          {
+            "id": "cardio",
+            "name_ko": "유산소 운동",
+            "name_en": "cardio",
+            "synonyms_ko": ["유산소", "심폐 운동"],
+            "synonyms_en": ["aerobic exercise", "cardiovascular exercise"],
+            "type": "exercise",
+            "importance": 0.85
+          },
+          {
+            "id": "hiit",
+            "name_ko": "고강도 인터벌 트레이닝",
+            "name_en": "high intensity interval training",
+            "synonyms_ko": ["HIIT", "인터벌 운동"],
+            "synonyms_en": ["interval training"],
+            "type": "exercise",
+            "importance": 0.80
+          }
+        ]
+      },
+
+      "nutrition": {
+        "name_ko": "영양소",
+        "concepts": [
+          {
+            "id": "protein_intake",
+            "name_ko": "단백질 섭취",
+            "name_en": "protein intake",
+            "synonyms_ko": ["단백질", "프로틴"],
+            "synonyms_en": ["protein consumption"],
+            "type": "nutrition",
+            "importance": 0.95,
+            "concept_type": "Intervention"
+          },
+          {
+            "id": "calorie_deficit",
+            "name_ko": "칼로리 결핍",
+            "name_en": "calorie deficit",
+            "synonyms_ko": ["칼로리 제한", "에너지 결핍"],
+            "synonyms_en": ["energy deficit"],
+            "type": "nutrition",
+            "importance": 0.90,
+            "concept_type": "Intervention"
+          },
+          {
+            "id": "carbohydrate",
+            "name_ko": "탄수화물",
+            "name_en": "carbohydrate",
+            "synonyms_ko": ["탄수화물", "carbs"],
+            "synonyms_en": ["carbs"],
+            "type": "nutrition",
+            "importance": 0.80
+          }
+        ]
+      },
+
+      "health_conditions": {
+        "name_ko": "건강 상태",
+        "concepts": [
+          {
+            "id": "sarcopenia",
+            "name_ko": "근감소증",
+            "name_en": "sarcopenia",
+            "synonyms_ko": ["사코페니아", "근육 감소"],
+            "synonyms_en": ["muscle wasting"],
+            "importance": 0.90
+          },
+          {
+            "id": "metabolic_syndrome",
+            "name_ko": "대사증후군",
+            "name_en": "metabolic syndrome",
+            "synonyms_ko": ["대사 질환"],
+            "synonyms_en": ["metabolic disorder"],
+            "importance": 0.85
+          },
+          {
+            "id": "sarcopenic_obesity",
+            "name_ko": "근감소성 비만",
+            "name_en": "sarcopenic obesity",
+            "synonyms_ko": ["근육 부족 비만"],
+            "importance": 0.85
+          }
+        ]
+      },
+
+      "measurement_methods": {
+        "name_ko": "측정 방법",
+        "concepts": [
+          {
+            "id": "bia",
+            "name_ko": "생체전기저항분석",
+            "name_en": "bioelectrical impedance analysis",
+            "synonyms_ko": ["BIA", "생체저항"],
+            "synonyms_en": ["BIA"],
+            "importance": 0.90
+          },
+          {
+            "id": "inbody",
+            "name_ko": "인바디",
+            "name_en": "InBody",
+            "synonyms_ko": ["인바디 측정"],
+            "importance": 0.95
+          },
+          {
+            "id": "dxa",
+            "name_ko": "이중에너지 X선 흡수계측법",
+            "name_en": "dual-energy X-ray absorptiometry",
+            "synonyms_ko": ["DXA", "DEXA"],
+            "synonyms_en": ["DEXA"],
+            "importance": 0.85
+          }
+        ]
+      }
+    },
+
+    "relationship_types": [
+      {
+        "type": "MENTIONS",
+        "source_type": "paper",
+        "target_type": "concept",
+        "description": "논문이 개념을 언급함",
+        "properties": ["confidence", "context", "sentiment"]
+      },
+      {
+        "type": "AFFECTS",
+        "source_type": "intervention",
+        "target_type": "metric",
+        "description": "처방이 지표에 영향을 미침",
+        "properties": ["effect", "magnitude", "evidence_strength"]
+      },
+      {
+        "type": "CORRELATES_WITH",
+        "source_type": "metric",
+        "target_type": "metric",
+        "description": "지표 간 상관관계",
+        "properties": ["correlation", "direction"]
+      },
+      {
+        "type": "SIMILAR_TO",
+        "source_type": "paper",
+        "target_type": "paper",
+        "description": "논문 간 유사성",
+        "properties": ["similarity_score", "similarity_type"]
+      },
+      {
+        "type": "REQUIRES",
+        "source_type": "concept",
+        "target_type": "intervention",
+        "description": "목표 달성에 필요한 처방",
+        "properties": ["necessity", "evidence_level"]
+      },
+      {
+        "type": "CONTRADICTS",
+        "source_type": "paper",
+        "target_type": "paper",
+        "description": "논문 간 모순",
+        "properties": ["contradiction_aspect", "strength"]
+      },
+      {
+        "type": "PARENT_OF",
+        "source_type": ["domain", "topic", "subtopic"],
+        "target_type": ["topic", "subtopic", "concept"],
+        "description": "계층 구조",
+        "properties": []
+      },
+      {
+        "type": "INCREASES",
+        "source_type": "Intervention",
+        "target_type": ["Biomarker", "Outcome"],
+        "description": "처방이 지표/결과를 증가시킴",
+        "properties": ["magnitude", "evidence_level"],
+        "examples": ["resistance_training INCREASES skeletal_muscle_mass", "protein_intake INCREASES muscle_hypertrophy"]
+      },
+      {
+        "type": "SUPPORTS",
+        "source_type": "Intervention",
+        "target_type": ["Biomarker", "Outcome"],
+        "description": "처방이 지표/결과를 지원함",
+        "properties": ["evidence_level"],
+        "examples": ["protein_intake SUPPORTS skeletal_muscle_mass", "cardio SUPPORTS fat_loss"]
+      },
+      {
+        "type": "REDUCES",
+        "source_type": "Intervention",
+        "target_type": ["Biomarker", "Outcome"],
+        "description": "처방이 지표/결과를 감소시킴",
+        "properties": ["magnitude", "evidence_level"],
+        "examples": ["calorie_deficit REDUCES body_fat_percentage", "hiit REDUCES visceral_fat_level"]
+      }
+    ],
+
+    "concept_relationships": {
+      "description": "도메인 지식 기반 Concept 간 관계",
+      "rules": [
+        {"source": "resistance_training", "relation": "INCREASES", "target": "muscle_hypertrophy"},
+        {"source": "resistance_training", "relation": "INCREASES", "target": "skeletal_muscle_mass"},
+        {"source": "protein_intake", "relation": "SUPPORTS", "target": "skeletal_muscle_mass"},
+        {"source": "protein_intake", "relation": "SUPPORTS", "target": "muscle_hypertrophy"},
+        {"source": "calorie_deficit", "relation": "REDUCES", "target": "body_fat_percentage"},
+        {"source": "cardio", "relation": "REDUCES", "target": "body_fat_percentage"},
+        {"source": "cardio", "relation": "SUPPORTS", "target": "fat_loss"},
+        {"source": "hiit", "relation": "REDUCES", "target": "visceral_fat_level"},
+        {"source": "hiit", "relation": "REDUCES", "target": "body_fat_percentage"}
+      ]
+    },
+
+    "plan_node_schema": {
+      "node_type": "plan",
+      "description": "운동 처방 노드",
+      "required_fields": [
+        "id",
+        "plan_type",
+        "target_concept"
+      ],
+      "optional_fields": [
+        "training_volume",
+        "intensity",
+        "frequency",
+        "recovery",
+        "duration_weeks",
+        "exercises",
+        "progression"
+      ],
+      "field_descriptions": {
+        "training_volume": "주당 총 세트 수 (예: 12-20 sets/week)",
+        "intensity": "강도 (예: 70-85% 1RM, RPE 7-9)",
+        "frequency": "주당 운동 빈도 (예: 3-5 sessions/week)",
+        "recovery": "세트 간 휴식 시간 (예: 2-3 minutes)",
+        "duration_weeks": "프로그램 기간 (주)",
+        "exercises": "운동 종류 리스트",
+        "progression": "점진적 과부하 방식"
+      },
+      "example": {
+        "id": "plan_muscle_hypertrophy_001",
+        "plan_type": "resistance_training",
+        "target_concept": "muscle_hypertrophy",
+        "training_volume": "15-20 sets per muscle group per week",
+        "intensity": "70-85% 1RM, 6-12 reps",
+        "frequency": "4-5 sessions per week",
+        "recovery": "2-3 minutes between sets",
+        "duration_weeks": 12,
+        "exercises": ["bench press", "squat", "deadlift", "pull-ups"],
+        "progression": "linear periodization"
+      }
+    },
+
+    "paper_metadata_schema": {
+      "node_type": "paper",
+      "required_fields": [
+        "id",
+        "chunk_text",
+        "lang",
+        "domain",
+        "source"
+      ],
+      "optional_fields": [
+        "year",
+        "pmid",
+        "doi",
+        "authors",
+        "journal",
+        "keywords",
+        "embedding_openai",
+        "embedding_ollama",
+        "chunk_length",
+        "chunk_ko_summary",
+        "embedding_ko_openai"
+      ],
+      "field_descriptions": {
+        "chunk_text": "원본 초록 텍스트 (한국어 또는 영어)",
+        "lang": "언어 코드 (ko/en)",
+        "chunk_ko_summary": "한국어 요약 (영어 논문인 경우 로컬 Ollama로 생성, 한국어 논문인 경우 null)",
+        "embedding_openai": "OpenAI text-embedding-3-small (1536D) - 원본 텍스트",
+        "embedding_ollama": "Ollama bge-m3 (1024D) - 원본 텍스트",
+        "embedding_ko_openai": "OpenAI text-embedding-3-small (1536D) - 한국어 요약 전용"
+      },
+      "example": {
+        "id": "pubmed_12345678",
+        "chunk_text": "Resistance training combined with adequate protein intake (1.6g/kg/day) significantly increases skeletal muscle mass and strength in healthy adults...",
+        "lang": "en",
+        "chunk_ko_summary": "저항성 운동과 적절한 단백질 섭취(1.6g/kg/일)를 결합하면 건강한 성인의 골격근량과 근력이 유의미하게 증가합니다. 12주간의 중재 연구에서 대조군 대비 근육량 2.3kg 증가를 확인했습니다.",
+        "domain": "protein_hypertrophy",
+        "source": "pubmed",
+        "year": 2023,
+        "pmid": "12345678",
+        "doi": "10.1234/example.2023",
+        "keywords": ["resistance training", "protein intake", "muscle hypertrophy"],
+        "embedding_openai": [0.123, 0.456, "... 1536D"],
+        "embedding_ollama": [0.789, 0.012, "... 1024D"],
+        "embedding_ko_openai": [0.234, 0.567, "... 1536D"],
+        "chunk_length": 856
+      }
+    }
+  }
+}

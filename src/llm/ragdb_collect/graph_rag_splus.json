@@ -1,0 +1,364 @@
+1. 누락된 InBody 지표들 추가
+body_metrics에 다음 개념 추가 필요:
+
+{
+  "id": "abdominal_fat_percentage",
+  "name_ko": "복부지방률",
+  "name_en": "abdominal fat percentage",
+  "inbody_field": "WHR",
+  "unit": "%",
+  "importance": 0.88
+},
+{
+  "id": "protein_mass",
+  "name_ko": "단백질량",
+  "name_en": "protein mass",
+  "inbody_field": "Protein",
+  "unit": "kg",
+  "importance": 0.75
+},
+{
+  "id": "mineral_mass",
+  "name_ko": "무기질량",
+  "name_en": "mineral mass",
+  "inbody_field": "Mineral",
+  "unit": "kg",
+  "importance": 0.70
+},
+{
+  "id": "body_water",
+  "name_ko": "체수분",
+  "name_en": "total body water",
+  "synonyms_ko": ["TBW", "수분량"],
+  "inbody_field": "TBW",
+  "unit": "L",
+  "importance": 0.80
+},
+{
+  "id": "ideal_weight",
+  "name_ko": "적정체중",
+  "name_en": "ideal body weight",
+  "inbody_field": "IdealWeight",
+  "unit": "kg",
+  "importance": 0.75
+}
+
+2. 부위별 분석 개념 (Segmental Analysis)
+새로운 카테고리 추가:
+
+"segmental_metrics": {
+  "name_ko": "부위별 지표",
+  "concepts": [
+    {
+      "id": "segmental_lean_mass",
+      "name_ko": "부위별 근육량",
+      "name_en": "segmental lean mass",
+      "segments": ["left_arm", "right_arm", "trunk", "left_leg", "right_leg"],
+      "importance": 0.85
+    },
+    {
+      "id": "segmental_fat_mass",
+      "name_ko": "부위별 체지방량",
+      "name_en": "segmental fat mass",
+      "segments": ["left_arm", "right_arm", "trunk", "left_leg", "right_leg"],
+      "importance": 0.80
+    },
+    {
+      "id": "muscle_imbalance",
+      "name_ko": "근육 불균형",
+      "name_en": "muscle imbalance",
+      "synonyms_ko": ["좌우 불균형", "상하체 불균형"],
+      "importance": 0.85
+    },
+    {
+      "id": "upper_lower_ratio",
+      "name_ko": "상하체 비율",
+      "name_en": "upper to lower body ratio",
+      "importance": 0.75
+    }
+  ]
+}
+
+3. 사용자 프로필/선호도 개념
+
+"user_profile": {
+  "name_ko": "사용자 프로필",
+  "concepts": [
+    {
+      "id": "exercise_experience_level",
+      "name_ko": "운동 경험 수준",
+      "name_en": "exercise experience level",
+      "values": ["beginner", "intermediate", "advanced"],
+      "importance": 0.90
+    },
+    {
+      "id": "workout_location",
+      "name_ko": "운동 장소",
+      "name_en": "workout location",
+      "values": ["home", "gym", "outdoor"],
+      "synonyms_ko": ["홈트", "헬스장", "아웃도어"],
+      "importance": 0.85
+    },
+    {
+      "id": "workout_preference",
+      "name_ko": "운동 선호 유형",
+      "name_en": "workout preference",
+      "values": ["strength", "endurance", "sports"],
+      "synonyms_ko": ["근육형", "근지구력", "스포츠"],
+      "importance": 0.80
+    },
+    {
+      "id": "workout_time_preference",
+      "name_ko": "운동 시간대",
+      "name_en": "workout time preference",
+      "values": ["morning", "afternoon", "evening"],
+      "synonyms_ko": ["오전", "오후", "저녁"],
+      "importance": 0.70
+    },
+    {
+      "id": "health_constraints",
+      "name_ko": "건강 제약사항",
+      "name_en": "health constraints",
+      "importance": 0.95
+    }
+  ]
+}
+
+4. 구체적인 운동 동작/종목
+
+"specific_exercises": {
+  "name_ko": "구체적 운동",
+  "concepts": [
+    {
+      "id": "compound_movements",
+      "name_ko": "복합 운동",
+      "name_en": "compound movements",
+      "examples": ["squat", "deadlift", "bench_press", "overhead_press"],
+      "importance": 0.90
+    },
+    {
+      "id": "isolation_movements",
+      "name_ko": "고립 운동",
+      "name_en": "isolation movements",
+      "examples": ["bicep_curl", "tricep_extension", "leg_curl"],
+      "importance": 0.75
+    },
+    {
+      "id": "liss_cardio",
+      "name_ko": "저강도 유산소",
+      "name_en": "low intensity steady state",
+      "examples": ["walking", "light_jogging", "cycling"],
+      "synonyms_ko": ["걷기", "가벼운 조깅", "자전거"],
+      "importance": 0.80
+    },
+    {
+      "id": "bodyweight_exercises",
+      "name_ko": "맨몸 운동",
+      "name_en": "bodyweight exercises",
+      "examples": ["push_up", "pull_up", "squat", "plank"],
+      "synonyms_ko": ["푸쉬업", "풀업", "맨몸스쿼트", "플랭크"],
+      "importance": 0.85
+    }
+  ]
+}
+
+5. 영양 개념 확장
+
+"nutrition": {
+  "concepts": [
+    // 기존 항목들...
+    {
+      "id": "dietary_fat",
+      "name_ko": "지방 섭취",
+      "name_en": "dietary fat",
+      "synonyms_ko": ["지방", "fat"],
+      "importance": 0.80
+    },
+    {
+      "id": "micronutrients",
+      "name_ko": "미량영양소",
+      "name_en": "micronutrients",
+      "synonyms_ko": ["비타민", "미네랄"],
+      "importance": 0.75
+    },
+    {
+      "id": "meal_timing",
+      "name_ko": "식사 타이밍",
+      "name_en": "meal timing",
+      "synonyms_ko": ["식사 시간", "영양 타이밍"],
+      "importance": 0.70
+    },
+    {
+      "id": "daily_calorie_intake",
+      "name_ko": "일일 권장 칼로리",
+      "name_en": "daily calorie intake",
+      "synonyms_ko": ["권장섭취열량", "TDEE"],
+      "importance": 0.90
+    },
+    {
+      "id": "korean_protein_sources",
+      "name_ko": "한국형 단백질 공급원",
+      "name_en": "korean protein sources",
+      "examples": ["tofu", "egg", "chicken_breast", "fish"],
+      "synonyms_ko": ["두부", "계란", "닭가슴살", "생선"],
+      "importance": 0.85
+    }
+  ]
+}
+
+6. 임상 기준 및 평가 카테고리
+
+"clinical_assessment": {
+  "name_ko": "임상 평가",
+  "concepts": [
+    {
+      "id": "normal_range",
+      "name_ko": "정상 범위",
+      "name_en": "normal range",
+      "importance": 0.95
+    },
+    {
+      "id": "risk_level",
+      "name_ko": "위험 수준",
+      "name_en": "risk level",
+      "values": ["normal", "caution", "high_risk"],
+      "synonyms_ko": ["정상", "주의", "위험"],
+      "importance": 0.90
+    },
+    {
+      "id": "obesity_grade",
+      "name_ko": "비만도",
+      "name_en": "obesity grade",
+      "inbody_field": "ObesityDegree",
+      "importance": 0.85
+    },
+    {
+      "id": "age_gender_norm",
+      "name_ko": "연령성별 기준치",
+      "name_en": "age and gender specific norms",
+      "importance": 0.90
+    }
+  ]
+}
+
+7. 목표 설정 및 조절량 개념
+
+"goal_setting": {
+  "name_ko": "목표 설정",
+  "concepts": [
+    {
+      "id": "weight_adjustment_target",
+      "name_ko": "체중 조절 목표",
+      "name_en": "weight adjustment target",
+      "inbody_field": "WeightControl",
+      "unit": "kg",
+      "importance": 0.90
+    },
+    {
+      "id": "fat_adjustment_target",
+      "name_ko": "지방 조절 목표",
+      "name_en": "fat adjustment target",
+      "inbody_field": "FatControl",
+      "unit": "kg",
+      "importance": 0.90
+    },
+    {
+      "id": "muscle_adjustment_target",
+      "name_ko": "근육 조절 목표",
+      "name_en": "muscle adjustment target",
+      "inbody_field": "MuscleControl",
+      "unit": "kg",
+      "importance": 0.90
+    },
+    {
+      "id": "realistic_timeline",
+      "name_ko": "현실적인 목표 기간",
+      "name_en": "realistic timeline",
+      "importance": 0.85
+    }
+  ]
+}
+
+8. 건강 제약사항 확장
+
+"health_conditions": {
+  "concepts": [
+    // 기존 항목들...
+    {
+      "id": "joint_issues",
+      "name_ko": "관절 문제",
+      "name_en": "joint issues",
+      "synonyms_ko": ["관절염", "무릎 통증"],
+      "importance": 0.90
+    },
+    {
+      "id": "cardiovascular_disease",
+      "name_ko": "심혈관 질환",
+      "name_en": "cardiovascular disease",
+      "synonyms_ko": ["고혈압", "심장병"],
+      "importance": 0.95
+    },
+    {
+      "id": "diabetes",
+      "name_ko": "당뇨병",
+      "name_en": "diabetes",
+      "importance": 0.95
+    },
+    {
+      "id": "pregnancy",
+      "name_ko": "임신",
+      "name_en": "pregnancy",
+      "importance": 0.95
+    }
+  ]
+}
+
+9. 새로운 관계 타입 추가
+
+{
+  "type": "PERSONALIZED_FOR",
+  "source_type": "intervention",
+  "target_type": "user_profile",
+  "description": "특정 사용자 프로필에 맞춤화된 처방",
+  "properties": ["suitability_score", "constraints"]
+},
+{
+  "type": "CONTRAINDICATED_FOR",
+  "source_type": "intervention",
+  "target_type": "health_condition",
+  "description": "특정 건강 상태에 금기",
+  "properties": ["severity", "alternative"]
+},
+{
+  "type": "IMPROVES",
+  "source_type": "concept",
+  "target_type": "metric",
+  "description": "개선 효과",
+  "properties": ["improvement_rate", "timeframe"]
+}
+
+10. 한국인 특화 도메인 추가
+
+{
+  "id": "korean_context",
+  "name_ko": "한국인 특화",
+  "name_en": "Korean-Specific Context",
+  "topics": [
+    "korean_eating_habits",
+    "korean_body_standards",
+    "korean_gym_culture",
+    "korean_supplements",
+    "korean_health_trends"
+  ]
+}
+
+이렇게 보완하면:
+
+✅ 인바디 모든 지표 커버
+✅ 사용자 선호도 기반 개인화 가능
+✅ 부위별 불균형 분석 가능
+✅ 구체적이고 실행 가능한 운동 처방
+✅ 건강 제약사항 고려한 안전한 처방
+✅ 한국인 맥락 반영
+✅ 목표 대비 진행도 추적 가능
+

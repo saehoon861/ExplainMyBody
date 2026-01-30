@@ -157,13 +157,24 @@ def main():
     print("1️⃣ PubMed 영어 논문 로드")
     print("=" * 60)
 
-    pubmed_files = list(output_dir.glob("ragdb_corpus_*.json"))
+    # 여러 패턴의 PubMed 파일들 수집
+    pubmed_files = (
+        list(output_dir.glob("ragdb_corpus_*.json")) +
+        list(output_dir.glob("body_composition_*.json")) +
+        list(output_dir.glob("fat_loss_*.json")) +
+        list(output_dir.glob("protein_hypertrophy_*.json"))
+    )
     pubmed_papers = []
 
     if pubmed_files:
-        latest_pubmed = sorted(pubmed_files)[-1]  # 가장 최신 파일
-        pubmed_papers = merger.load_json_file(str(latest_pubmed))
-        print(f"✅ PubMed 논문: {len(pubmed_papers)}개")
+        print(f"  📁 발견된 PubMed 파일: {len(pubmed_files)}개")
+        
+        # 모든 파일 로드 (중복 제거는 나중에 병합 단계에서)
+        for pubmed_file in pubmed_files:
+            papers = merger.load_json_file(str(pubmed_file))
+            pubmed_papers.extend(papers)
+        
+        print(f"✅ PubMed 논문 총합: {len(pubmed_papers)}개")
     else:
         print("⚠️ PubMed 코퍼스 파일이 없습니다.")
         print("   먼저 main.py를 실행하여 PubMed 논문을 수집하세요.")
@@ -173,13 +184,20 @@ def main():
     print("2️⃣ Google Scholar 한국어 논문 로드")
     print("=" * 60)
 
-    scholar_files = list(output_dir.glob("google_scholar_korean_*.json"))
+    # stats 파일 제외하고 논문 데이터만 로드
+    all_scholar_files = list(output_dir.glob("google_scholar_*.json"))
+    scholar_files = [f for f in all_scholar_files if "stats" not in f.name]
     scholar_papers = []
 
     if scholar_files:
-        latest_scholar = sorted(scholar_files)[-1]
-        scholar_papers = merger.load_json_file(str(latest_scholar))
-        print(f"✅ Google Scholar: {len(scholar_papers)}개")
+        print(f"  📁 발견된 Google Scholar 파일: {len(scholar_files)}개")
+        
+        # 모든 논문 파일 로드
+        for scholar_file in scholar_files:
+            papers = merger.load_json_file(str(scholar_file))
+            scholar_papers.extend(papers)
+        
+        print(f"✅ Google Scholar 총합: {len(scholar_papers)}개")
     else:
         print("⚠️ Google Scholar 파일이 없습니다.")
 
@@ -188,13 +206,19 @@ def main():
     print("3️⃣ 정부 보고서 로드")
     print("=" * 60)
 
-    gov_files = list(output_dir.glob("government_reports_*.json"))
+    # stats 파일 제외
+    all_gov_files = list(output_dir.glob("government_reports_*.json"))
+    gov_files = [f for f in all_gov_files if "stats" not in f.name]
     gov_papers = []
 
     if gov_files:
-        latest_gov = sorted(gov_files)[-1]
-        gov_papers = merger.load_json_file(str(latest_gov))
-        print(f"✅ 정부 보고서: {len(gov_papers)}개")
+        print(f"  📁 발견된 정부 보고서 파일: {len(gov_files)}개")
+        
+        for gov_file in gov_files:
+            papers = merger.load_json_file(str(gov_file))
+            gov_papers.extend(papers)
+        
+        print(f"✅ 정부 보고서 총합: {len(gov_papers)}개")
     else:
         print("⚠️ 정부 보고서 파일이 없습니다.")
 
@@ -203,13 +227,19 @@ def main():
     print("4️⃣ 학술지 논문 로드")
     print("=" * 60)
 
-    society_files = list(output_dir.glob("society_papers_*.json"))
+    # stats 파일 제외
+    all_society_files = list(output_dir.glob("society_papers_*.json"))
+    society_files = [f for f in all_society_files if "stats" not in f.name]
     society_papers = []
 
     if society_files:
-        latest_society = sorted(society_files)[-1]
-        society_papers = merger.load_json_file(str(latest_society))
-        print(f"✅ 학술지: {len(society_papers)}개")
+        print(f"  📁 발견된 학술지 파일: {len(society_files)}개")
+        
+        for society_file in society_files:
+            papers = merger.load_json_file(str(society_file))
+            society_papers.extend(papers)
+        
+        print(f"✅ 학술지 총합: {len(society_papers)}개")
     else:
         print("⚠️ 학술지 파일이 없습니다.")
 
@@ -218,13 +248,19 @@ def main():
     print("5️⃣ KCI API 한국어 논문 로드")
     print("=" * 60)
 
-    kci_files = list(output_dir.glob("kci_korean_*.json"))
+    # stats 파일 제외
+    all_kci_files = list(output_dir.glob("kci_korean_*.json"))
+    kci_files = [f for f in all_kci_files if "stats" not in f.name]
     kci_papers = []
 
     if kci_files:
-        latest_kci = sorted(kci_files)[-1]
-        kci_papers = merger.load_json_file(str(latest_kci))
-        print(f"✅ KCI API: {len(kci_papers)}개")
+        print(f"  📁 발견된 KCI 파일: {len(kci_files)}개")
+        
+        for kci_file in kci_files:
+            papers = merger.load_json_file(str(kci_file))
+            kci_papers.extend(papers)
+        
+        print(f"✅ KCI API 총합: {len(kci_papers)}개")
     else:
         print("⚠️ KCI API 파일이 없습니다.")
 
@@ -233,13 +269,19 @@ def main():
     print("6️⃣ RISS API 한국어 논문 로드")
     print("=" * 60)
 
-    riss_files = list(output_dir.glob("riss_korean_*.json"))
+    # stats 파일 제외
+    all_riss_files = list(output_dir.glob("riss_korean_*.json"))
+    riss_files = [f for f in all_riss_files if "stats" not in f.name]
     riss_papers = []
 
     if riss_files:
-        latest_riss = sorted(riss_files)[-1]
-        riss_papers = merger.load_json_file(str(latest_riss))
-        print(f"✅ RISS API: {len(riss_papers)}개")
+        print(f"  📁 발견된 RISS 파일: {len(riss_files)}개")
+        
+        for riss_file in riss_files:
+            papers = merger.load_json_file(str(riss_file))
+            riss_papers.extend(papers)
+        
+        print(f"✅ RISS API 총합: {len(riss_papers)}개")
     else:
         print("⚠️ RISS API 파일이 없습니다.")
 
@@ -248,13 +290,19 @@ def main():
     print("7️⃣ ScienceON API 한국어 논문 로드")
     print("=" * 60)
 
-    scienceon_files = list(output_dir.glob("scienceon_korean_*.json"))
+    # stats 파일 제외
+    all_scienceon_files = list(output_dir.glob("scienceon_korean_*.json"))
+    scienceon_files = [f for f in all_scienceon_files if "stats" not in f.name]
     scienceon_papers = []
 
     if scienceon_files:
-        latest_scienceon = sorted(scienceon_files)[-1]
-        scienceon_papers = merger.load_json_file(str(latest_scienceon))
-        print(f"✅ ScienceON API: {len(scienceon_papers)}개")
+        print(f"  📁 발견된 ScienceON 파일: {len(scienceon_files)}개")
+        
+        for scienceon_file in scienceon_files:
+            papers = merger.load_json_file(str(scienceon_file))
+            scienceon_papers.extend(papers)
+        
+        print(f"✅ ScienceON API 총합: {len(scienceon_papers)}개")
     else:
         print("⚠️ ScienceON API 파일이 없습니다.")
 
