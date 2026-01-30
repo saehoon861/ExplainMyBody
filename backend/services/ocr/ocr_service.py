@@ -122,15 +122,15 @@ class OCRService:
             #   - 팀원: "왼쪽팔 체지방" → 우리: 부위별체지방분석.왼쪽팔
             structured_result = self.matcher.get_structured_results(raw_result)
             
-            # Step 4: 타입 변환
-            # 팀원 코드는 모든 값을 문자열로 반환, Pydantic 스키마는 숫자 타입 기대
-            mapped_result = self._convert_types(structured_result)
+            # Step 4: 타입 변환 (생략)
+            # 프론트엔드에서 .replace() 등을 사용하므로 문자열 그대로 반환 (Pydantic 검증 시 자동 변환됨)
+            # mapped_result = self._convert_types(structured_result)
             
             print(f"✅ OCR 추출 완료 (검증 없음)")
             print(f"⚠️ 프론트엔드에서 사용자 검증 필요")
             
             # Step 5: 검증 없이 dict 그대로 반환
-            return mapped_result
+            return structured_result
         
         except HTTPException:
             # HTTPException은 그대로 전달

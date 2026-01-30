@@ -6,21 +6,33 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.common import UserCreate, UserResponse, UserLogin
+from schemas.common import UserCreate, UserResponse, UserLogin, UserSignupRequest, EmailCheckRequest
 from services.common.auth_service import AuthService
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+@router.post("/check-email", status_code=200)
+def check_email(email_data: EmailCheckRequest, db: Session = Depends(get_db)):
     """
-    회원가입
+    이메일 중복 확인
     
-    - **username**: 사용자 이름
-    - **email**: 이메일 주소
+    - **email**: 확인할 이메일 주소
+    - 사용 가능하면 200 OK, 이미 존재하면 409 Conflict 반환
     """
-    new_user = AuthService.register(db, user_data)
+    AuthService.check_email_availability(db, email_data.email)
+    return {"available": True, "message": "사용 가능한 이메일입니다."}
+
+
+@router.post("/register", response_model=UserResponse, status_code=201)
+def register(user_data: UserSignupRequest, db: Session = Depends(get_db)):
+    """
+    회원가입 (확장)
+    - 사용자 기본 정보
+    - 인바디 데이터 (선택)
+    - 목표 및 건강 정보 (선택)
+    """
+    new_user = AuthService.register_extended(db, user_data)
     return new_user
 
 

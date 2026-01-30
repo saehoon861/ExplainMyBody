@@ -16,7 +16,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -25,8 +25,29 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        alert(errorData.detail || '이메일 또는 비밀번호가 올바르지 않습니다.');
+        let errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            if (typeof errorData.detail === 'object') {
+              // Pydantic validation error or complex error object
+              errorMessage = JSON.stringify(errorData.detail, null, 2);
+              if (Array.isArray(errorData.detail)) {
+                errorMessage = errorData.detail
+                  .map(err => {
+                    const field = err.loc ? err.loc.join(' -> ') : 'Field';
+                    return `${field}: ${err.msg}`;
+                  })
+                  .join('\n');
+              }
+            } else {
+              errorMessage = errorData.detail;
+            }
+          }
+        } catch (e) {
+          console.error('Non-JSON error response:', e);
+        }
+        alert(errorMessage);
         return;
       }
 

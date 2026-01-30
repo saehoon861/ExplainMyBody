@@ -73,13 +73,14 @@ class HealthService:
             return None
 
         # LLM input 데이터 준비
+        # body_type1, body_type2는 measurements JSONB 안에 저장됨
         input_data = self.llm_service.prepare_status_analysis_input(
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
             measurements=health_record.measurements,
-            body_type1=health_record.body_type1,
-            body_type2=health_record.body_type2
+            body_type1=health_record.measurements.get('body_type1'),
+            body_type2=health_record.measurements.get('body_type2')
         )
 
         return StatusAnalysisResponse(
@@ -178,13 +179,14 @@ class HealthService:
             return AnalysisReportResponse.model_validate(existing_report)
             
         # 3. LLM 서비스 호출을 위한 입력 데이터 준비
+        # body_type1, body_type2는 measurements JSONB 안에 저장됨
         input_data = self.llm_service.prepare_status_analysis_input(
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,
             measurements=health_record.measurements,
-            body_type1=health_record.body_type1,
-            body_type2=health_record.body_type2
+            body_type1=health_record.measurements.get('body_type1'),
+            body_type2=health_record.measurements.get('body_type2')
         )
         
         # 4. LLM 호출

@@ -233,9 +233,9 @@ const Signup = () => {
 
         try {
             const apiFormData = new FormData();
-            apiFormData.append('file', formData.inbodyImage);
+            apiFormData.append('image', formData.inbodyImage);
 
-            const response = await fetch('/api/process', {
+            const response = await fetch('/api/health-records/ocr/extract', {
                 method: 'POST',
                 body: apiFormData,
                 signal: controller.signal
@@ -249,10 +249,10 @@ const Signup = () => {
             }
 
             const result = await response.json();
-            if (result.success) {
+            if (result.data) {
                 setOcrProgress(100); // 성공 시 100%로 점프
                 setTimeout(() => {
-                    const extracted = result.data.structured;
+                    const extracted = result.data;
                     const basicInfo = extracted?.['기본정보'] || {};
                     // '골격근·지방분석' 섹션의 키가 '체중관리'로 매핑되어 있음 (reportSlides 참조)
                     const weightInfo = extracted?.['체중관리'] || {};
@@ -384,19 +384,38 @@ const Signup = () => {
                 // [프론트엔드 -> 백엔드 데이터 전송 시작]
                 // formData 객체에는 회원가입에 필요한 모든 정보(이메일, 비밀번호, 인바디 결과 등)가 담겨 있습니다.
                 // fetch API를 사용해 백엔드 API 서버의 '/api/signup' 엔드포인트로 POST 요청을 보냅니다.
-                const response = await fetch('/api/signup', {
+                const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(formData), // 데이터를 JSON 문자열로 변환하여 전송
+                    body: JSON.stringify({
+                        ...formData,
+                        username: formData.email.split('@')[0] // Backend requires username, use email prefix
+                    }),
                 });
 
                 if (!response.ok) {
                     let errorMessage = '회원가입에 실패했습니다.';
                     try {
                         const errorData = await response.json();
-                        errorMessage = errorData.detail || errorMessage;
+                        if (errorData.detail) {
+                            if (typeof errorData.detail === 'object') {
+                                // Pydantic validation error or complex error object
+                                errorMessage = JSON.stringify(errorData.detail, null, 2);
+                                if (Array.isArray(errorData.detail)) {
+                                    // Try to format Pydantic errors nicely
+                                    errorMessage = errorData.detail
+                                        .map(err => {
+                                            const field = err.loc ? err.loc.join(' -> ') : 'Field';
+                                            return `${field}: ${err.msg}`;
+                                        })
+                                        .join('\n');
+                                }
+                            } else {
+                                errorMessage = errorData.detail;
+                            }
+                        }
                     } catch (e) {
                         // If response is not JSON (e.g., HTML 500 error)
                         console.error('Non-JSON error response:', e);

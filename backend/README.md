@@ -226,6 +226,7 @@ backend/
 | **GET** | `/api/users/{user_id}` | 특정 유저 조회 | `UserRepository.get_by_id` | **조회**: 해당 ID의 사용자 정보 반환 |
 | **GET** | `/api/users/` | 전체 유저 목록 | `UserRepository.get_all` | **조회**: 모든 사용자 목록 반환 (관리자용) |
 | **GET** | `/api/users/{user_id}/statistics` | 유저 통계 | `UserRepository`<br>`HealthRecordRepository`<br>`AnalysisReportRepository` | **조회**: 총 건강 기록 수, 총 리포트 수 집계하여 반환 |
+| **PUT** | `/api/users/{user_id}/goal` | 목표/체중 수정 | `UserDetailRepository.update` | **수정**: 목표 상세 내용 및 시작/목표 체중 업데이트 |
 
 ### 3. 📝 건강 기록 (`routers/ocr/health_records.py`)
 - **담당**: OCR 팀
@@ -238,6 +239,7 @@ backend/
 | **POST** | `/api/health-records/` | 수동 입력 | `HealthService`<br>→ `HealthRecordRepository` | **DB 생성**: 직접 입력한 데이터 저장 |
 | **GET** | `/api/health-records/{record_id}` | 기록 상세 조회 | `HealthRecordRepository.get_by_id` | **조회**: 특정 건강 기록 반환 |
 | **GET** | `/api/health-records/user/{user_id}` | 유저 기록 목록 | `HealthRecordRepository.get_by_user` | **조회**: 해당 유저의 모든 기록 반환 |
+| **GET** | `/api/health-records/user/{user_id}/latest` | 최신 기록 조회 | `HealthRecordRepository.get_latest` | **조회**: 사용자의 가장 최신 건강 기록 반환 |
 | **GET** | `/api/health-records/{record_id}/analysis/prepare` | **LLM1 입력 준비** | `HealthService.prepare_status_analysis` | **처리**: LLM 분석에 필요한 포맷으로 데이터 가공하여 반환 |
 
 ### 4. 🧠 분석 (`routers/llm/analysis.py`)
@@ -263,7 +265,9 @@ backend/
 | **POST** | `/api/goals/` | 목표/상세 생성 | `UserDetailRepository.create` | **DB 생성**: 새로운 `UserDetail` 저장 |
 | **POST** | `/api/goals/plan/prepare` | **LLM2 입력 준비** | `HealthService.prepare_goal_plan` | **처리**: 주간 계획 생성을 위한 LLM 입력 데이터 가공 반환<br>(HealthRecord + AnalysisReport + UserDetail 조합) |
 | **GET** | `/api/goals/user/{user_id}/active` | 활성 목표 조회 | `UserDetailRepository.get_active_details` | **조회**: 현재 진행 중인 목표 반환 |
+| **GET** | `/api/goals/user/{user_id}` | 전체 목표 조회 | `UserDetailRepository.get_all_details` | **조회**: 사용자의 모든 목표 히스토리 반환 |
 | **PATCH** | `/api/goals/{goal_id}` | 목표 수정 | `UserDetailRepository.update` | **DB 수정**: 목표 내용 업데이트 |
+| **DELETE** | `/api/goals/{goal_id}` | 목표 삭제 | `UserDetailRepository.delete` | **DB 삭제**: 목표 삭제 |
 | **POST** | `/api/goals/{goal_id}/complete` | 목표 완료 | `UserDetailRepository.update` | **DB 수정**: `ended_at`을 현재 시간으로 설정 |
 
 ### 6. 📅 주간 계획 (`routers/llm/weekly_plans.py`)

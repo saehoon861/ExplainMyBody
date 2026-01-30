@@ -60,3 +60,58 @@ def get_user_statistics(user_id: int, db: Session = Depends(get_db)):
         "total_records": total_records,
         "total_reports": total_reports
     }
+
+from schemas.temp_goal_update import UserGoalUpdateRequest
+from repositories.llm.user_detail_repository import UserDetailRepository
+from repositories.common.health_record_repository import HealthRecordRepository
+from schemas.llm import UserDetailCreate
+import json
+
+@router.put("/{user_id}/goal", response_model=UserResponse)
+def update_user_goal(
+    user_id: int, 
+    goal_data: UserGoalUpdateRequest, 
+    db: Session = Depends(get_db)
+):
+    """
+    사용자 목표 및 시작 체중 수정
+    """
+    user = UserRepository.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 1. Update Goal (UserDetail) -> start_weight and target_weight stored in JSON
+    # Find active detail
+    active_details = UserDetailRepository.get_active_details(db, user_id)
+    active_detail = active_details[0] if active_details else None
+
+    # Pack description with start_weight and target_weight
+    combined_description = {
+        "start_weight": goal_data.start_weight,
+        "target_weight": goal_data.target_weight,
+        "description": goal_data.goal_description
+    }
+    packed_description = json.dumps(combined_description, ensure_ascii=False)
+
+    if active_detail:
+        # Update existing
+        UserDetailRepository.update(
+            db, 
+            active_detail.id, 
+            goal_type=goal_data.goal_type,
+            goal_description=packed_description
+        )
+    else:
+        # Create new if not exists
+        new_detail = UserDetailCreate(
+            goal_type=goal_data.goal_type,
+            goal_description=packed_description,
+            is_active=1
+        )
+        UserDetailRepository.create(db, user_id, new_detail)
+
+    # Force reload of relationship to ensure active_detail property picks up the change
+    db.expire(user, ['user_details'])
+    db.refresh(user)
+    
+    return user

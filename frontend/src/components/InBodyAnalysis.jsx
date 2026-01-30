@@ -125,9 +125,9 @@ const InBodyAnalysis = () => {
 
         try {
             const apiFormData = new FormData();
-            apiFormData.append('file', inbodyImage);
+            apiFormData.append('image', inbodyImage);
 
-            const response = await fetch('/api/process', {
+            const response = await fetch('/api/health-records/ocr/extract', {
                 method: 'POST',
                 body: apiFormData,
                 signal: controller.signal
@@ -141,10 +141,10 @@ const InBodyAnalysis = () => {
             }
 
             const result = await response.json();
-            if (result.success) {
+            if (result.data) {
                 setOcrProgress(100);
                 setTimeout(() => {
-                    setInbodyData(result.data.structured);
+                    setInbodyData(result.data);
                     setIsProcessingOCR(false);
                 }, 500);
             } else {

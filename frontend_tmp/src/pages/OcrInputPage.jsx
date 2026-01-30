@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { healthService } from '../services/healthService';
 import Layout from '../components/Layout';
+import LoadingAnimation from '../components/LoadingAnimation';
 import './OcrInputPage.css';
 
 const OcrInputPage = () => {
@@ -132,6 +133,56 @@ const OcrInputPage = () => {
             return loc.includes(section) && loc.includes(field);
         });
 
+        // 성별 필드는 콤보박스
+        if (section === '기본정보' && field === '성별') {
+            return (
+                <div className={`form-group ${isNull ? 'null-field' : ''} ${fieldError ? 'error-field' : ''}`}>
+                    <label>
+                        {label}
+                        {isNull && <span className="null-badge">입력 필요</span>}
+                    </label>
+                    <select
+                        value={value ?? ''}
+                        onChange={(e) => handleNestedDataChange(section, field, e.target.value)}
+                        className="form-select"
+                    >
+                        <option value="">선택하세요</option>
+                        <option value="남성">남성</option>
+                        <option value="여성">여성</option>
+                    </select>
+                    {fieldError && (
+                        <span className="field-error-message">{fieldError.msg}</span>
+                    )}
+                </div>
+            );
+        }
+
+        // 부위별 근육/지방 분석 필드는 콤보박스 (표준이하, 표준, 표준이상)
+        if (section === '부위별근육분석' || section === '부위별체지방분석') {
+            return (
+                <div className={`form-group ${isNull ? 'null-field' : ''} ${fieldError ? 'error-field' : ''}`}>
+                    <label>
+                        {label}
+                        {isNull && <span className="null-badge">입력 필요</span>}
+                    </label>
+                    <select
+                        value={value ?? ''}
+                        onChange={(e) => handleNestedDataChange(section, field, e.target.value)}
+                        className="form-select"
+                    >
+                        <option value="">선택하세요</option>
+                        <option value="표준이하">표준이하</option>
+                        <option value="표준">표준</option>
+                        <option value="표준이상">표준이상</option>
+                    </select>
+                    {fieldError && (
+                        <span className="field-error-message">{fieldError.msg}</span>
+                    )}
+                </div>
+            );
+        }
+
+        // 일반 입력 필드
         return (
             <div className={`form-group ${isNull ? 'null-field' : ''} ${fieldError ? 'error-field' : ''}`}>
                 <label>
@@ -154,6 +205,7 @@ const OcrInputPage = () => {
 
     return (
         <Layout>
+            {loading && <LoadingAnimation type="ocr" />}
             <div className="ocr-page">
                 <h1>인바디 사진 업로드</h1>
                 <p className="subtitle">인바디 측정 결과를 사진으로 찍어 업로드하면 자동으로 데이터를 추출합니다</p>
