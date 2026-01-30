@@ -5,6 +5,7 @@ import { healthService } from '../services/healthService';
 import { analysisService } from '../services/analysisService';
 import Layout from '../components/Layout';
 import LoadingAnimation from '../components/LoadingAnimation';
+import ReactMarkdown from 'react-markdown';
 import './LlmAnalysisPage.css';
 
 const LlmAnalysisPage = () => {
@@ -16,6 +17,7 @@ const LlmAnalysisPage = () => {
     const [pastReports, setPastReports] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isContentExpanded, setIsContentExpanded] = useState(false);
 
     // Chat state
     const [chatMessages, setChatMessages] = useState([]);
@@ -140,10 +142,29 @@ const LlmAnalysisPage = () => {
 
                 <div className="result-content">
                     <div className="result-section">
-                        <h3>종합 분석</h3>
-                        <div className="analysis-text">
-                            {analysisResult.llm_output}
+                        <h3>📊 종합 체형 평가</h3>
+                        <div className="analysis-summary">
+                            <ReactMarkdown>
+                                {analysisResult.summary || analysisResult.llm_output}
+                            </ReactMarkdown>
                         </div>
+
+                        {analysisResult.content && (
+                            <div className="analysis-detail">
+                                <button
+                                    className="expand-btn"
+                                    onClick={() => setIsContentExpanded(!isContentExpanded)}
+                                >
+                                    {isContentExpanded ? '▲ 분석 결과 접기' : '▼ 분석 결과 더보기'}
+                                </button>
+
+                                {isContentExpanded && (
+                                    <div className="analysis-full-content">
+                                        <ReactMarkdown>{analysisResult.content}</ReactMarkdown>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {analysisResult.thread_id && (
@@ -161,7 +182,7 @@ const LlmAnalysisPage = () => {
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
                                         <div className="message-content">
-                                            {msg.content}
+                                            <ReactMarkdown>{msg.content}</ReactMarkdown>
                                         </div>
                                     </div>
                                 ))}

@@ -37,6 +37,10 @@ class AnalysisReportResponse(AnalysisReportBase):
     embedding_1536: Optional[List[float]] = None  # OpenAI embedding (1536 차원)
     embedding_1024: Optional[List[float]] = None  # Ollama bge-m3 embedding (1024 차원)
     
+    # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
+    summary: Optional[str] = None  # 종합 체형 평가 등 요약 섹션
+    content: Optional[str] = None  # 전체 내용
+    
     class Config:
         from_attributes = True
 
