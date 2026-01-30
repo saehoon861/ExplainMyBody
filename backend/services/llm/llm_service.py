@@ -9,6 +9,7 @@ import os
 from dotenv import load_dotenv
 
 from schemas.llm import StatusAnalysisInput
+from services.llm.llm_clients import create_llm_client
 from .agent_graph import create_analysis_agent
 
 load_dotenv()
@@ -19,8 +20,9 @@ class LLMService:
 
     def __init__(self):
         """LLM 에이전트 및 클라이언트 초기화"""
-        self.analysis_agent = create_analysis_agent()
         self.model_version = "gpt-4o-mini"  # 또는 설정에서 가져옴
+        self.llm_client = create_llm_client(self.model_version)
+        self.analysis_agent = create_analysis_agent(self.llm_client)
 
     def prepare_status_analysis_input(
         self,
