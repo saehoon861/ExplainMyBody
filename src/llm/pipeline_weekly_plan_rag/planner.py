@@ -89,7 +89,7 @@ class WeeklyPlannerGraphRAG:
                 concepts=concepts,
                 top_k=5,
                 domain=None,  # 도메인 자동 추론
-                lang="ko",
+                lang=None,  # 언어 필터 제거 (영어 논문 포함)
             )
 
             if paper_context:

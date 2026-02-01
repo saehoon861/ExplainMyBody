@@ -104,8 +104,8 @@ class GraphRAGRetriever:
             print(f"\n  🔎 2단계: Vector 유사도 검색 (PostgreSQL)...")
             session = self._get_session()
 
-            # 한국어 쿼리인 경우 embedding_ko_openai 사용
-            use_ko_embedding = (lang == "ko")
+            # 항상 embedding_ko_openai 사용 (모든 논문에 대해 한국어 임베딩 생성했음)
+            use_ko_embedding = True
 
             vector_papers = self.paper_repo.search_similar_papers(
                 query_embedding=query_embedding,
@@ -225,11 +225,13 @@ class GraphRAGRetriever:
             if not paper_id:
                 continue
 
+            confidence = paper.get('confidence', 0.0)
+
             if paper_id in paper_map:
                 # 이미 존재하는 경우 graph_score 추가
                 paper_map[paper_id]['graph_score'] = max(
                     paper_map[paper_id]['graph_score'],
-                    paper.get('confidence', 0.0)
+                    confidence
                 )
                 paper_map[paper_id]['source_type'] = 'hybrid'
             else:
@@ -238,14 +240,14 @@ class GraphRAGRetriever:
                     'paper_id': paper_id,
                     'title': paper.get('title', ''),
                     'vector_score': 0.0,
-                    'graph_score': paper.get('confidence', 0.0),
+                    'graph_score': confidence,
                     'source_type': 'graph',
                     'relation_type': paper.get('relation_type'),
                 }
 
         # 3. 최종 점수 계산 (가중 평균)
-        VECTOR_WEIGHT = 0.6  # Vector 검색 가중치
-        GRAPH_WEIGHT = 0.4   # Graph 검색 가중치
+        VECTOR_WEIGHT = 0.7  # Vector 검색 가중치 (0.6 → 0.7 증가)
+        GRAPH_WEIGHT = 0.3   # Graph 검색 가중치 (0.4 → 0.3 감소)
 
         for paper_id, paper in paper_map.items():
             vector_score = paper.get('vector_score', 0.0)
@@ -259,14 +261,82 @@ class GraphRAGRetriever:
 
             paper['final_score'] = final_score
 
-        # 4. 점수 기반 정렬 및 상위 K개 선택
+        # 4. PostgreSQL에서 상세 정보 보강 (graph-only 논문)
+        self._enrich_papers_from_postgresql(list(paper_map.values()))
+
+        # 5. 점수 정규화 (선택)
+        all_papers = list(paper_map.values())
+        if all_papers:
+            # 최고/최저 점수 찾기
+            max_score = max(p.get('final_score', 0.0) for p in all_papers)
+            min_score = min(p.get('final_score', 0.0) for p in all_papers)
+
+            # 정규화 (0.0-1.0 범위로)
+            if max_score > min_score:
+                for paper in all_papers:
+                    original_score = paper.get('final_score', 0.0)
+                    normalized_score = (original_score - min_score) / (max_score - min_score)
+                    paper['final_score'] = normalized_score
+                    paper['original_score'] = original_score  # 원본 점수 보존
+
+        # 6. 점수 기반 정렬 및 상위 K개 선택
         sorted_papers = sorted(
-            paper_map.values(),
+            all_papers,
             key=lambda x: x.get('final_score', 0.0),
             reverse=True
         )
 
         return sorted_papers[:top_k]
+
+    def _enrich_papers_from_postgresql(self, papers: List[Dict[str, Any]]):
+        """
+        PostgreSQL에서 논문 상세 정보 조회하여 보강
+
+        Args:
+            papers: 논문 리스트 (in-place 업데이트)
+        """
+        if not self.session or not papers:
+            return
+
+        from sqlalchemy import text
+
+        # paper_id 리스트 추출
+        paper_ids = [p['paper_id'] for p in papers if 'paper_id' in p]
+        if not paper_ids:
+            return
+
+        # PostgreSQL에서 상세 정보 조회
+        query = text("""
+            SELECT paper_id, title, chunk_text, lang, source, year, pmid, doi
+            FROM paper_nodes
+            WHERE paper_id = ANY(:paper_ids)
+        """)
+
+        results = self.session.execute(query, {'paper_ids': paper_ids}).fetchall()
+
+        # paper_id를 키로 하는 맵 생성
+        db_paper_map = {
+            str(row[0]): {
+                'title': row[1],
+                'chunk_text': row[2],
+                'lang': row[3],
+                'source': row[4],
+                'year': row[5],
+                'pmid': row[6],
+                'doi': row[7],
+            }
+            for row in results
+        }
+
+        # 논문 정보 보강
+        for paper in papers:
+            paper_id = str(paper.get('paper_id', ''))
+            if paper_id in db_paper_map:
+                # PostgreSQL 데이터로 업데이트 (기존 데이터는 유지)
+                db_data = db_paper_map[paper_id]
+                for key, value in db_data.items():
+                    if key not in paper or not paper[key]:
+                        paper[key] = value
 
     def close(self):
         """리소스 정리"""

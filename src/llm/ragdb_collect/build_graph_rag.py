@@ -311,6 +311,12 @@ class GraphRAGBuilder:
         if not self.openai_client:
             return None
 
+        # OpenAI text-embedding-3-small 최대 토큰: 8191
+        # 안전하게 최대 6000 토큰으로 제한 (대략 24000자)
+        MAX_CHARS = 24000
+        if len(text) > MAX_CHARS:
+            text = text[:MAX_CHARS]
+
         try:
             response = self.openai_client.embeddings.create(
                 model="text-embedding-3-small",
@@ -373,14 +379,14 @@ class GraphRAGBuilder:
             return
 
         concept = self.concepts[concept_id]
-        concept_type = concept.get('concept_type', 'Unknown')  # Outcome, Intervention, Biomarker, etc.
+        # concept_type은 이미 concept dict에 포함되어 있음
 
         if USE_NETWORKX:
             if not self.graph.has_node(concept_id):
-                self.graph.add_node(concept_id, **concept, node_type='concept', concept_type=concept_type)
+                self.graph.add_node(concept_id, **concept, node_type='concept')
         else:
             if concept_id not in self.nodes:
-                self.nodes[concept_id] = {**concept, 'node_type': 'concept', 'concept_type': concept_type}
+                self.nodes[concept_id] = {**concept, 'node_type': 'concept'}
 
     def add_edge(self, source_id: str, target_id: str, edge_type: str, **properties):
         """일반적인 엣지 추가 (모든 관계 타입 지원)"""
@@ -524,7 +530,9 @@ class GraphRAGBuilder:
                 print(f"   🧮 한국어 임베딩 생성 활성화 (OpenAI: text-embedding-3-small)")
 
         for i, paper in enumerate(papers):
-            paper_id = f"paper_{paper.get('pmid', i)}"
+            # PMID가 None이거나 없으면 DOI 또는 index 사용 (한국어 논문 대응)
+            pmid = paper.get('pmid') or paper.get('doi') or f"idx_{i}"
+            paper_id = f"paper_{pmid}"
             lang = paper['language']
 
             # 통계

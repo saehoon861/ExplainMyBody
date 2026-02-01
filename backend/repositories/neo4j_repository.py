@@ -61,10 +61,16 @@ class Neo4jRepository:
         else:
             rel_filter = ""
 
+        # Paper → Concept 직접 연결 + Concept → Concept → Paper 간접 연결 모두 검색
         query = f"""
         MATCH (p:Paper)-[r{rel_filter}]->(c:Concept {{id: $concept_id}})
         RETURN p.id as paper_id, p.title as title, type(r) as relation_type, r.confidence as confidence
-        ORDER BY r.confidence DESC
+        UNION
+        MATCH (p:Paper)-[r1{rel_filter}]->(c1:Concept)-[r2]->(c:Concept {{id: $concept_id}})
+        WHERE c1 <> c
+        RETURN p.id as paper_id, p.title as title, type(r1) as relation_type,
+               (r1.confidence * 0.7 + r2.confidence * 0.3) as confidence
+        ORDER BY confidence DESC
         LIMIT $limit
         """
 

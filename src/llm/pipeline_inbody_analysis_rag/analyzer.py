@@ -119,9 +119,9 @@ class InBodyAnalyzerGraphRAG:
             paper_context = self.graph_rag.retrieve_relevant_papers(
                 query=query,
                 concepts=concepts,
-                top_k=5,
+                top_k=10,  # 5 → 10으로 증가 (더 다양한 결과)
                 domain=None,  # 도메인 자동 추론
-                lang="ko",
+                lang=None,  # 언어 필터 제거 (영어 논문 포함)
             )
 
             if paper_context:
@@ -236,9 +236,13 @@ class InBodyAnalyzerGraphRAG:
             elif measurements.BMI >= 25:
                 concepts.update(["overweight", "weight_loss", "caloric_deficit"])
 
-        # 기초대사량
-        if measurements.기초대사량:
-            concepts.add("basal_metabolic_rate")
+        # 기초대사량 - 데이터가 적어서 주석 처리
+        # if measurements.기초대사량:
+        #     concepts.add("basal_metabolic_rate")
+
+        # 기본 개념 추가 (데이터가 많은 개념들)
+        if not concepts:
+            concepts.update(["protein_intake", "body_composition", "skeletal_muscle_mass"])
 
         return list(concepts)
 

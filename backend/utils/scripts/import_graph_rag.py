@@ -356,22 +356,42 @@ def import_to_neo4j(data: Dict[str, Any]):
                 for edge in batch:
                     # 관계 생성 (동적 타입)
                     relation_type = edge.get('type', 'MENTIONS')
+                    source_id = edge['source']
+                    target_id = edge['target']
 
-                    # Paper와 Concept 노드가 있으면 관계 생성 (없으면 무시)
-                    session.run(f"""
-                        MATCH (p:Paper {{id: $paper_id}})
-                        MATCH (c:Concept {{id: $concept_id}})
-                        MERGE (p)-[r:{relation_type}]->(c)
-                        SET r.confidence = $confidence,
-                            r.matched_term = $matched_term,
-                            r.count = $count
-                    """,
-                        paper_id=edge['source'],
-                        concept_id=edge['target'],
-                        confidence=edge.get('confidence') or 0.5,
-                        matched_term=edge.get('matched_term'),
-                        count=edge.get('count', 1)
-                    )
+                    # source가 Paper인지 Concept인지 구분 (paper_ 접두사로 판단)
+                    if source_id.startswith('paper_'):
+                        # Paper → Concept 관계
+                        session.run(f"""
+                            MATCH (p:Paper {{id: $source_id}})
+                            MATCH (c:Concept {{id: $target_id}})
+                            MERGE (p)-[r:{relation_type}]->(c)
+                            SET r.confidence = $confidence,
+                                r.matched_term = $matched_term,
+                                r.count = $count
+                        """,
+                            source_id=source_id,
+                            target_id=target_id,
+                            confidence=edge.get('confidence') or 0.5,
+                            matched_term=edge.get('matched_term'),
+                            count=edge.get('count', 1)
+                        )
+                    else:
+                        # Concept → Concept 관계
+                        session.run(f"""
+                            MATCH (c1:Concept {{id: $source_id}})
+                            MATCH (c2:Concept {{id: $target_id}})
+                            MERGE (c1)-[r:{relation_type}]->(c2)
+                            SET r.confidence = $confidence,
+                                r.matched_term = $matched_term,
+                                r.count = $count
+                        """,
+                            source_id=source_id,
+                            target_id=target_id,
+                            confidence=edge.get('confidence') or 0.5,
+                            matched_term=edge.get('matched_term'),
+                            count=edge.get('count', 1)
+                        )
 
                 # 10 배치마다 진행률 출력
                 if (i // batch_size) % 10 == 0 or i + batch_size >= len(edges):
