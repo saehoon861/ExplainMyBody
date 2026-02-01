@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.llm import UserDetailCreate, UserDetailResponse, UserDetailUpdate, GoalPlanRequest, GoalPlanResponse
+from schemas.llm import UserDetailCreate, UserDetailResponse, UserDetailUpdate, GoalPlanRequest, GoalPlanPrepareResponse
 from repositories.llm.user_detail_repository import UserDetailRepository
 from services.llm.llm_service import LLMService
 from services.common.health_service import HealthService
@@ -36,7 +36,7 @@ def create_goal(
     return new_goal
 
 
-@router.post("/plan/prepare", response_model=GoalPlanResponse)
+@router.post("/plan/prepare", response_model=GoalPlanPrepareResponse)
 def prepare_goal_plan(
     user_id: int,
     request: GoalPlanRequest,
@@ -53,7 +53,7 @@ def prepare_goal_plan(
         request: GoalPlanRequest (record_id, user_goal_type, user_goal_description)
 
     Returns:
-        GoalPlanResponse: LLM에 전달할 input 데이터
+        GoalPlanPrepareResponse: LLM에 전달할 input 데이터
     """
     result = health_service.prepare_goal_plan(
         db=db,
@@ -65,6 +65,7 @@ def prepare_goal_plan(
     if not result:
         raise HTTPException(status_code=404, detail="건강 기록을 찾을 수 없습니다.")
     return result
+
 
 
 @router.get("/{goal_id}", response_model=UserDetailResponse)
