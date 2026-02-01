@@ -90,19 +90,27 @@ const Signup = () => {
 
     const onTouchMove = (e) => {
         setTouchEnd(e.targetTouches[0].clientX);
+        // Don't prevent default to allow vertical scrolling
+        // Only handle horizontal swipes, allow vertical scrolling
     };
 
     const onTouchEnd = () => {
         if (!touchStart || !touchEnd) return;
-        const distance = touchStart - touchEnd;
-        const isLeftSwipe = distance > minSwipeDistance;
-        const isRightSwipe = distance < -minSwipeDistance;
 
+        const distanceX = touchStart - touchEnd;
+        const isLeftSwipe = distanceX > minSwipeDistance;
+        const isRightSwipe = distanceX < -minSwipeDistance;
+
+        // Only change slides if it's a clear horizontal swipe
         if (isLeftSwipe && reportSlideIndex < reportSlides.length - 1) {
             setReportSlideIndex(prev => prev + 1);
         } else if (isRightSwipe && reportSlideIndex > 0) {
             setReportSlideIndex(prev => prev - 1);
         }
+
+        // Reset touch tracking
+        setTouchStart(null);
+        setTouchEnd(null);
     };
 
     const motivationalQuotes = [
@@ -440,7 +448,12 @@ const Signup = () => {
                     },
                     body: JSON.stringify({
                         ...formData,
-                        username: formData.email.split('@')[0] // Backend requires username, use email prefix
+                        username: formData.email.split('@')[0], // Backend requires username, use email prefix
+                        // Convert string numbers to actual numbers for backend validation
+                        age: parseInt(formData.age),
+                        height: parseFloat(formData.height),
+                        startWeight: parseFloat(formData.startWeight),
+                        targetWeight: parseFloat(formData.targetWeight)
                     }),
                 });
 
@@ -562,7 +575,12 @@ const Signup = () => {
                     ))}
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} onKeyDown={(e) => {
+                    // 엔터키로 인한 자동 제출 방지 (textarea 제외)
+                    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                    }
+                }}>
                     <div className="signup-steps">
                         {step === 1 && (
                             <div className="step-content fade-in" key="step1">
@@ -799,7 +817,7 @@ const Signup = () => {
                                             onTouchStart={onTouchStart}
                                             onTouchMove={onTouchMove}
                                             onTouchEnd={onTouchEnd}
-                                            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px', touchAction: 'pan-y' }}
+                                            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px', touchAction: 'pan-y', overflow: 'visible' }}
                                         >
                                             <button
                                                 type="button"
@@ -989,7 +1007,15 @@ const Signup = () => {
                                 <ArrowRight size={20} />
                             </button>
                         ) : (
-                            <button type="submit" className="login-button">
+                            <button
+                                type="button" // submit 타입을 button으로 변경하여 자동 제출 방지
+                                className="login-button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSubmit(e);
+                                }}
+                            >
                                 가입 완료
                                 <Check size={20} />
                             </button>
@@ -1019,6 +1045,7 @@ const Signup = () => {
                                     {['감량', '유지', '증량', '재활'].map(type => {
                                         const selectedGoals = formData.goalType ? formData.goalType.split(',').map(g => g.trim()).filter(g => g !== '') : [];
                                         const isSelected = selectedGoals.includes(type);
+                                        const exclusiveGoals = ['감량', '유지', '증량'];
                                         return (
                                             <div
                                                 key={type}
@@ -1026,9 +1053,18 @@ const Signup = () => {
                                                 onClick={() => {
                                                     let newGoals;
                                                     if (isSelected) {
+                                                        // 선택 해제
                                                         newGoals = selectedGoals.filter(g => g !== type);
                                                     } else {
-                                                        newGoals = [...selectedGoals, type];
+                                                        // 새로 선택
+                                                        if (exclusiveGoals.includes(type)) {
+                                                            // 감량/유지/증량 중 하나 선택 시: 기존 감량/유지/증량 제거, 재활은 유지
+                                                            newGoals = selectedGoals.filter(g => !exclusiveGoals.includes(g));
+                                                            newGoals.push(type);
+                                                        } else {
+                                                            // 재활 선택 시: 기존 선택에 추가
+                                                            newGoals = [...selectedGoals, type];
+                                                        }
                                                         const order = ['감량', '유지', '증량', '재활'];
                                                         newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
                                                     }
@@ -1104,22 +1140,41 @@ const Signup = () => {
 
                                         if (otherValue !== null) {
                                             return (
-                                                <input
-                                                    type="text"
-                                                    placeholder="그 외 재활 부위를 입력해주세요"
-                                                    className="modal-input"
-                                                    style={{ width: '100%', padding: '10px', fontSize: '0.9rem' }}
-                                                    value={otherValue}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        const baseParts = parts.filter(p => standardParts.includes(p));
-                                                        if (val) {
-                                                            handleInputChange('goal', [...baseParts, val].join(', '));
-                                                        } else {
-                                                            handleInputChange('goal', baseParts.join(', ') + (baseParts.length > 0 ? ', ' : '') + ' ');
-                                                        }
-                                                    }}
-                                                />
+                                                <div style={{ position: 'relative', marginTop: '8px' }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="예: 손목, 팔꿈치 등"
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '14px 16px',
+                                                            fontSize: '0.95rem',
+                                                            border: '2px solid #e2e8f0',
+                                                            borderRadius: '12px',
+                                                            backgroundColor: '#ffffff',
+                                                            outline: 'none',
+                                                            transition: 'all 0.2s ease',
+                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            e.target.style.borderColor = '#6366f1';
+                                                            e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            e.target.style.borderColor = '#e2e8f0';
+                                                            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                                                        }}
+                                                        value={otherValue}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const baseParts = parts.filter(p => standardParts.includes(p));
+                                                            if (val) {
+                                                                handleInputChange('goal', [...baseParts, val].join(', '));
+                                                            } else {
+                                                                handleInputChange('goal', baseParts.join(', ') + (baseParts.length > 0 ? ', ' : '') + ' ');
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
                                             );
                                         }
                                         return null;
@@ -1133,36 +1188,36 @@ const Signup = () => {
                                     <select
                                         value={formData.activityLevel}
                                         onChange={(e) => handleInputChange('activityLevel', e.target.value)}
+                                        style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
                                     >
                                         <option value="매우 낮음">매우 낮음</option>
                                         <option value="보통">보통</option>
                                         <option value="매우 높음">매우 높음</option>
                                     </select>
-                                    <ArrowRight size={16} className="chevron-icon" />
                                 </div>
                             </div>
                             <div className="profile-field-row">
                                 <span className="field-label">시작 체중</span>
-                                <div className="field-value-controls">
+                                <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
                                         type="number"
                                         value={formData.startWeight}
                                         onChange={(e) => handleInputChange('startWeight', e.target.value)}
+                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}
                                     />
-                                    <span>kg</span>
-                                    <ArrowRight size={16} className="chevron-icon" />
+                                    <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>
                             </div>
                             <div className="profile-field-row">
                                 <span className="field-label">목표 체중</span>
-                                <div className="field-value-controls">
+                                <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
                                         type="number"
                                         value={formData.targetWeight}
                                         onChange={(e) => handleInputChange('targetWeight', e.target.value)}
+                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}
                                     />
-                                    <span>kg</span>
-                                    <ArrowRight size={16} className="chevron-icon" />
+                                    <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>
                             </div>
                         </div>
@@ -1172,7 +1227,7 @@ const Signup = () => {
                             className="modal-submit-btn"
                             onClick={() => setShowProfileModal(false)}
                         >
-                            이 정보로 추천 계획 받기
+                            운동목표설정 완료
                         </button>
                     </div>
                 </div>

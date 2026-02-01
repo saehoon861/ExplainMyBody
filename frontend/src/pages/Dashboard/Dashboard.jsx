@@ -1,17 +1,181 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield } from 'lucide-react';
+import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft } from 'lucide-react';
 import '../../styles/LoginLight.css'; // 스타일 재사용
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { usePrefetch } from '../../hooks/usePrefetch';
+// import { useContainerQuery } from '../../hooks/useContainerQuery'; // Container Query Hook (선택적 사용)
+
+// 건강 정보 카드뉴스 컴포넌트 - 간단한 버전
+const HealthTipsSection = () => {
+    const [selectedTip, setSelectedTip] = useState(null);
+
+    const healthTips = [
+        { id: 1, title: '균형 잡힌 식단', emoji: '🥗', color: '#a78bfa', bg: '#faf5ff', summary: '영양소 섭취 가이드', content: '매끼 채소 2가지 이상 섭취하고, 단백질 15-20%, 탄수화물 50-60%를 유지하세요. 가공식품 대신 자연식품을 선택하고 천천히 씹어먹으세요.' },
+        { id: 2, title: '수면의 질 높이기', emoji: '😴', color: '#e879f9', bg: '#fdf4ff', summary: '회복력 극대화', content: '성인 권장 수면 시간은 7-9시간입니다. 매일 같은 시간에 취침하고, 자기 전 1시간은 스마트폰을 피하세요.' },
+        { id: 3, title: '수분 섭취 가이드', emoji: '💧', color: '#60a5fa', bg: '#eff6ff', summary: '신진대사 활성화', content: '하루 권장 물 섭취량은 체중 × 30ml입니다. 기상 후 물 한 잔을 마시고, 운동 전후 500ml씩 섭취하세요.' },
+        { id: 4, title: '운동 후 회복', emoji: '💪', color: '#f472b6', bg: '#fdf2f8', summary: '근육 성장 팁', content: '운동 후 30분 이내 단백질 20-30g을 섭취하세요. 스트레칭 5-10분, 같은 부위는 48시간 휴식하세요.' }
+    ];
+
+    return (
+        <>
+            {/* 가로 스크롤 카드 */}
+            <div style={{
+                display: 'flex',
+                gap: '16px',
+                overflowX: 'auto',
+                padding: '8px 0 16px',
+                marginLeft: '-16px',
+                marginRight: '-16px',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+            }}>
+                {healthTips.map((tip) => (
+                    <div
+                        key={tip.id}
+                        onClick={() => setSelectedTip(tip)}
+                        style={{
+                            flex: '0 0 130px',
+                            cursor: 'pointer',
+                            textAlign: 'center'
+                        }}
+                    >
+                        <div style={{
+                            width: '130px',
+                            height: '130px',
+                            borderRadius: '20px',
+                            border: `3px solid ${tip.color}`,
+                            background: tip.bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '10px',
+                            fontSize: '48px'
+                        }}>
+                            {tip.emoji}
+                        </div>
+                        <h4 style={{
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            color: '#1e293b',
+                            margin: 0,
+                            lineHeight: 1.4
+                        }}>{tip.title}</h4>
+                    </div>
+                ))}
+            </div>
+
+            {/* 모달 */}
+            {selectedTip && (
+                <div
+                    onClick={() => setSelectedTip(null)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        zIndex: 999999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '20px'
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%',
+                            maxWidth: '500px',
+                            maxHeight: '80vh',
+                            background: 'white',
+                            borderRadius: '24px',
+                            overflow: 'hidden',
+                            position: 'relative',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}
+                    >
+                        <div style={{
+                            background: selectedTip.bg,
+                            padding: '40px 24px 24px',
+                            textAlign: 'center',
+                            position: 'relative',
+                            flexShrink: 0
+                        }}>
+                            <button
+                                onClick={() => setSelectedTip(null)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    right: '16px',
+                                    background: 'rgba(255,255,255,0.6)',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '36px',
+                                    height: '36px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    fontSize: '18px',
+                                    color: '#475569'
+                                }}
+                            >✕</button>
+                            <div style={{ fontSize: '64px', marginBottom: '16px' }}>{selectedTip.emoji}</div>
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>{selectedTip.title}</h1>
+                            <p style={{ fontSize: '0.95rem', color: '#475569', margin: 0 }}>{selectedTip.summary}</p>
+                        </div>
+                        <div style={{
+                            padding: '24px',
+                            overflowY: 'auto'
+                        }}>
+                            <p style={{ fontSize: '1rem', color: '#334155', lineHeight: 1.6, margin: 0 }}>{selectedTip.content}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
 
+    // Edge Native: Resource Prefetching for likely next routes
+    usePrefetch([
+        '/src/pages/Chatbot/Chatbot.jsx',
+        '/src/pages/Exercise/WorkoutPlan.jsx',
+        '/src/pages/Exercise/ExerciseGuide.jsx'
+    ]);
+
+    /* Container Query Hook 사용 예시 (필요시 주석 해제)
+    const { ref, width, isSmall, isMedium, isLarge } = useContainerQuery();
+
+    // 사용법:
+    // 1. ref를 컨테이너에 연결
+    // 2. width, isSmall, isMedium, isLarge로 조건부 렌더링
+    //
+    // 예시:
+    // <div ref={ref} className="dashboard-section">
+    //     {isSmall ? <MobileChart /> : <DesktopChart />}
+    // </div>
+    */
+
+    // 비디오 모달 상태
+    const [activeVideo, setActiveVideo] = useState(null);
+
     // 목표 수정 모달 상태
     const [isEditing, setIsEditing] = useState(false);
-    const [showRehabOptions, setShowRehabOptions] = useState(false); // 재활 부위 선택지 표시 여부
+    const [showRehabOptions, setShowRehabOptions] = useState(false);
     const [editForm, setEditForm] = useState({
         start_weight: '',
         target_weight: '',
@@ -19,12 +183,23 @@ const Dashboard = () => {
         goal_description: ''
     });
 
+    const openVideo = (type) => {
+        let videoId = 'gMaB-fG4u4g'; // 기본: 전신/인트로
+        if (type === '상체') videoId = 'tzN69l791VU';
+        if (type === '복근') videoId = 'hR5s71aM6fw';
+        if (type === '하체') videoId = 'W_VGlKk88K4';
+
+        setActiveVideo({
+            id: videoId,
+            title: `${type} 운동 가이드`
+        });
+    };
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
             setUserData(parsedUser);
-            // 초기 수정 폼 데이터 설정
             setEditForm({
                 start_weight: parsedUser.start_weight || '',
                 target_weight: parsedUser.target_weight || '',
@@ -37,7 +212,7 @@ const Dashboard = () => {
     const handleLogout = () => {
         if (window.confirm('로그아웃 하시겠습니까?')) {
             localStorage.removeItem('signup_persist');
-            localStorage.removeItem('user'); // 사용자 정보도 삭제
+            localStorage.removeItem('user');
             navigate('/login');
         }
     };
@@ -50,7 +225,7 @@ const Dashboard = () => {
                 goal_type: userData.goal_type || '감량',
                 goal_description: userData.goal_description || ''
             });
-            setShowRehabOptions(false); // 모달 열 때 재활 선택지 숨김
+            setShowRehabOptions(false);
             setIsEditing(true);
         }
     };
@@ -61,7 +236,6 @@ const Dashboard = () => {
         setEditForm(prev => {
             const updated = { ...prev, [name]: value };
 
-            // 체중 변경 시 목표 타입 자동 계산
             if (name === 'start_weight' || name === 'target_weight') {
                 const start = parseFloat(name === 'start_weight' ? value : prev.start_weight);
                 const target = parseFloat(name === 'target_weight' ? value : prev.target_weight);
@@ -100,7 +274,7 @@ const Dashboard = () => {
             if (response.ok) {
                 const updatedUser = await response.json();
                 setUserData(updatedUser);
-                localStorage.setItem('user', JSON.stringify(updatedUser)); // 로컬 스토리지 업데이트
+                localStorage.setItem('user', JSON.stringify(updatedUser));
                 setIsEditing(false);
                 alert('목표가 수정되었습니다.');
             } else {
@@ -127,12 +301,10 @@ const Dashboard = () => {
     const getChartData = () => {
         if (!userData) return [];
 
-        // 사용자 데이터 (inbody_data가 있으면 사용, 없으면 start_weight만 사용)
         const myWeight = userData.inbody_data?.weight || userData.start_weight || 0;
         const myMuscle = userData.inbody_data?.skeletal_muscle || 0;
         const myFat = userData.inbody_data?.body_fat_mass || 0;
 
-        // 평균 데이터 (Mock) - 성별에 따라 다르게 설정 가능
         const isMale = userData.gender === 'male';
         const avgWeight = isMale ? 74 : 58;
         const avgMuscle = isMale ? 34 : 22;
@@ -165,6 +337,10 @@ const Dashboard = () => {
                         <div className="goal-header">
                             <span className="user-greeting">안녕하세요, {userData.email.split('@')[0]}님!</span>
                             <div className="header-actions">
+                                <button className="edit-goal-button" onClick={() => openVideo('기본')} title="가이드 영상">
+                                    <Youtube size={18} color="#ef4444" />
+                                    <span>사용 팁</span>
+                                </button>
                                 <button className="edit-goal-button" onClick={handleEditClick} title="목표 수정">
                                     <Edit2 size={14} />
                                     <span>목표 수정</span>
@@ -202,61 +378,99 @@ const Dashboard = () => {
                         )}
                     </div>
 
-                    {/* 인바디 비교 그래프 섹션 */}
                     <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '24px' }}>
                         <h3>나의 인바디 분석</h3>
                         <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '20px' }}>
                             또래 평균 대비 나의 상태를 확인해보세요.
                         </p>
-                        <div style={{ width: '100%', height: 300 }}>
+                        <div style={{ width: '100%', height: 350 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
+                                <RadarChart
                                     data={chartData}
-                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                                    barGap={8}
+                                    margin={{ top: 20, right: 40, bottom: 20, left: 40 }}
                                 >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                        dy={10}
+                                    <defs>
+                                        <linearGradient id="radarGradientMe" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#818cf8" stopOpacity={0.8} />
+                                            <stop offset="100%" stopColor="#818cf8" stopOpacity={0.2} />
+                                        </linearGradient>
+                                        <linearGradient id="radarGradientAvg" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.6} />
+                                            <stop offset="100%" stopColor="#64748b" stopOpacity={0.1} />
+                                        </linearGradient>
+                                        <filter id="glow">
+                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                            <feMerge>
+                                                <feMergeNode in="coloredBlur"/>
+                                                <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                        </filter>
+                                    </defs>
+                                    <PolarGrid
+                                        stroke="rgba(148, 163, 184, 0.2)"
+                                        strokeWidth={1.5}
+                                        strokeDasharray="3 3"
                                     />
-                                    <YAxis
-                                        hide={true}
+                                    <PolarAngleAxis
+                                        dataKey="name"
+                                        tick={{ fill: '#64748b', fontSize: 13, fontWeight: 600 }}
+                                        tickLine={false}
+                                    />
+                                    <PolarRadiusAxis
+                                        angle={90}
+                                        domain={[0, 'auto']}
+                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                        axisLine={false}
+                                        tickCount={5}
                                     />
                                     <Tooltip
-                                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                        contentStyle={{ backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px' }}
-                                        itemStyle={{ color: '#fff', fontSize: '0.9rem' }}
-                                        labelStyle={{ color: '#94a3b8', marginBottom: '8px' }}
+                                        contentStyle={{
+                                            backgroundColor: '#1e293b',
+                                            borderColor: 'rgba(129, 140, 248, 0.3)',
+                                            borderRadius: '12px',
+                                            padding: '12px',
+                                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+                                        }}
+                                        itemStyle={{ color: '#fff', fontSize: '0.9rem', fontWeight: 500 }}
+                                        labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}
                                     />
                                     <Legend
-                                        wrapperStyle={{ paddingTop: '20px' }}
-                                        formatter={(value) => <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{value === 'me' ? '내 수치' : '평균'}</span>}
+                                        wrapperStyle={{ paddingTop: '24px' }}
+                                        formatter={(value) => (
+                                            <span style={{
+                                                color: '#64748b',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 600
+                                            }}>
+                                                {value === 'me' ? '🎯 내 수치' : '📊 평균'}
+                                            </span>
+                                        )}
                                     />
-                                    <Bar
-                                        dataKey="me"
+                                    <Radar
+                                        name="avg"
+                                        dataKey="avg"
+                                        stroke="#64748b"
+                                        fill="url(#radarGradientAvg)"
+                                        strokeWidth={2}
+                                        fillOpacity={0.5}
+                                        animationDuration={1200}
+                                        animationBegin={0}
+                                        animationEasing="ease-out"
+                                        dot={{ fill: '#64748b', r: 4 }}
+                                    />
+                                    <Radar
                                         name="me"
-                                        fill="#818cf8"
-                                        radius={[6, 6, 0, 0]}
-                                        animationDuration={800}
+                                        dataKey="me"
+                                        stroke="#818cf8"
+                                        fill="url(#radarGradientMe)"
+                                        strokeWidth={3}
+                                        fillOpacity={0.6}
+                                        animationDuration={1400}
                                         animationBegin={200}
                                         animationEasing="cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                                    >
-                                        <Cell fill="#818cf8" />
-                                    </Bar>
-                                    <Bar
-                                        dataKey="avg"
-                                        name="avg"
-                                        fill="#334155"
-                                        radius={[6, 6, 0, 0]}
-                                        animationDuration={800}
-                                        animationBegin={400}
-                                        animationEasing="cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                                        dot={{ fill: '#818cf8', r: 5, filter: 'url(#glow)' }}
                                     />
-                                </BarChart>
+                                </RadarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
@@ -265,6 +479,31 @@ const Dashboard = () => {
                 <div className="dashboard-card">
                     <h3>로그인이 필요합니다</h3>
                     <p>데이터를 불러오려면 다시 로그인해주세요.</p>
+                </div>
+            )}
+
+            {/* 비디오 팝업 모달 */}
+            {activeVideo && (
+                <div className="dashboard-modal-overlay fade-in" onClick={() => setActiveVideo(null)}>
+                    <div className="video-modal-card" onClick={e => e.stopPropagation()}>
+                        <div className="video-header">
+                            <h3>{activeVideo.title}</h3>
+                            <button className="close-button" onClick={() => setActiveVideo(null)}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="video-container">
+                            <iframe
+                                width="100%"
+                                height="100%"
+                                src={`https://www.youtube.com/embed/${activeVideo.id}?autoplay=1`}
+                                title="YouTube video player"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            ></iframe>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -295,27 +534,22 @@ const Dashboard = () => {
                                                     let newGoals;
 
                                                     if (generalGoals.includes(type)) {
-                                                        // 감량/유지/증량은 배타적 선택 (라디오 버튼처럼)
                                                         if (isSelected) {
-                                                            // 이미 선택된 것을 다시 클릭하면 해제
                                                             newGoals = selectedGoals.filter(g => g !== type);
                                                         } else {
-                                                            // 다른 일반 목표를 모두 제거하고 현재 선택만 추가
                                                             newGoals = selectedGoals.filter(g => !generalGoals.includes(g));
                                                             newGoals.push(type);
                                                         }
                                                     } else {
-                                                        // 재활은 독립적으로 토글
                                                         if (isSelected) {
                                                             newGoals = selectedGoals.filter(g => g !== type);
-                                                            setShowRehabOptions(false); // 재활 해제 시 선택지 숨김
+                                                            setShowRehabOptions(false);
                                                         } else {
                                                             newGoals = [...selectedGoals, type];
-                                                            setShowRehabOptions(true); // 재활 선택 시 선택지 표시
+                                                            setShowRehabOptions(true);
                                                         }
                                                     }
 
-                                                    // 순서 보장: 일반 목표 우선, 재활 마지막
                                                     const order = ['감량', '유지', '증량', '재활'];
                                                     newGoals.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
@@ -415,6 +649,7 @@ const Dashboard = () => {
                                     })()}
                                 </div>
                             )}
+
                             <div className="form-group-row">
                                 <div className="form-group">
                                     <label>시작 체중 (kg)</label>
@@ -443,7 +678,7 @@ const Dashboard = () => {
                             <button className="primary-button" onClick={handleSaveGoal}>저장하기</button>
                         </div>
                     </div>
-                </div >
+                </div>
             )}
 
             <div className="quick-actions-grid fade-in delay-1">
@@ -473,7 +708,7 @@ const Dashboard = () => {
             </div>
 
             <div className="quick-actions-grid fade-in delay-2 exercise-category-grid">
-                <Link to="/exercise-guide?cat=상체" className="action-card">
+                <div onClick={() => openVideo('상체')} className="action-card" style={{ cursor: 'pointer' }}>
                     <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
                         <Zap size={24} />
                     </div>
@@ -481,9 +716,9 @@ const Dashboard = () => {
                         <h3>상체</h3>
                     </div>
                     <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </Link>
+                </div>
 
-                <Link to="/exercise-guide?cat=복근" className="action-card">
+                <div onClick={() => openVideo('복근')} className="action-card" style={{ cursor: 'pointer' }}>
                     <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
                         <Shield size={24} />
                     </div>
@@ -491,9 +726,9 @@ const Dashboard = () => {
                         <h3>복근</h3>
                     </div>
                     <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </Link>
+                </div>
 
-                <Link to="/exercise-guide?cat=하체" className="action-card">
+                <div onClick={() => openVideo('하체')} className="action-card" style={{ cursor: 'pointer' }}>
                     <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
                         <Activity size={24} />
                     </div>
@@ -501,12 +736,66 @@ const Dashboard = () => {
                         <h3>하체</h3>
                     </div>
                     <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </Link>
+                </div>
             </div>
 
-            <div style={{ height: '100px' }}></div> {/* Spacer for bottom nav */}
+            {/* 건강 정보 카드뉴스 섹션 */}
+            <div className="section-title fade-in delay-3" style={{ marginTop: '32px', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💡 건강 정보 & 팁</h3>
+            </div>
+
+            <HealthTipsSection />
+
+            <div style={{ height: '100px' }}></div>
 
             <style>{`
+                .video-modal-card {
+                    background: black;
+                    border-radius: 20px;
+                    width: 100%;
+                    max-width: 600px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    animation: slideUp 0.3s ease-out;
+                }
+                .video-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 16px 20px;
+                    background: #1a1a1a;
+                }
+                .video-header h3 {
+                    margin: 0;
+                    color: white;
+                    font-size: 1.1rem;
+                }
+                .video-container {
+                    aspect-ratio: 16 / 9;
+                    width: 100%;
+                    overflow: hidden;
+                    background: black;
+                    border-radius: 0 0 12px 12px;
+                }
+                .video-container iframe {
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                }
+
+                /* Fallback for older browsers */
+                @supports not (aspect-ratio: 16 / 9) {
+                    .video-container {
+                        position: relative;
+                        padding-bottom: 56.25%;
+                        height: 0;
+                    }
+                    .video-container iframe {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                    }
+                }
                 .header-actions {
                     display: flex;
                     align-items: center;
@@ -702,7 +991,7 @@ const Dashboard = () => {
                     }
                 }
             `}</style>
-        </div >
+        </div>
     );
 };
 

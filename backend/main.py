@@ -11,6 +11,8 @@ from database import init_db
 from routers.common import auth_router, users_router
 from routers.ocr import health_records_router
 from routers.llm import analysis_router, goals_router, weekly_plans_router
+from routers import chatbot_router
+
 
 
 @asynccontextmanager
@@ -43,8 +45,11 @@ async def lifespan(app: FastAPI):
     # 종료 시 정리 작업
     print("👋 서버 종료 중...")
 
-
-
+#규민 수정 외부 접속을 위한
+origins = [
+    "https://garlic-declare-detective-executives.trycloudflare.com", # 프론트엔드 터널 주소
+    "http://localhost:5173", # 로컬 테스트용
+]
 # FastAPI 앱 생성
 app = FastAPI(
     title="ExplainMyBody API",
@@ -56,7 +61,7 @@ app = FastAPI(
 # CORS 설정 (프론트엔드 연결)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 특정 도메인만 허용
+    allow_origins=origins,  # origins 리스트 사용 (localhost + 터널 주소)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,6 +74,7 @@ app.include_router(health_records_router, prefix="/api/health-records", tags=["�
 app.include_router(analysis_router, prefix="/api/analysis", tags=["분석"])
 app.include_router(goals_router, prefix="/api/goals", tags=["목표"])
 app.include_router(weekly_plans_router, prefix="/api/weekly-plans", tags=["주간 계획"])
+app.include_router(chatbot_router, prefix="/api/chatbot", tags=["챗봇"])
 
 
 @app.get("/")

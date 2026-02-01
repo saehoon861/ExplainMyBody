@@ -135,3 +135,48 @@ export const sendChatMessage = async (data) => {
         body: JSON.stringify(data),
     });
 };
+
+/**
+ * 챗봇 대화 (신규 - LangGraph 기반)
+ *
+ * 📍 사용 위치: pages/Chatbot/Chatbot.jsx
+ *
+ * 기능:
+ * - 인바디 분석 전문가 또는 운동 플래너 전문가와 대화
+ * - LangGraph 에이전트를 사용한 지능형 대화
+ * - 대화 이력 자동 추적 (thread_id 사용)
+ *
+ * @param {Object} data - 챗봇 대화 요청 데이터
+ * @param {string} data.bot_type - 챗봇 유형 ("inbody-analyst" | "workout-planner")
+ * @param {string} data.message - 사용자 메시지
+ * @param {number} [data.user_id] - 사용자 ID (옵션)
+ * @param {string} [data.thread_id] - 대화 스레드 ID (이전 대화 이어가기용, 옵션)
+ *
+ * @returns {Promise<Object>} 챗봇 응답
+ * @returns {string} return.response - AI 응답 메시지
+ * @returns {string} return.thread_id - 대화 스레드 ID (다음 요청에 사용)
+ *
+ * @example
+ * // 첫 대화 시작
+ * const result1 = await sendChatbotMessage({
+ *   bot_type: "inbody-analyst",
+ *   message: "체지방을 줄이려면 어떻게 해야 해?",
+ *   user_id: 1
+ * });
+ * console.log(result1.response);
+ * console.log(result1.thread_id); // "chatbot_inbody-analyst_1_abc123"
+ *
+ * // 이전 대화 이어서 하기
+ * const result2 = await sendChatbotMessage({
+ *   bot_type: "inbody-analyst",
+ *   message: "유산소 운동은 얼마나 해야 해?",
+ *   thread_id: result1.thread_id // 이전 대화 ID 전달
+ * });
+ * console.log(result2.response); // 이전 대화 맥락을 기억하여 답변
+ */
+export const sendChatbotMessage = async (data) => {
+    return await apiRequest('/chatbot/chat', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+};

@@ -20,9 +20,20 @@ def check_email(email_data: EmailCheckRequest, db: Session = Depends(get_db)):
     - **email**: 확인할 이메일 주소
     - 사용 가능하면 200 OK, 이미 존재하면 409 Conflict 반환
     """
-    AuthService.check_email_availability(db, email_data.email)
-    return {"available": True, "message": "사용 가능한 이메일입니다."}
-
+    #규민 수정 시작
+    try:
+        print(f"[DEBUG] Checking email: {email_data.email}")
+        AuthService.check_email_availability(db, email_data.email)
+        print(f"[DEBUG] Email available: {email_data.email}")
+        return {"available": True, "message": "사용 가능한 이메일입니다."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] check_email failed: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+   #규민 수정 끝
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(user_data: UserSignupRequest, db: Session = Depends(get_db)):
