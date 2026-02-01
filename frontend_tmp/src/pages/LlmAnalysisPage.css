@@ -188,6 +188,127 @@
     color: #333;
 }
 
+/* Summary - 큰 글씨로 강조 */
+.analysis-summary {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    font-weight: 500;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.analysis-summary h3 {
+    color: white;
+    margin-top: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.analysis-summary ul {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.analysis-summary li {
+    margin-bottom: 0.5rem;
+}
+
+/* 더보기 버튼 */
+.expand-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+.expand-btn:hover {
+    background: #e0e0e0;
+    transform: translateY(-1px);
+}
+
+/* 전체 내용 */
+.analysis-full-content {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    line-height: 1.8;
+    animation: expandContent 0.3s ease-out;
+}
+
+@keyframes expandContent {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+
+    to {
+        opacity: 1;
+        max-height: 2000px;
+    }
+}
+
+/* Markdown 스타일링 */
+.analysis-full-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+    color: #667eea;
+    font-size: 1.2rem;
+}
+
+.analysis-full-content h3:first-child {
+    margin-top: 0;
+}
+
+.analysis-full-content ul {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.analysis-full-content li {
+    margin-bottom: 0.5rem;
+}
+
+.analysis-full-content p {
+    margin: 0.8rem 0;
+}
+
+/* Chat message markdown styling */
+.message-content h3 {
+    font-size: 1.1rem;
+    margin-top: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-content ul {
+    padding-left: 1.2rem;
+    margin: 0.5rem 0;
+}
+
+.message-content li {
+    margin-bottom: 0.3rem;
+}
+
+.message-content p {
+    margin: 0.5rem 0;
+}
+
+.message-content p:first-child {
+    margin-top: 0;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
 .analysis-text {
     padding: 1.5rem;
     background: #f9fafb;
@@ -367,6 +488,7 @@
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -397,6 +519,7 @@
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -509,10 +632,14 @@
 }
 
 @keyframes typing {
-    0%, 60%, 100% {
+
+    0%,
+    60%,
+    100% {
         transform: translateY(0);
         opacity: 0.7;
     }
+
     30% {
         transform: translateY(-10px);
         opacity: 1;
