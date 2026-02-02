@@ -1,0 +1,10 @@
+/* frontend/src/styles/theme.css */
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f8fafc;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+  --color-accent: #646cff;
+  --color-border-default: #e2e8f0;
+}
+
