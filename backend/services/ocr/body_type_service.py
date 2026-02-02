@@ -60,6 +60,8 @@ class BodyTypeService:
             return None
     
     def _convert_to_analyzer_format(self, input_data: BodyTypeAnalysisInput) -> Dict[str, Any]:
+        # 기존에 구상해두었던 input data의 변수명과, 데이터 형식을 확정지을 때의 변수명이 달라
+        # 이 함수를 통해 변수명을 통일해주는 과정이 필요해 추가함.
         """
         Pydantic 검증된 데이터를 분석기 입력 형식으로 변환
         
@@ -78,13 +80,9 @@ class BodyTypeService:
             "bmi": input_data.BMI,
             "fat_rate": input_data.체지방률,
             "smm": input_data.골격근량,
+            "muscle_seg": input_data.muscle_seg.model_dump(),
+            "fat_seg": input_data.fat_seg.model_dump()
         }
-        
-        # 부위별 데이터가 있으면 추가 (선택적)
-        if input_data.muscle_seg:
-            user_data["muscle_seg"] = input_data.muscle_seg.model_dump()
-        if input_data.fat_seg:
-            user_data["fat_seg"] = input_data.fat_seg.model_dump()
         
         return user_data
     
