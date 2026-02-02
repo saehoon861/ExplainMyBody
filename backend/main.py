@@ -11,7 +11,7 @@ from database import init_db
 from routers.common import auth_router, users_router
 from routers.ocr import health_records_router
 from routers.llm import analysis_router, goals_router, weekly_plans_router
-from routers import chatbot_router
+# from routers import chatbot_router
 
 
 
@@ -74,7 +74,7 @@ app.include_router(health_records_router, prefix="/api/health-records", tags=["�
 app.include_router(analysis_router, prefix="/api/analysis", tags=["분석"])
 app.include_router(goals_router, prefix="/api/goals", tags=["목표"])
 app.include_router(weekly_plans_router, prefix="/api/weekly-plans", tags=["주간 계획"])
-app.include_router(chatbot_router, prefix="/api/chatbot", tags=["챗봇"])
+# app.include_router(chatbot_router, prefix="/api/chatbot", tags=["챗봇"])
 
 
 @app.get("/")

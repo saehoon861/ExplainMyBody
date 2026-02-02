@@ -26,10 +26,6 @@ class LLMService:
         self.analysis_agent = create_analysis_agent(self.llm_client)
         self.weekly_plan_agent = create_weekly_plan_agent(self.llm_client)
 
-        # 챗봇 대화 이력 저장소 (메모리 기반)
-        # {thread_id: [("user", "메시지"), ("assistant", "응답"), ...]}
-        self.conversation_history = {}
-
     def prepare_status_analysis_input(
         self,
         record_id: int,
@@ -173,76 +169,34 @@ class LLMService:
         Returns:
             LLM이 생성한 주간 계획서 텍스트
         """
-        raise NotImplementedError("LLM API 연동 미구현 - 팀원이 구현 예정")
+        # 1. 스레드 ID 생성 (필요 시)
+        thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
+        config = {"configurable": {"thread_id": thread_id}}
 
-    async def chatbot_conversation(
+        # 2. LangGraph 에이전트 호출
+        initial_state = self.weekly_plan_agent.invoke(
+            {"plan_input": input_data},
+            config=config
+        )
+
+        # 3. 결과 반환 (마지막 AI 메시지)
+        return initial_state['messages'][-1].content
+
+    async def chat_with_plan(
         self,
-        bot_type: str,
-        user_message: str,
-        thread_id: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        thread_id: str,
+        user_message: str
+    ) -> str:
         """
-        챗봇 대화 처리
-
-        Args:
-            bot_type: 챗봇 유형 ("inbody-analyst" 또는 "workout-planner")
-            user_message: 사용자 메시지
-            thread_id: 기존 대화 스레드 ID (없으면 새로 생성)
-            user_id: 사용자 ID (옵션)
-
-        Returns:
-            {
-                "response": str,  # AI 응답
-                "thread_id": str  # 대화 스레드 ID
-            }
+        LLM2 휴먼 피드백 (Q&A) 처리: 주간 계획 수정 및 질의응답
         """
-        # 1. Thread ID 생성 또는 재사용
-        if not thread_id:
-            import uuid
-            thread_id = f"chatbot_{bot_type}_{user_id or 'guest'}_{uuid.uuid4().hex[:8]}"
-
-        # 2. 봇 타입별 시스템 프롬프트 설정
-        SYSTEM_PROMPTS = {
-            "inbody-analyst": """당신은 친근하고 전문적인 인바디 분석 전문가입니다.
-사용자의 체성분 데이터를 분석하고, 건강한 신체를 위한 맞춤형 조언을 제공합니다.
-식단, 운동, 생활습관에 대해 구체적이고 실용적인 정보를 제공하세요.
-답변은 친근하면서도 전문적인 톤으로 작성하고, 이모지를 적절히 사용하세요.""",
-
-            "workout-planner": """당신은 열정적이고 전문적인 운동 플래너 전문가입니다.
-사용자의 목표와 현재 체력 수준에 맞는 최적의 운동 루틴을 제안합니다.
-올바른 자세, 운동 빈도, 강도 조절에 대해 구체적인 조언을 제공하세요.
-답변은 동기부여가 되는 톤으로 작성하고, 이모지를 적절히 사용하세요."""
-        }
-
-        system_prompt = SYSTEM_PROMPTS.get(bot_type, SYSTEM_PROMPTS["inbody-analyst"])
-
-        # 3. 대화 이력 불러오기 또는 새로 생성
-        if thread_id not in self.conversation_history:
-            self.conversation_history[thread_id] = []
-
-        # 4. 사용자 메시지 추가 (튜플 형태: role, content)
-        self.conversation_history[thread_id].append(("user", user_message))
-
-        # 5. OpenAI API 호출 (대화 이력 포함)
-        try:
-            ai_response = self.llm_client.generate_chat_with_history(
-                system_prompt=system_prompt,
-                messages=self.conversation_history[thread_id]
-            )
-
-            # 6. AI 응답을 대화 이력에 저장
-            self.conversation_history[thread_id].append(("assistant", ai_response))
-
-            return {
-                "response": ai_response,
-                "thread_id": thread_id
-            }
-
-        except Exception as e:
-            # 오류 시 폴백 응답 (대화 이력에서 마지막 사용자 메시지 제거)
-            self.conversation_history[thread_id].pop()
-            return {
-                "response": "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-                "thread_id": thread_id
-            }
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # LangGraph 실행 (이전 상태에서 이어서 실행)
+        result = self.weekly_plan_agent.invoke(
+            {"messages": [("human", user_message)]},
+            config=config
+        )
+        
+        # 마지막 AI 응답 반환
+        return result["messages"][-1].content
