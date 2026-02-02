@@ -15,12 +15,16 @@ OCR 처리 흐름:
 import os
 import tempfile
 import shutil
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, BinaryIO
 
-from fastapi import UploadFile, HTTPException
 from pydantic import ValidationError
 
 from schemas.inbody import InBodyData
+from exceptions import (
+    OCREngineNotInitializedError,
+    OCRExtractionFailedError,
+    OCRProcessingError
+)
 
 
 class OCRService:
@@ -58,7 +62,7 @@ class OCRService:
             print(f"⚠️ OCR 엔진 초기화 실패: {e}")
             self.matcher = None
     
-    async def extract_inbody_data(self, image_file: UploadFile) -> dict:
+    async def extract_inbody_data(self, image_file: BinaryIO, filename: str = "image.jpg") -> dict:
         """
         인바디 이미지에서 데이터 추출 (OCR만 수행, 검증 없음)
         
@@ -76,7 +80,8 @@ class OCRService:
            - 프론트엔드에서 사용자가 수정할 수 있도록 원시 데이터 제공
         
         Args:
-            image_file: 업로드된 인바디 이미지 (UploadFile)
+            image_file: 업로드된 인바디 이미지 (BinaryIO - 파일 객체)
+            filename: 파일명 (기본값: "image.jpg")
             
         Returns:
             dict: OCR로 추출된 원시 데이터 (검증 없음)
@@ -85,22 +90,24 @@ class OCRService:
             - 프론트엔드에서 사용자가 검증/수정 필요
             
         Raises:
-            HTTPException 500: OCR 엔진 미초기화
-            HTTPException 400: OCR 결과 추출 실패
+            OCREngineNotInitializedError: OCR 엔진 미초기화
+            OCRExtractionFailedError: OCR 결과 추출 실패
+            OCRProcessingError: OCR 처리 중 오류 발생
         """
         # OCR 엔진 확인
         if not self.matcher:
-            raise HTTPException(
-                status_code=500,
-                detail="OCR 엔진이 초기화되지 않았습니다. 서버 로그를 확인하세요."
+            raise OCREngineNotInitializedError(
+                "OCR 엔진이 초기화되지 않았습니다. 서버 로그를 확인하세요."
             )
         
         # Step 1: 임시 파일로 저장
         # 팀원 코드(InBodyMatcher)가 파일 경로를 받으므로 임시 파일 생성 필요
         tmp_path = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
-                shutil.copyfileobj(image_file.file, tmp_file)
+            # 파일 확장자 추출 (없으면 .jpg 사용)
+            file_ext = os.path.splitext(filename)[1] or ".jpg"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+                shutil.copyfileobj(image_file, tmp_file)
                 tmp_path = tmp_file.name
             
             print(f"📁 임시 파일 저장: {tmp_path}")
@@ -110,9 +117,8 @@ class OCRService:
             raw_result = self.matcher.extract_and_match(tmp_path)
             
             if not raw_result:
-                raise HTTPException(
-                    status_code=400,
-                    detail="OCR 결과를 추출할 수 없습니다. 이미지를 확인해주세요."
+                raise OCRExtractionFailedError(
+                    "OCR 결과를 추출할 수 없습니다. 이미지를 확인해주세요."
                 )
             
             # Step 3: 구조화
@@ -132,14 +138,13 @@ class OCRService:
             # Step 5: 검증 없이 dict 그대로 반환
             return structured_result
         
-        except HTTPException:
-            # HTTPException은 그대로 전달
+        except (OCREngineNotInitializedError, OCRExtractionFailedError):
+            # 커스텀 예외는 그대로 전달
             raise
         
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"OCR 처리 중 오류 발생: {str(e)}"
+            raise OCRProcessingError(
+                f"OCR 처리 중 오류 발생: {str(e)}"
             )
         
         finally:

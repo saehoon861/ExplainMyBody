@@ -8,6 +8,11 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas.common import UserCreate, UserResponse, UserLogin, UserSignupRequest, EmailCheckRequest
 from services.common.auth_service import AuthService
+from exceptions import (
+    EmailAlreadyExistsError,
+    InvalidCredentialsError,
+    UserNotFoundError
+)
 
 router = APIRouter()
 
@@ -26,8 +31,10 @@ def check_email(email_data: EmailCheckRequest, db: Session = Depends(get_db)):
         AuthService.check_email_availability(db, email_data.email)
         print(f"[DEBUG] Email available: {email_data.email}")
         return {"available": True, "message": "사용 가능한 이메일입니다."}
-    except HTTPException:
-        raise
+    
+    except EmailAlreadyExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    
     except Exception as e:
         print(f"[ERROR] check_email failed: {type(e).__name__}: {e}")
         import traceback
@@ -43,8 +50,12 @@ def register(user_data: UserSignupRequest, db: Session = Depends(get_db)):
     - 인바디 데이터 (선택)
     - 목표 및 건강 정보 (선택)
     """
-    new_user = AuthService.register_extended(db, user_data)
-    return new_user
+    try:
+        new_user = AuthService.register_extended(db, user_data)
+        return new_user
+    
+    except EmailAlreadyExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/login", response_model=UserResponse)
@@ -55,8 +66,12 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     - **email**: 이메일 주소
     - **password**: 비밀번호
     """
-    user = AuthService.login(db, login_data)
-    return user
+    try:
+        user = AuthService.login(db, login_data)
+        return user
+    
+    except InvalidCredentialsError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
 @router.get("/me", response_model=UserResponse)
@@ -66,8 +81,12 @@ def get_current_user(user_id: int, db: Session = Depends(get_db)):
     
     - **user_id**: 사용자 ID (쿼리 파라미터)
     """
-    user = AuthService.get_current_user(db, user_id)
-    return user
+    try:
+        user = AuthService.get_current_user(db, user_id)
+        return user
+    
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/logout", status_code=200)
@@ -77,5 +96,9 @@ def logout(user_id: int, db: Session = Depends(get_db)):
     
     - **user_id**: 사용자 ID (쿼리 파라미터)
     """
-    AuthService.logout(db, user_id)
-    return {"message": "로그아웃 완료"}
+    try:
+        AuthService.logout(db, user_id)
+        return {"message": "로그아웃 완료"}
+    
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
