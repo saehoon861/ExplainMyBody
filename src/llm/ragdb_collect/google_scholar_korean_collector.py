@@ -22,11 +22,11 @@ from models import PaperMetadata, CollectionStats
 class GoogleScholarKoreanCollector:
     """Google Scholar 한국어 논문 수집기"""
 
-    def __init__(self, use_proxy: bool = False, rate_limit: float = 7.0):
+    def __init__(self, use_proxy: bool = True, rate_limit: float = 15.0):
         """
         Args:
             use_proxy: 프록시 사용 여부 (rate limit 회피용, 선택사항)
-            rate_limit: 요청 간 대기 시간 (초)
+            rate_limit: 요청 간 대기 시간 (초) - Captcha 방지를 위해 12-15초 권장
         """
         self.rate_limit = rate_limit
 
@@ -76,16 +76,49 @@ class GoogleScholarKoreanCollector:
                     break
 
                 try:
+                    # ✨ 전체 논문 정보 가져오기 (초록 포함)
+                    print(f"  🔄 논문 상세 정보 가져오는 중...", end='', flush=True)
+
+                    try:
+                        filled_result = scholarly.fill(result)
+                        print(" ✅")
+                    except Exception as fill_error:
+                        # Captcha 또는 차단 감지
+                        error_msg = str(fill_error).lower()
+                        if 'captcha' in error_msg or 'blocked' in error_msg or 'unusual traffic' in error_msg:
+                            print(f"\n\n⚠️  CAPTCHA 감지됨!")
+                            print("=" * 60)
+                            print("Google Scholar에서 자동화 탐지로 차단했습니다.")
+                            print("다음 중 하나를 선택하세요:")
+                            print("  1. 브라우저에서 https://scholar.google.com 접속 후 Captcha 풀기")
+                            print("  2. 10-15분 대기 후 재시도")
+                            print("  3. 프록시 사용 (--use-proxy 옵션)")
+                            print("  4. 현재까지 수집된 데이터로 진행 (Enter)")
+                            print("=" * 60)
+
+                            user_choice = input("\n계속 진행하시겠습니까? (y/n): ").strip().lower()
+                            if user_choice != 'y':
+                                print(f"중단됨. 현재까지 수집: {len(papers)}개")
+                                return papers
+                            else:
+                                print("재시도 중...")
+                                time.sleep(15)  # 15초 대기 후 재시도
+                                continue
+                        else:
+                            # 다른 에러는 스킵
+                            print(f" ❌ ({fill_error})")
+                            continue
+
                     # 논문 정보 추출
-                    paper = self._parse_scholar_result(result, domain)
+                    paper = self._parse_scholar_result(filled_result, domain)
 
                     # 초록이 있는 논문만 수집
                     if paper and paper.abstract and len(paper.abstract) >= 100:
                         papers.append(paper)
                         collected += 1
-                        print(f"  ✅ [{collected}/{max_results}] {paper.title[:50]}...")
+                        print(f"  ✅ [{collected}/{max_results}] {paper.title[:50]}... (초록: {len(paper.abstract)}자)")
 
-                    # Rate limiting
+                    # Rate limiting (Captcha 방지를 위해 증가)
                     time.sleep(self.rate_limit)
 
                 except Exception as e:
@@ -215,16 +248,10 @@ def main():
         # "국민건강영양조사 식이섭취",
    
     BODY_COMPOSITION_QUERIES = [
-    "BIA 체성분 그래프 패턴별 대사적 위험도 분석"
-    "체지방률 및 골격근량 지수(SMI) 기반의 체형 분류 모델"
+     "체지방률 및 골격근량 지수(SMI) 기반의 체형 분류 모델"
     "체형부위별 근육 불균형(Segmental Lean Analysis)과 신체 기능의 상관관계"
     "상·하체 근육량 비율에 따른 근감소성 비만(Sarcopenic Obesity) 판정 기준"
-   "InBody 데이터를 활용한 체형 지수(Body Shape Index) 산출 로직"
-    "체성분 분석 결과에 따른 맞춤형 운동 강도(FITT) 설정 근거"
-    "근육량 및 기초대사량 기반의 유산소·무산소 운동 배분 전략"
-    "운동 숙련도별 체성분 변화 양상 및 적정 운동 처방 모델"
-    "홈 트레이닝과 휘트니스 센터 기반 운동 프로그램의 체성분 개선 효과 비교"
-    "심박수 및 기초대사량을 고려한 목표 칼로리 소비량 산정 로직"
+    "InBody 데이터를 활용한 체형 지수(Body Shape Index) 산출 로직"
     "복부지방률(WHR) 및 내장지방레벨에 따른 고강도 인터벌 트레이닝(HIIT)의 효과"
     "좌우측 상하지 근육 불균형 교정을 위한 편측성 운동(Unilateral Exercise) 처방"
     "신체 부위별 체지방 분포와 인슐린 저항성 간의 관계"
@@ -271,56 +298,56 @@ def main():
     "체지방량과 대사질환 위험",
     ]
     
-    VISCERAL_FAT_KR_QUERIES = [
-    "내장지방 수준 대사증후군 위험",
-    "복부비만 내장지방 체성분 분석",
-    "내장지방면적과 인슐린저항성",
-    "중심성비만 건강위험 연구",
-    "생체전기저항분석 내장지방 추정",
-    ]
+    # VISCERAL_FAT_KR_QUERIES = [
+    # "내장지방 수준 대사증후군 위험",
+    # "복부비만 내장지방 체성분 분석",
+    # "내장지방면적과 인슐린저항성",
+    # "중심성비만 건강위험 연구",
+    # "생체전기저항분석 내장지방 추정",
+    # ]
 
-    SEGMENTAL_BALANCE_KR_QUERIES = [
-    "부위별 골격근량 불균형 분석",
-    "사지 근육량 좌우 차이",
-    "팔 다리 근육 비대칭 체성분",
-    "부위별 체지방 분포 연구",
-    "국소 체성분 불균형 운동처방",
-    ]
+    # SEGMENTAL_BALANCE_KR_QUERIES = [
+    # "부위별 골격근량 불균형 분석",
+    # "사지 근육량 좌우 차이",
+    # "팔 다리 근육 비대칭 체성분",
+    # "부위별 체지방 분포 연구",
+    # "국소 체성분 불균형 운동처방",
+    # ]
 
-    EXERCISE_INTERVENTION_KR_QUERIES = [
-    "저항운동 골격근량 증가 체성분 변화",
-    "유산소운동 내장지방 감소 효과",
-    "복합운동 체지방률 개선 연구",
-    "운동중재 체성분 개선 프로그램",
-    "운동처방 기반 체성분 분석",
-    ]
+    # EXERCISE_INTERVENTION_KR_QUERIES = [
+    # "저항운동 골격근량 증가 체성분 변화",
+    # "유산소운동 내장지방 감소 효과",
+    # "복합운동 체지방률 개선 연구",
+    # "운동중재 체성분 개선 프로그램",
+    # "운동처방 기반 체성분 분석",
+    # ]
 
-    MUSCLE_ADJUSTMENT_KR_QUERIES = [
-    "근육량 증가 프로그램 효과",
-    "단백질 섭취와 근육량 변화",
-    "근감소 예방 저항성운동 처방",
-    "제지방량 증가 중재연구",
-    ]
+    # MUSCLE_ADJUSTMENT_KR_QUERIES = [
+    # "근육량 증가 프로그램 효과",
+    # "단백질 섭취와 근육량 변화",
+    # "근감소 예방 저항성운동 처방",
+    # "제지방량 증가 중재연구",
+    # ]
 
-    BMR_NUTRITION_KR_QUERIES = [
-    "기초대사량과 제지방량 관계",
-    "체성분 기반 에너지 필요량 추정",
-    "권장섭취열량 산정 체성분 연구",
-    "체중조절 프로그램 대사량 변화",
-    ]
+    # BMR_NUTRITION_KR_QUERIES = [
+    # "기초대사량과 제지방량 관계",
+    # "체성분 기반 에너지 필요량 추정",
+    # "권장섭취열량 산정 체성분 연구",
+    # "체중조절 프로그램 대사량 변화",
+    # ]
 
-    METABOLIC_RISK_KR_QUERIES = [
-    "체성분과 대사증후군 위험",
-    "골격근량과 당뇨병 위험",
-    "내장지방과 심혈관질환 연관",
-    "체성분 지표 건강예측모델",
-    ]
-
-
+    # METABOLIC_RISK_KR_QUERIES = [
+    # "체성분과 대사증후군 위험",
+    # "골격근량과 당뇨병 위험",
+    # "내장지방과 심혈관질환 연관",
+    # "체성분 지표 건강예측모델",
+    # ]
 
 
-    # 수집기 초기화
-    collector = GoogleScholarKoreanCollector(use_proxy=False, rate_limit=8.0)
+
+
+    # 수집기 초기화 (Captcha 방지를 위해 rate_limit 15초)
+    collector = GoogleScholarKoreanCollector(use_proxy=False, rate_limit=15.0)
 
     # 한국 식단 수집 (목표: 200-300개)
     print("\n" + "=" * 60)
@@ -342,7 +369,7 @@ def main():
     body_comp_papers1 = collector.collect_domain(
         domain='body_composition',
         queries=BODY_COMPOSITION_QUERIES,
-        target_count=500,
+        target_count=100,
         year_from=2010
     )
     # 체형 분석 수집 (목표: 200-300개)
@@ -353,7 +380,7 @@ def main():
     body_comp_papers2 = collector.collect_domain(
         domain='body_composition',
         queries=INBODY_BIA_KR_QUERIES,
-        target_count=250,
+        target_count=100,
         year_from=2010
     )
     # 체형 분석 수집 (목표: 200-300개)
@@ -364,7 +391,7 @@ def main():
     body_comp_papers3 = collector.collect_domain(
         domain='body_composition',
         queries=BODY_TYPE_CLASSIFICATION_KR_QUERIES,
-        target_count=250,
+        target_count=100,
         year_from=2010
     )
     # 체형 분석 수집 (목표: 200-300개)
@@ -375,7 +402,7 @@ def main():
     body_comp_papers4 = collector.collect_domain(
         domain='body_composition',
         queries=SARCOPENIA_KR_QUERIES,
-        target_count=250,
+        target_count=100,
         year_from=2010
     )
     # 체형 분석 수집 (목표: 200-300개)
@@ -386,75 +413,75 @@ def main():
     body_comp_papers5 = collector.collect_domain(
         domain='body_composition',
         queries=BODYFAT_OBESITY_KR_QUERIES,
-        target_count=250,
+        target_count=100,
         year_from=2010
     )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 7: 복부지방률·내장지방 레벨 (목표: 250개)")
-    print("=" * 60)
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 7: 복부지방률·내장지방 레벨 (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers6 = collector.collect_domain(
-        domain='body_composition',
-        queries=VISCERAL_FAT_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 8: 부위별 근육/지방 불균형 (Segmental) (목표: 250개)")
-    print("=" * 60)
+    # body_comp_papers6 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=VISCERAL_FAT_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 8: 부위별 근육/지방 불균형 (Segmental) (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers7 = collector.collect_domain(
-        domain='body_composition',
-        queries=SEGMENTAL_BALANCE_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 9: 운동처방 근거 (근육 증가/지방 감소) (목표: 250개)")
-    print("=" * 60)
+    # body_comp_papers7 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=SEGMENTAL_BALANCE_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 9: 운동처방 근거 (근육 증가/지방 감소) (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers8 = collector.collect_domain(
-        domain='body_composition',
-        queries=EXERCISE_INTERVENTION_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 10: 기초대사량(BMR) + 에너지 처방 (목표: 250개)")
-    print("=" * 60)
+    # body_comp_papers8 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=EXERCISE_INTERVENTION_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 10: 기초대사량(BMR) + 에너지 처방 (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers9 = collector.collect_domain(
-        domain='body_composition',
-        queries=MUSCLE_ADJUSTMENT_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 11: 기초대사량(BMR) + 에너지 처방 (목표: 250개)")
-    print("=" * 60)
+    # body_comp_papers9 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=MUSCLE_ADJUSTMENT_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 11: 기초대사량(BMR) + 에너지 처방 (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers10 = collector.collect_domain(
-        domain='body_composition',
-        queries=BMR_NUTRITION_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
-    # 체형 분석 수집 (목표: 200-300개)
-    print("\n" + "=" * 60)
-    print("📚 도메인 12: 체성분과 대사증후군 (목표: 250개)")
-    print("=" * 60)
+    # body_comp_papers10 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=BMR_NUTRITION_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
+    # # 체형 분석 수집 (목표: 200-300개)
+    # print("\n" + "=" * 60)
+    # print("📚 도메인 12: 체성분과 대사증후군 (목표: 250개)")
+    # print("=" * 60)
 
-    body_comp_papers11 = collector.collect_domain(
-        domain='body_composition',
-        queries=METABOLIC_RISK_KR_QUERIES,
-        target_count=250,
-        year_from=2010
-    )
+    # body_comp_papers11 = collector.collect_domain(
+    #     domain='body_composition',
+    #     queries=METABOLIC_RISK_KR_QUERIES,
+    #     target_count=100,
+    #     year_from=2010
+    # )
 
 
     # 전체 수집 결과
