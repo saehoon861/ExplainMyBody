@@ -1,0 +1,58 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="url(#gradient1)"/>
+
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="gradient1" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Abstract Icon - Flowing data waves (minimal) -->
+  <g opacity="0.8">
+    <path d="M 140 160 Q 200 140, 256 160 Q 312 180, 372 160"
+          stroke="white"
+          stroke-width="12"
+          fill="none"
+          stroke-linecap="round"/>
+
+    <path d="M 140 200 Q 200 180, 256 200 Q 312 220, 372 200"
+          stroke="white"
+          stroke-width="10"
+          fill="none"
+          stroke-linecap="round"
+          opacity="0.7"/>
+
+    <path d="M 140 240 Q 200 220, 256 240 Q 312 260, 372 240"
+          stroke="white"
+          stroke-width="8"
+          fill="none"
+          stroke-linecap="round"
+          opacity="0.5"/>
+  </g>
+
+  <!-- IBA Text -->
+  <text x="256" y="340"
+        font-family="Arial, sans-serif"
+        font-size="140"
+        font-weight="900"
+        fill="white"
+        text-anchor="middle"
+        letter-spacing="-6">
+    IBA
+  </text>
+
+  <!-- Subtitle -->
+  <text x="256" y="390"
+        font-family="Arial, sans-serif"
+        font-size="26"
+        font-weight="600"
+        fill="white"
+        fill-opacity="0.85"
+        text-anchor="middle"
+        letter-spacing="2">
+    InBody Analysis
+  </text>
+</svg>

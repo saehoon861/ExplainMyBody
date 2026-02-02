@@ -1,0 +1,97 @@
+@import './theme.css';
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: var(--color-text-primary);
+  background-color: var(--color-background-primary);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a:hover {
+  filter: brightness(0.9);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+
+  html,
+  body {
+    /* Allow native scrolling on mobile */
+    height: auto;
+    overflow-y: auto;
+    position: relative;
+    overscroll-behavior-y: contain;
+  }
+}
+
+@media (min-width: 769px) {
+
+  html,
+  body {
+    height: auto !important;
+    overflow: auto !important;
+    position: static !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    /* Remove flex to allow proper scrolling */
+    display: block;
+    min-width: 320px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.25s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:hover {
+  border-color: var(--color-accent);
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
