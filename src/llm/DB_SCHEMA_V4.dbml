@@ -1,0 +1,215 @@
+// ExplainMyBody Database Schema
+// Generated from backend/models
+// Use this at https://dbdiagram.io/
+
+Project ExplainMyBody {
+  database_type: 'PostgreSQL'
+  Note: 'InBody 체성분 분석 및 건강 관리 시스템'
+}
+
+// ============================================
+// Core User Management Tables
+// ============================================
+
+Table users {
+  id integer [primary key, increment]
+  username varchar(255) [unique, not null, note: '사용자명']
+  email varchar(255) [unique, not null, note: '이메일']
+  password_hash varchar(255) [null, note: '비밀번호 해시']
+  created_at timestamp [not null, default: `now()`, note: '생성일시']
+
+  indexes {
+    id [pk]
+    email [name: 'idx_users_email']
+  }
+
+  Note: '사용자 기본 정보'
+}
+
+Table user_details {
+  id integer [primary key, increment]
+  user_id integer [not null, ref: > users.id, note: '사용자 ID']
+  goal_type varchar(255) [null, note: '목표 유형 (체중감량, 근육증가 등)']
+  goal_description text [null, note: '목표 설명 (JSON)']
+  preferences text [null, note: '선호도 정보']
+  health_specifics text [null, note: '건강 특이사항']
+  started_at timestamp [default: `now()`, note: '시작일시']
+  ended_at timestamp [null, note: '종료일시 (NULL=진행중)']
+  is_active integer [default: 1, note: '활성화 여부 (1=활성, 0=비활성)']
+
+  indexes {
+    id [pk]
+    user_id [name: 'idx_user_details_user_id']
+  }
+
+  Note: '사용자 목표 및 상세정보 (이전 UserGoal)'
+}
+
+// ============================================
+// Health Data Tables
+// ============================================
+
+Table health_records {
+  id integer [primary key, increment]
+  user_id integer [not null, ref: > users.id, note: '사용자 ID']
+  source varchar(100) [default: 'manual', note: '데이터 출처 (manual, ocr, api)']
+  measured_at timestamp [default: `now()`, note: '측정일시']
+  measurements jsonb [not null, note: 'InBody 측정 데이터 (JSONB)']
+  created_at timestamp [not null, default: `now()`, note: '생성일시']
+
+  indexes {
+    id [pk]
+    user_id [name: 'idx_health_records_user_id']
+  }
+
+  Note: '건강 기록 (InBody 측정 데이터)'
+}
+
+Table inbody_analysis_reports {
+  id integer [primary key, increment]
+  user_id integer [not null, ref: > users.id, note: '사용자 ID']
+  record_id integer [not null, ref: > health_records.id, note: '건강 기록 ID']
+  llm_output text [not null, note: 'LLM 분석 결과 텍스트']
+  model_version varchar(100) [null, note: '사용된 LLM 모델']
+  analysis_type varchar(50) [null, note: 'status_analysis 또는 goal_plan']
+  generated_at timestamp [default: `now()`, note: '생성일시']
+  embedding_1536 vector(1536) [null, note: 'OpenAI text-embedding-3-small']
+  embedding_1024 vector(1024) [null, note: 'Ollama bge-m3']
+
+  indexes {
+    id [pk]
+    user_id [name: 'idx_inbody_analysis_user_id']
+    record_id [name: 'idx_inbody_analysis_record_id']
+  }
+
+  Note: 'InBody 분석 리포트 (LLM 출력)'
+}
+
+Table weekly_plans {
+  id integer [primary key, increment]
+  user_id integer [not null, ref: > users.id, note: '사용자 ID']
+  week_number integer [not null, note: '주차']
+  start_date date [not null, note: '시작일']
+  end_date date [not null, note: '종료일']
+  plan_data jsonb [not null, note: '주간 계획 데이터 (JSONB)']
+  model_version varchar(100) [null, note: '사용된 LLM 모델']
+  created_at timestamp [default: `now()`, note: '생성일시']
+
+  indexes {
+    id [pk]
+  }
+
+  Note: '주간 운동/식단 계획'
+}
+
+// ============================================
+// Graph RAG Tables
+// ============================================
+
+Table paper_nodes {
+  id integer [primary key, increment]
+  paper_id varchar(100) [unique, not null, note: '논문 고유 ID (paper_12345678)']
+
+  // 텍스트 데이터
+  title text [not null, note: '논문 제목']
+  chunk_text text [not null, note: '원본 초록']
+  lang varchar(10) [not null, note: '언어 (ko, en)']
+  chunk_ko_summary text [null, note: '한국어 요약 (영어 논문만)']
+
+  // 메타데이터
+  domain varchar(100) [not null, note: '도메인 (protein_hypertrophy, fat_loss 등)']
+  source varchar(50) [not null, note: '출처 (pubmed, kci, scienceon)']
+  year integer [null, note: '발행년도']
+  pmid varchar(50) [null, note: 'PubMed ID']
+  doi varchar(100) [null, note: 'DOI']
+  authors jsonb [null, note: '저자 목록 (JSON Array)']
+  journal varchar(200) [null, note: '저널명']
+  keywords jsonb [null, note: '키워드 (JSON Array)']
+
+  // 임베딩 벡터
+  embedding_openai vector(1536) [null, note: 'OpenAI 임베딩']
+  embedding_ollama vector(1024) [null, note: 'Ollama 임베딩']
+  embedding_ko_openai vector(1536) [null, note: '한국어 임베딩 (OpenAI)']
+
+  embedding_provider varchar(50) [null, note: '임베딩 제공자 (openai, ollama)']
+
+  created_at timestamp [default: `now()`, note: '생성일시']
+  updated_at timestamp [null, note: '수정일시']
+
+  indexes {
+    id [pk]
+    paper_id [unique, name: 'idx_paper_nodes_paper_id']
+    lang [name: 'idx_paper_nodes_lang']
+    domain [name: 'idx_paper_nodes_domain']
+    year [name: 'idx_paper_nodes_year']
+  }
+
+  Note: '논문 노드 (Graph RAG용)'
+}
+
+Table paper_concept_relations {
+  id integer [primary key, increment]
+
+  // 관계
+  paper_id integer [not null, ref: > paper_nodes.id, note: '논문 ID']
+  concept_id varchar(100) [not null, note: '개념 ID (muscle_hypertrophy, protein_intake 등)']
+
+  // 관계 타입
+  relation_type varchar(50) [not null, note: 'MENTIONS, INCREASES, SUPPORTS, REDUCES']
+
+  // 메타데이터
+  confidence float [null, note: '신뢰도 (0.0 ~ 1.0)']
+  matched_term varchar(200) [null, note: '매칭된 검색어']
+  count integer [null, note: '등장 횟수']
+  evidence_level varchar(50) [null, note: '증거 수준 (high, medium, low)']
+  magnitude float [null, note: '효과 크기']
+
+  // 개념 정보 (비정규화 - 빠른 검색용)
+  concept_name_ko varchar(100) [null, note: '개념명 (한국어)']
+  concept_name_en varchar(100) [null, note: '개념명 (영어)']
+  concept_type varchar(50) [null, note: '개념 타입 (Outcome, Intervention, Biomarker)']
+
+  created_at timestamp [default: `now()`, note: '생성일시']
+
+  indexes {
+    id [pk]
+    paper_id [name: 'idx_paper_concept_relations_paper_id']
+    concept_id [name: 'idx_paper_concept_relations_concept_id']
+    relation_type [name: 'idx_paper_concept_relations_relation_type']
+    (paper_id, concept_id) [name: 'idx_paper_concept']
+    (concept_id, relation_type) [name: 'idx_concept_relation']
+  }
+
+  Note: '논문-개념 관계 (Graph RAG용)'
+}
+
+// ============================================
+// Relationships
+// ============================================
+
+Ref: user_details.user_id > users.id [delete: cascade]
+Ref: health_records.user_id > users.id [delete: cascade]
+Ref: inbody_analysis_reports.user_id > users.id [delete: cascade]
+Ref: inbody_analysis_reports.record_id > health_records.id [delete: cascade]
+Ref: weekly_plans.user_id > users.id [delete: cascade]
+Ref: paper_concept_relations.paper_id > paper_nodes.id [delete: cascade]
+
+// ============================================
+// Table Groups (Visual Organization)
+// ============================================
+
+TableGroup user_management {
+  users
+  user_details
+}
+
+TableGroup health_data {
+  health_records
+  inbody_analysis_reports
+  weekly_plans
+}
+
+TableGroup graph_rag {
+  paper_nodes
+  paper_concept_relations
+}

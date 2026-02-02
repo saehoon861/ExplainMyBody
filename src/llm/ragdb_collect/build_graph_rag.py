@@ -51,7 +51,7 @@ class GraphRAGBuilder:
                  generate_ko_embeddings: bool = False,
                  embedding_provider: str = "openai",
                  openai_api_key: Optional[str] = None,
-                 ollama_model: str = "qwen3:14b",
+                 ollama_model: str = "exaone3.5:7.8b",
                  ollama_embedding_model: str = "bge-m3:latest"):
         """
         Args:

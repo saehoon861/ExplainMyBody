@@ -80,7 +80,7 @@ class SegmentalFatAnalysis(BaseModel):
 class InBodyData(BaseModel):
     """
     인바디 OCR 추출 데이터 (전체)
-    
+
     사용자가 제공한 표준 JSON 구조에 맞춘 Pydantic 모델
     null 값은 사용자 검증이 필요함
     """
@@ -91,6 +91,8 @@ class InBodyData(BaseModel):
     연구항목: ResearchItems
     부위별근육분석: SegmentalMuscleAnalysis
     부위별체지방분석: SegmentalFatAnalysis
+    body_type1: Optional[str] = Field(None, description="1차 체형 분류")
+    body_type2: Optional[str] = Field(None, description="2차 체형 분류")
     
     @model_validator(mode='after')
     def check_null_values(self) -> 'InBodyData':
