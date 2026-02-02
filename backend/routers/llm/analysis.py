@@ -12,6 +12,9 @@ from services.llm.llm_service import LLMService
 from services.llm.parse_utils import split_analysis_response
 from repositories.llm.analysis_report_repository import AnalysisReportRepository
 from typing import List
+# Note: 현재는 Service가 None을 반환하므로 라우터에서 체크
+# 향후 Service 레이어 개선 시 아래 예외들을 사용할 수 있음
+# from exceptions import HealthRecordNotFoundError, AnalysisReportNotFoundError
 
 router = APIRouter()
 health_service = HealthService()
@@ -31,6 +34,13 @@ def _parse_analysis_report(report) -> AnalysisReportResponse:
     return response
 
 
+
+# record_id에 해당하는 건강 기록에 대한 분석 기록 조회
+# 해당 기록이 이미 존재한다면
+# DB에서 조회하여 반환
+# 그렇지 않다면
+# LLM을 호출하여 분석 결과를 생성하고
+# DB에 저장한 후 반환 하는 방식으로 수정필요 #fixme
 @router.post("/{record_id}", response_model=AnalysisReportResponse, status_code=201)
 async def analyze_health_record(
     user_id: int,

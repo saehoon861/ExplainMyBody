@@ -4,7 +4,6 @@
 """
 
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 from typing import Optional
 
 from repositories.common.user_repository import UserRepository
@@ -12,6 +11,11 @@ from repositories.common.health_record_repository import HealthRecordRepository
 from repositories.llm.user_detail_repository import UserDetailRepository
 from schemas.common import UserCreate, UserLogin, UserSignupRequest, HealthRecordCreate
 from schemas.llm import UserDetailCreate
+from exceptions import (
+    EmailAlreadyExistsError,
+    InvalidCredentialsError,
+    UserNotFoundError
+)
 
 
 class AuthService:
@@ -22,9 +26,8 @@ class AuthService:
         """이메일 중복 확인 (생성 안함)"""
         existing_user = UserRepository.get_by_email(db, email)
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="이미 사용 중인 이메일입니다."
+            raise EmailAlreadyExistsError(
+                "이미 사용 중인 이메일입니다."
             )
         return True 
 
@@ -34,9 +37,8 @@ class AuthService:
         # 이메일 중복 확인
         existing_user = UserRepository.get_by_email(db, signup_data.email)
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="이미 등록된 이메일입니다."
+            raise EmailAlreadyExistsError(
+                "이미 등록된 이메일입니다."
             )
         
         # 1. 사용자 생성
@@ -119,9 +121,8 @@ class AuthService:
         user = UserRepository.get_by_email(db, login_data.email)
         print(user)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="이메일 또는 비밀번호가 올바르지 않습니다."
+            raise InvalidCredentialsError(
+                "이메일 또는 비밀번호가 올바르지 않습니다."
             )
         
         # TODO: 비밀번호 검증 로직 추가
@@ -134,9 +135,8 @@ class AuthService:
         """현재 사용자 정보 조회"""
         user = UserRepository.get_by_id(db, user_id)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="사용자를 찾을 수 없습니다."
+            raise UserNotFoundError(
+                "사용자를 찾을 수 없습니다."
             )
         return user
     
@@ -145,8 +145,7 @@ class AuthService:
         """로그아웃"""
         user = UserRepository.get_by_id(db, user_id)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="사용자를 찾을 수 없습니다."
+            raise UserNotFoundError(
+                "사용자를 찾을 수 없습니다."
             )
         return user

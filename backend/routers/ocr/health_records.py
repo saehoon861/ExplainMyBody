@@ -18,6 +18,11 @@ from services.ocr.body_type_service import BodyTypeService
 from repositories.common.health_record_repository import HealthRecordRepository
 from typing import List
 from pydantic import ValidationError
+from exceptions import (
+    OCREngineNotInitializedError,
+    OCRExtractionFailedError,
+    OCRProcessingError
+)
 
 router = APIRouter()
 health_service = HealthService()
@@ -69,12 +74,23 @@ async def extract_inbody_from_image(
     Raises:
         HTTPException 503: OCR 엔진이 아직 로딩 중
     """
-    raw_data = await ocr_service.extract_inbody_data(image)
+    try:
+        # ⚠️ 중요: image.file (BinaryIO)와 image.filename을 서비스에 전달
+        raw_data = await ocr_service.extract_inbody_data(image.file, image.filename)
     
-    return {
-        "data": raw_data,
-        "message": "OCR 추출 완료. 데이터를 확인하고 수정해주세요."
-    }
+        return {
+            "data": raw_data,
+            "message": "OCR 추출 완료. 데이터를 확인하고 수정해주세요."
+        }
+    
+    except OCREngineNotInitializedError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    except OCRExtractionFailedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    except OCRProcessingError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

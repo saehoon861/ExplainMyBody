@@ -14,6 +14,9 @@ from repositories.common.health_record_repository import HealthRecordRepository
 from repositories.llm.analysis_report_repository import AnalysisReportRepository
 from typing import List
 from datetime import datetime
+# Note: 현재는 Service가 None을 반환하므로 라우터에서 체크
+# 향후 Service 레이어 개선 시 아래 예외들을 사용할 수 있음
+# from exceptions import GoalNotFoundError, HealthRecordNotFoundError
 
 router = APIRouter()
 llm_service = LLMService()
