@@ -241,6 +241,26 @@ class WeeklyPlanChatRequest(BaseModel):
     message: str
 
 
-class WeeklyPlanChatResponse(BaseModel):
-    """주간 계획 채팅 응답 스키마"""
+class GoalPlanRequest(BaseModel):
+    """LLM2 요청: 주간 계획서 생성을 위한 사용자 입력"""
+    record_id: int  # 프론트에서 선택한 건강 기록 ID
+    user_goal_type: Optional[str] = None  # 목표 타입 (다이어트, 근육 증가 등)
+    user_goal_description: Optional[str] = None  # 상세 목표 설명
+
+
+# ============================================================================
+# Chatbot Schemas - 챗봇 대화
+# ============================================================================
+
+class ChatbotRequest(BaseModel):
+    """챗봇 대화 요청"""
+    bot_type: str  # "inbody-analyst" 또는 "workout-planner"
+    message: str
+    user_id: Optional[int] = None  # 옵션: 사용자별 대화 이력 관리
+    thread_id: Optional[str] = None  # 옵션: 이전 대화 이어서 하기
+
+
+class ChatbotResponse(BaseModel):
+    """챗봇 대화 응답"""
     response: str
+    thread_id: str  # 대화 이력 추적용

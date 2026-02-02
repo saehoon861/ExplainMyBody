@@ -1,0 +1,83 @@
+{
+  "name": "ExplainMyBody - InBody Analysis",
+  "short_name": "ExplainMyBody",
+  "description": "AI 기반 건강 관리 및 인바디 분석 서비스",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "인바디 분석",
+      "short_name": "OCR",
+      "description": "인바디 사진 분석하기",
+      "url": "/inbody",
+      "icons": [
+        {
+          "src": "/logo.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "AI 상담",
+      "short_name": "챗봇",
+      "description": "AI 건강 상담하기",
+      "url": "/chatbot",
+      "icons": [
+        {
+          "src": "/logo.svg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
