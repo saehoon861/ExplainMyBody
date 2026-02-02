@@ -30,7 +30,7 @@ analyzer = BodyCompositionAnalyzer(margin=0.10)
 ## 🚀 Quick Start (빠른 시작)
 
 ### 환경 준비
-- **Python 3.8+** 권장
+- **Python 3.10+** 
 - 별도의 외부 패키지 설치 없음.
 
 ### 테스트 실행
