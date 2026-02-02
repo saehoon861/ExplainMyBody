@@ -44,6 +44,14 @@ body {
     }
 }
 
+@media (min-width: 769px) {
+    .app-layout {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: visible;
+    }
+}
+
 .main-content-container {
     flex: 1;
     display: flex;
@@ -350,6 +358,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);

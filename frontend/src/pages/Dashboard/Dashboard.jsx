@@ -4,11 +4,279 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft } from 'lucide-react';
 import '../../styles/LoginLight.css'; // 스타일 재사용
 
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
 import { usePrefetch } from '../../hooks/usePrefetch';
-// import { useContainerQuery } from '../../hooks/useContainerQuery'; // Container Query Hook (선택적 사용)
+import { getUserHealthRecords } from '../../services/inbodyService';
 
-// 건강 정보 카드뉴스 컴포넌트 - 간단한 버전
+// ============================================
+// 목업 설정
+const USE_MOCK_DATA = true;
+
+// 목업 데이터: 사용자 정보 및 목표
+const MOCK_USER = {
+    id: 1,
+    email: 'test@example.com',
+    name: '김헬스',
+    gender: 'male',
+    start_weight: 78.5,
+    target_weight: 70.0,
+    goal_type: '감량',
+    goal_description: '허리 재활',
+    inbody_data: {
+        weight: 74.2,
+        skeletal_muscle: 34.5,
+        body_fat_mass: 14.2
+    }
+};
+
+// 목업 데이터: 인바디 기록 (과거 -> 현재)
+const MOCK_RECORDS = [
+    {
+        id: 101,
+        created_at: '2025-01-15T10:00:00',
+        measurements: {
+            "체중관리": { "체중": 76.5, "골격근량": 33.8, "체지방량": 16.5 },
+            "비만분석": { "체지방률": 21.5, "BMI": 24.5 }
+        }
+    },
+    {
+        id: 102,
+        created_at: '2025-02-02T10:00:00', // 오늘
+        measurements: {
+            "체중관리": { "체중": 74.2, "골격근량": 34.5, "체지방량": 14.2 }, // 근육 증가, 체지방 감소
+            "비만분석": { "체지방률": 19.1, "BMI": 23.8 }
+        }
+    }
+];
+
+// 원형 프로그레스 + 마일스톤 컴포넌트
+const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, goalType }) => {
+    const size = 180;
+    const strokeWidth = 14;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (progress / 100) * circumference;
+
+    // 감량/증량에 따른 표시
+    const weightChanged = Math.abs(currentWeight - startWeight).toFixed(1);
+    const weightRemaining = Math.abs(targetWeight - currentWeight).toFixed(1);
+    const isLoss = targetWeight < startWeight;
+    const actionText = isLoss ? '감량' : (targetWeight > startWeight ? '증량' : '유지');
+
+    // 마일스톤 정의
+    const milestones = [
+        { percent: 25, label: '시작', emoji: '🌱' },
+        { percent: 50, label: '절반', emoji: '⭐' },
+        { percent: 75, label: '거의', emoji: '🔥' },
+        { percent: 100, label: '완료', emoji: '🏆' }
+    ];
+
+    // 다음 마일스톤 찾기
+    const nextMilestone = milestones.find(m => m.percent > progress) || milestones[milestones.length - 1];
+    const totalWeightChange = Math.abs(targetWeight - startWeight);
+    const currentWeightChange = Math.abs(currentWeight - startWeight);
+    const toNextMilestone = Math.max(0, (nextMilestone.percent / 100 * totalWeightChange) - currentWeightChange).toFixed(1);
+
+    // 진행률에 따른 색상
+    const getProgressColor = (p) => {
+        if (p >= 100) return '#22c55e'; // 초록 - 완료
+        if (p >= 75) return '#8b5cf6'; // 보라 - 거의 완료
+        if (p >= 50) return '#6366f1'; // 파랑 - 절반 이상
+        return '#818cf8'; // 연보라 - 시작
+    };
+
+    const progressColor = getProgressColor(progress);
+
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 0'
+        }}>
+            {/* 원형 프로그레스 */}
+            <div style={{ position: 'relative', width: size, height: size }}>
+                <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+                    {/* 배경 원 */}
+                    <circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
+                        fill="none"
+                        stroke="#e2e8f0"
+                        strokeWidth={strokeWidth}
+                    />
+                    {/* 진행 원 */}
+                    <circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
+                        fill="none"
+                        stroke={progressColor}
+                        strokeWidth={strokeWidth}
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={offset}
+                        style={{
+                            transition: 'stroke-dashoffset 1s ease-out, stroke 0.3s ease',
+                            filter: `drop-shadow(0 0 6px ${progressColor}40)`
+                        }}
+                    />
+                </svg>
+                {/* 중앙 텍스트 */}
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center'
+                }}>
+                    <div style={{
+                        fontSize: '2.5rem',
+                        fontWeight: 800,
+                        color: progressColor,
+                        lineHeight: 1
+                    }}>
+                        {progress}%
+                    </div>
+                    <div style={{
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                        fontWeight: 600,
+                        marginTop: '4px'
+                    }}>
+                        목표 달성
+                    </div>
+                </div>
+            </div>
+
+            {/* 마일스톤 표시 */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                width: '100%',
+                maxWidth: '300px',
+                marginTop: '16px',
+                padding: '0 8px'
+            }}>
+                {milestones.map((milestone) => {
+                    const isAchieved = progress >= milestone.percent;
+                    const isCurrent = progress >= milestone.percent - 25 && progress < milestone.percent;
+                    return (
+                        <div
+                            key={milestone.percent}
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                opacity: isAchieved ? 1 : 0.4,
+                                transition: 'all 0.3s ease'
+                            }}
+                        >
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: isAchieved
+                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                    : '#e2e8f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '18px',
+                                boxShadow: isAchieved ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
+                                border: isCurrent ? '3px solid #fbbf24' : 'none',
+                                animation: isCurrent ? 'pulse 2s infinite' : 'none'
+                            }}>
+                                {isAchieved ? milestone.emoji : '○'}
+                            </div>
+                            <span style={{
+                                fontSize: '0.7rem',
+                                color: isAchieved ? '#475569' : '#94a3b8',
+                                fontWeight: isAchieved ? 600 : 400,
+                                marginTop: '4px'
+                            }}>
+                                {milestone.percent}%
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* 다음 마일스톤까지 */}
+            {progress < 100 && (
+                <div style={{
+                    marginTop: '16px',
+                    padding: '10px 16px',
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    border: '1px solid #fbbf24'
+                }}>
+                    <span style={{ fontSize: '0.85rem', color: '#92400e' }}>
+                        다음 마일스톤 <strong>{nextMilestone.emoji} {nextMilestone.percent}%</strong>까지{' '}
+                        <strong style={{ color: '#b45309' }}>{toNextMilestone}kg</strong> 남음!
+                    </span>
+                </div>
+            )}
+
+            {/* 감량/증량 완료 정보 */}
+            <div style={{
+                marginTop: '16px',
+                textAlign: 'center'
+            }}>
+                <div style={{
+                    fontSize: '1.4rem',
+                    fontWeight: 700,
+                    color: '#1e293b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                }}>
+                    <span style={{ fontSize: '1.6rem' }}>🔥</span>
+                    <span style={{ color: progressColor }}>{weightChanged}kg</span>
+                    <span>{actionText} 완료!</span>
+                </div>
+                <div style={{
+                    fontSize: '0.9rem',
+                    color: '#64748b',
+                    marginTop: '6px'
+                }}>
+                    목표까지 <strong style={{ color: '#475569' }}>{weightRemaining}kg</strong> 남음
+                </div>
+            </div>
+
+            {/* 체중 정보 요약 바 */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                width: '100%',
+                maxWidth: '280px',
+                marginTop: '16px',
+                padding: '12px 16px',
+                background: '#f8fafc',
+                borderRadius: '12px',
+                fontSize: '0.85rem'
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>시작</div>
+                    <div style={{ fontWeight: 700, color: '#64748b' }}>{startWeight}kg</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>현재</div>
+                    <div style={{ fontWeight: 700, color: '#6366f1' }}>{currentWeight}kg</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>목표</div>
+                    <div style={{ fontWeight: 700, color: '#8b5cf6' }}>{targetWeight}kg</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// 건강 정보 카드뉴스 컴포넌트
 const HealthTipsSection = () => {
     const [selectedTip, setSelectedTip] = useState(null);
 
@@ -21,7 +289,6 @@ const HealthTipsSection = () => {
 
     return (
         <>
-            {/* 가로 스크롤 카드 */}
             <div style={{
                 display: 'flex',
                 gap: '16px',
@@ -69,7 +336,6 @@ const HealthTipsSection = () => {
                 ))}
             </div>
 
-            {/* 모달 */}
             {selectedTip && (
                 <div
                     onClick={() => setSelectedTip(null)}
@@ -145,30 +411,17 @@ const HealthTipsSection = () => {
     );
 };
 
-
 const Dashboard = () => {
     const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
+    const [healthRecords, setHealthRecords] = useState([]);
 
-    // Edge Native: Resource Prefetching for likely next routes
+    // Edge Native: Resource Prefetching
     usePrefetch([
         '/src/pages/Chatbot/Chatbot.jsx',
         '/src/pages/Exercise/WorkoutPlan.jsx',
         '/src/pages/Exercise/ExerciseGuide.jsx'
     ]);
-
-    /* Container Query Hook 사용 예시 (필요시 주석 해제)
-    const { ref, width, isSmall, isMedium, isLarge } = useContainerQuery();
-
-    // 사용법:
-    // 1. ref를 컨테이너에 연결
-    // 2. width, isSmall, isMedium, isLarge로 조건부 렌더링
-    //
-    // 예시:
-    // <div ref={ref} className="dashboard-section">
-    //     {isSmall ? <MobileChart /> : <DesktopChart />}
-    // </div>
-    */
 
     // 비디오 모달 상태
     const [activeVideo, setActiveVideo] = useState(null);
@@ -184,7 +437,7 @@ const Dashboard = () => {
     });
 
     const openVideo = (type) => {
-        let videoId = 'gMaB-fG4u4g'; // 기본: 전신/인트로
+        let videoId = 'gMaB-fG4u4g';
         if (type === '상체') videoId = 'tzN69l791VU';
         if (type === '복근') videoId = 'hR5s71aM6fw';
         if (type === '하체') videoId = 'W_VGlKk88K4';
@@ -196,17 +449,38 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            setUserData(parsedUser);
-            setEditForm({
-                start_weight: parsedUser.start_weight || '',
-                target_weight: parsedUser.target_weight || '',
-                goal_type: parsedUser.goal_type || '감량',
-                goal_description: parsedUser.goal_description || ''
-            });
-        }
+        const loadDashboardData = async () => {
+            // 1. 사용자 정보 로드
+            const storedUser = localStorage.getItem('user');
+            let currentUser = storedUser ? JSON.parse(storedUser) : null;
+
+            if (USE_MOCK_DATA) {
+                currentUser = { ...MOCK_USER, ...currentUser }; // 로컬 스토리지 값 우선하되 목업으로 보완
+                setUserData(currentUser);
+                setHealthRecords(MOCK_RECORDS);
+            } else if (currentUser) {
+                setUserData(currentUser);
+                try {
+                    // API로 이전 기록 2개 가져오기
+                    const records = await getUserHealthRecords(currentUser.id, 2);
+                    // API는 최신순(내림차순)으로 오므로, 그래프용으로는 오름차순(과거->현재) 정렬 필요
+                    setHealthRecords([...records].reverse());
+                } catch (error) {
+                    console.error("Failed to fetch records:", error);
+                }
+            }
+
+            if (currentUser) {
+                setEditForm({
+                    start_weight: currentUser.start_weight || '',
+                    target_weight: currentUser.target_weight || '',
+                    goal_type: currentUser.goal_type || '감량',
+                    goal_description: currentUser.goal_description || ''
+                });
+            }
+        };
+
+        loadDashboardData();
     }, []);
 
     const handleLogout = () => {
@@ -297,27 +571,97 @@ const Dashboard = () => {
         }
     };
 
-    // 차트 데이터 구성
-    const getChartData = () => {
+    // 1. 체중 변화 데이터 (이전 -> 현재 -> 목표) - 정확히 3개 막대
+    const getWeightChartData = () => {
         if (!userData) return [];
+        const data = [];
 
-        const myWeight = userData.inbody_data?.weight || userData.start_weight || 0;
-        const myMuscle = userData.inbody_data?.skeletal_muscle || 0;
-        const myFat = userData.inbody_data?.body_fat_mass || 0;
+        // 이전 체중 (첫 번째 기록 또는 시작 체중)
+        if (healthRecords.length > 0) {
+            const previousRecord = healthRecords[0];
+            data.push({
+                name: '이전체중',
+                weight: previousRecord.measurements?.["체중관리"]?.["체중"] || userData.start_weight || 0,
+                isGoal: false,
+                color: '#94a3b8' // 회색
+            });
+        } else if (userData.start_weight) {
+            data.push({
+                name: '시작체중',
+                weight: userData.start_weight,
+                isGoal: false,
+                color: '#94a3b8'
+            });
+        }
 
-        const isMale = userData.gender === 'male';
-        const avgWeight = isMale ? 74 : 58;
-        const avgMuscle = isMale ? 34 : 22;
-        const avgFat = isMale ? 14 : 16;
+        // 현재 체중 (가장 최신 기록 또는 현재 인바디 데이터)
+        if (healthRecords.length > 1) {
+            const currentRecord = healthRecords[healthRecords.length - 1];
+            data.push({
+                name: '현재체중',
+                weight: currentRecord.measurements?.["체중관리"]?.["체중"] || userData.inbody_data?.weight || 0,
+                isGoal: false,
+                color: '#6366f1' // 파란색
+            });
+        } else if (userData.inbody_data?.weight) {
+            data.push({
+                name: '현재체중',
+                weight: userData.inbody_data.weight,
+                isGoal: false,
+                color: '#6366f1'
+            });
+        }
+
+        // 목표 체중
+        if (userData.target_weight) {
+            data.push({
+                name: '목표체중',
+                weight: userData.target_weight,
+                isGoal: true,
+                color: '#8b5cf6' // 보라색
+            });
+        }
+
+        return data;
+    };
+
+    // 2. 근육/체지방 분석 데이터 (현재 vs 이전)
+    const getBodyCompChartData = () => {
+        if (!userData || !userData.inbody_data) return [];
+        const { skeletal_muscle, body_fat_mass } = userData.inbody_data;
+
+        // 이전 기록이 없으면 그래프를 표시하지 않음
+        if (healthRecords.length === 0) return [];
+
+        // 첫 번째 기록에서 이전 데이터 가져오기
+        const previousRecord = healthRecords[0];
+        const prevMuscle = previousRecord.measurements?.["체중관리"]?.['골격근량'] || 0;
+        const prevFat = previousRecord.measurements?.["체중관리"]?.['체지방량'] || 0;
 
         return [
-            { name: '체중', me: myWeight, avg: avgWeight },
-            { name: '골격근량', me: myMuscle, avg: avgMuscle },
-            { name: '체지방량', me: myFat, avg: avgFat },
+            {
+                name: '골격근량',
+                current: skeletal_muscle || 0,
+                previous: prevMuscle,
+                unit: 'kg',
+                currentColor: '#6366f1', // 파란색 (현재 수치)
+                previousColor: '#94a3b8'  // 회색 (이전 수치)
+            },
+            {
+                name: '체지방량',
+                current: body_fat_mass || 0,
+                previous: prevFat,
+                unit: 'kg',
+                currentColor: '#6366f1', // 파란색 (현재 수치)
+                previousColor: '#94a3b8'  // 회색 (이전 수치)
+            }
         ];
     };
 
-    const chartData = getChartData();
+    const weightChartData = getWeightChartData();
+    const bodyCompChartData = getBodyCompChartData();
+
+
 
     return (
         <div className="main-content">
@@ -378,100 +722,149 @@ const Dashboard = () => {
                         )}
                     </div>
 
+                    {/* 원형 프로그레스 목표 달성률 카드 */}
                     <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '24px' }}>
-                        <h3>나의 인바디 분석</h3>
-                        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '20px' }}>
-                            또래 평균 대비 나의 상태를 확인해보세요.
-                        </p>
-                        <div style={{ width: '100%', height: 350 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RadarChart
-                                    data={chartData}
-                                    margin={{ top: 20, right: 40, bottom: 20, left: 40 }}
-                                >
-                                    <defs>
-                                        <linearGradient id="radarGradientMe" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#818cf8" stopOpacity={0.8} />
-                                            <stop offset="100%" stopColor="#818cf8" stopOpacity={0.2} />
-                                        </linearGradient>
-                                        <linearGradient id="radarGradientAvg" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.6} />
-                                            <stop offset="100%" stopColor="#64748b" stopOpacity={0.1} />
-                                        </linearGradient>
-                                        <filter id="glow">
-                                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                                            <feMerge>
-                                                <feMergeNode in="coloredBlur"/>
-                                                <feMergeNode in="SourceGraphic"/>
-                                            </feMerge>
-                                        </filter>
-                                    </defs>
-                                    <PolarGrid
-                                        stroke="rgba(148, 163, 184, 0.2)"
-                                        strokeWidth={1.5}
-                                        strokeDasharray="3 3"
-                                    />
-                                    <PolarAngleAxis
-                                        dataKey="name"
-                                        tick={{ fill: '#64748b', fontSize: 13, fontWeight: 600 }}
-                                        tickLine={false}
-                                    />
-                                    <PolarRadiusAxis
-                                        angle={90}
-                                        domain={[0, 'auto']}
-                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        axisLine={false}
-                                        tickCount={5}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: '#1e293b',
-                                            borderColor: 'rgba(129, 140, 248, 0.3)',
+                        <h3>🎯 목표 달성률</h3>
+                        {(() => {
+                            const currentWeight = userData.inbody_data?.weight || userData.start_weight || 0;
+                            const targetWeight = userData.target_weight || 0;
+                            const startWeight = userData.start_weight || 0;
+
+                            if (currentWeight && targetWeight && startWeight) {
+                                const totalChange = Math.abs(targetWeight - startWeight);
+                                const currentChange = Math.abs(currentWeight - startWeight);
+                                const progress = totalChange > 0 ? Math.min(Math.round((currentChange / totalChange) * 100), 100) : 0;
+
+                                // 응원 메시지
+                                let message = '';
+                                if (progress >= 100) message = '🎉 목표 달성! 정말 대단해요!';
+                                else if (progress >= 75) message = '🔥 거의 다 왔어요! 조금만 더!';
+                                else if (progress >= 50) message = '💪 절반 이상 달성! 잘하고 계세요!';
+                                else if (progress >= 25) message = '✨ 좋은 시작이에요! 꾸준히!';
+                                else message = '🌟 첫 걸음을 내딛었어요!';
+
+                                return (
+                                    <>
+                                        <CircularProgress
+                                            progress={progress}
+                                            currentWeight={currentWeight}
+                                            targetWeight={targetWeight}
+                                            startWeight={startWeight}
+                                            goalType={userData.goal_type}
+                                        />
+                                        <div style={{
+                                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                            padding: '12px 16px',
                                             borderRadius: '12px',
-                                            padding: '12px',
-                                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
-                                        }}
-                                        itemStyle={{ color: '#fff', fontSize: '0.9rem', fontWeight: 500 }}
-                                        labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 600 }}
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ paddingTop: '24px' }}
-                                        formatter={(value) => (
-                                            <span style={{
-                                                color: '#64748b',
-                                                fontSize: '0.9rem',
-                                                fontWeight: 600
-                                            }}>
-                                                {value === 'me' ? '🎯 내 수치' : '📊 평균'}
-                                            </span>
-                                        )}
-                                    />
-                                    <Radar
-                                        name="avg"
-                                        dataKey="avg"
-                                        stroke="#64748b"
-                                        fill="url(#radarGradientAvg)"
-                                        strokeWidth={2}
-                                        fillOpacity={0.5}
-                                        animationDuration={1200}
-                                        animationBegin={0}
-                                        animationEasing="ease-out"
-                                        dot={{ fill: '#64748b', r: 4 }}
-                                    />
-                                    <Radar
-                                        name="me"
-                                        dataKey="me"
-                                        stroke="#818cf8"
-                                        fill="url(#radarGradientMe)"
-                                        strokeWidth={3}
-                                        fillOpacity={0.6}
-                                        animationDuration={1400}
-                                        animationBegin={200}
-                                        animationEasing="cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                                        dot={{ fill: '#818cf8', r: 5, filter: 'url(#glow)' }}
-                                    />
-                                </RadarChart>
-                            </ResponsiveContainer>
+                                            color: 'white',
+                                            textAlign: 'center',
+                                            fontWeight: 600,
+                                            fontSize: '0.95rem',
+                                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                                        }}>
+                                            {message}
+                                        </div>
+                                    </>
+                                );
+                            }
+                            return <p style={{ color: '#94a3b8', textAlign: 'center' }}>체중 데이터를 입력해주세요</p>;
+                        })()}
+                    </div>
+
+                    {/* 체중 변화 차트 카드 */}
+                    <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '16px' }}>
+                        <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Scale size={18} /> 체중 변화 추이
+                        </h4>
+                        <div style={{ width: '100%', height: 220 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={weightChartData}
+                                        margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
+                                        barSize={50}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#64748b', fontSize: 13, fontWeight: 600 }}
+                                        />
+                                        <YAxis
+                                            domain={['dataMin - 5', 'dataMax + 5']}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload;
+                                                    return (
+                                                        <div style={{ background: 'white', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                                            <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b', fontSize: '0.95rem' }}>{data.name}</p>
+                                                            <p style={{ margin: '4px 0 0', color: data.color, fontSize: '1.15rem', fontWeight: 'bold' }}>{data.weight} kg</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Bar dataKey="weight" radius={[8, 8, 0, 0]} animationDuration={1500}>
+                                            {weightChartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                        {/* 2. 근육/체지방 분석 (Bar Chart) */}
+                        <div style={{ marginTop: '24px' }}>
+                            <h4 style={{ fontSize: '1rem', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Dumbbell size={18} /> 근육 & 체지방 분석
+                            </h4>
+                            <div style={{ width: '100%', height: 200 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={bodyCompChartData}
+                                        layout="vertical"
+                                        margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
+                                        barSize={20}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#475569', fontSize: 13, fontWeight: 600 }}
+                                            width={70}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload;
+                                                    return (
+                                                        <div style={{ background: 'white', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                                            <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b' }}>{data.name}</p>
+                                                            <p style={{ margin: '4px 0 0', color: data.color }}>현재: {data.current} {data.unit}</p>
+                                                            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem' }}>권장: {data.standard} {data.unit}</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                        <Bar dataKey="current" name="현재" radius={[0, 4, 4, 0]} animationDuration={1500} fill="#6366f1" />
+                                        <Bar dataKey="previous" name="이전" fill="#94a3b8" radius={[0, 4, 4, 0]} animationDuration={1500} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     </div>
                 </div>
