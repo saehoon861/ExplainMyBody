@@ -46,7 +46,7 @@ export default defineConfig({
     // 1. 외부 접속 허용 (에러 해결 핵심)
     allowedHosts: [
       'bowl-jon-ideal-harder.trycloudflare.com',
-      'famous-poets-end.loca.lt'
+      'itchy-olives-matter.loca.lt'
     ],
     // 2. 백엔드 연결 설정 (CORS 및 경로 관리)
     proxy: {
