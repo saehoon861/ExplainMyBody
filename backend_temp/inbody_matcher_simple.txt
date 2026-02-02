@@ -1,9 +1,0 @@
-# 수정할 부분 (40-59번 줄):
-
-cls._ocr = PaddleOCR(
-    lang='korean',
-    ocr_version='PP-OCRv5',
-    text_det_limit_side_len=2560,
-    text_det_unclip_ratio=2.0,
-    use_textline_orientation=True
-)
