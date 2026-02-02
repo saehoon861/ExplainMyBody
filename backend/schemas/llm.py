@@ -3,7 +3,7 @@ LLM Schemas - LLM 팀원 전담
 InbodyAnalysisReport, UserDetail, WeeklyPlan, LLM 입출력 (상태 분석 + 주간 계획) 관련 모든 스키마
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from datetime import datetime, date
 from typing import Optional, Dict, Any, List
 
@@ -36,6 +36,10 @@ class AnalysisReportResponse(AnalysisReportBase):
     thread_id: Optional[str] = None
     embedding_1536: Optional[List[float]] = None  # OpenAI embedding (1536 차원)
     embedding_1024: Optional[List[float]] = None  # Ollama bge-m3 embedding (1024 차원)
+    
+    # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
+    summary: Optional[str] = None  # 종합 체형 평가 등 요약 섹션
+    content: Optional[str] = None  # 전체 내용
     
     class Config:
         from_attributes = True
@@ -81,31 +85,9 @@ class UserDetailResponse(UserDetailBase):
     class Config:
         from_attributes = True
 
-    @property
-    def target_weight(self) -> Optional[float]:
-        """goal_description JSON에서 target_weight 추출"""
-        try:
-            import json
-            if not self.goal_description:
-                return None
-            data = json.loads(self.goal_description)
-            if isinstance(data, dict):
-                return data.get("target_weight")
-        except (json.JSONDecodeError, TypeError):
-            pass
-        return None
-
-    @property
-    def goal_description_text(self) -> Optional[str]:
-        """goal_description JSON에서 description 텍스트만 추출 (프론트엔드 표시용)"""
-        # Pydantic이 자동으로 goal_description 필드를 덮어쓰지는 않으므로, 
-        # 프론트엔드가 'goal_description'을 쓸지 'goal_description_text'를 쓸지 결정 필요.
-        # 여기서는 goal_description 자체를 오버라이드 하거나 새로운 필드를 제공.
-        # UserDetailResponse는 Pydantic 모델이므로 @property로 getter를 만들면 json serialization 시 포함됨 (if configured).
-        # 하지만 validator로 root data를 수정하는 게 더 확실함.
-        return None 
-    
-    from pydantic import model_validator
+    # JSON 파싱 결과를 담을 필드 추가
+    target_weight: Optional[float] = None
+    start_weight: Optional[float] = None
     
     @model_validator(mode='after')
     def unpack_goal_description(self):
@@ -128,33 +110,103 @@ class UserDetailResponse(UserDetailBase):
 
 
 # ============================================================================
-# WeeklyPlan Schemas (신규)
+# LLM Input Schemas
+# ============================================================================
+
+class StatusAnalysisInput(BaseModel):
+    """LLM1: 건강 상태 분석 입력 스키마"""
+    record_id: int
+    user_id: int
+    measured_at: datetime
+    measurements: Dict[str, Any]
+    body_type1: Optional[str] = None
+    body_type2: Optional[str] = None
+
+
+class GoalPlanInput(BaseModel):
+    """LLM2: 주간 계획 생성 입력 스키마"""
+    user_goal_type: Optional[str] = None
+    user_goal_description: Optional[str] = None
+    record_id: int
+    user_id: int
+    measured_at: datetime
+    measurements: Dict[str, Any]
+    status_analysis_result: Optional[str] = None
+    status_analysis_id: Optional[int] = None
+    body_type1: Optional[str] = None
+    body_type2: Optional[str] = None
+
+
+class GoalPlanRequest(BaseModel):
+    """LLM2: 주간 계획 생성 요청 (프론트엔드 -> 백엔드 API)"""
+    record_id: int
+    user_goal_type: Optional[str] = None
+    user_goal_description: Optional[str] = None
+
+
+class GoalPlanPrepareResponse(BaseModel):
+    """LLM2: 주간 계획 생성용 input 데이터 준비 응답"""
+    success: bool
+    message: str
+    input_data: 'GoalPlanInput'
+
+
+class StatusAnalysisResponse(BaseModel):
+    """LLM1: 상태 분석 결과 응답"""
+    report_id: int
+    content: str
+    summary: Optional[str] = None
+
+
+class GoalPlanResponse(BaseModel):
+    """LLM2: 주간 계획 생성 결과 응답 (실제 계획 생성 후)"""
+    plan_id: int
+    report_id: int
+    weekly_plan: Dict[str, Any]
+    message: Optional[str] = None
+
+
+
+# ============================================================================
+# WeeklyPlan Schemas
 # ============================================================================
 
 class WeeklyPlanBase(BaseModel):
     """주간 계획 기본 스키마"""
-    week_number: int
+    week_number: int = 1
     start_date: date
-    end_date: date
-    plan_data: Dict[str, Any]  # JSONB 데이터
+    # end_date: date    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
+    # weekly_goal: Optional[str] = None
+    plan_data: Optional[Dict[str, Any]] = None  # LLM 생성 결과를 저장
     model_version: Optional[str] = None
 
 
-class WeeklyPlanCreate(WeeklyPlanBase):
-    """주간 계획 생성 요청 스키마"""
-    pass
+class WeeklyPlanCreate(BaseModel):
+    """주간 계획 생성 요청"""
+    week_number: int = 1
+    start_date: date
+    end_date: date
+    plan_data: Dict[str, Any]  # LLM 생성 결과 (content, raw_response 등)
+    model_version: Optional[str] = None
 
 
 class WeeklyPlanUpdate(BaseModel):
-    """주간 계획 수정 요청 스키마"""
+    """주간 계획 수정 요청"""
+    # daily_plans: Optional[Dict[str, Any]] = None
+    # weekly_goal: Optional[str] = None
     plan_data: Optional[Dict[str, Any]] = None
-    model_version: Optional[str] = None
+    is_completed: Optional[bool] = None
 
 
-class WeeklyPlanResponse(WeeklyPlanBase):
-    """주간 계획 응답 스키마"""
+class WeeklyPlanResponse(BaseModel):
+    """주간 계획 응답"""
     id: int
     user_id: int
+    week_number: int
+    start_date: date
+    end_date: date
+    plan_data: Optional[Dict[str, Any]] = None
+    model_version: Optional[str] = None
     created_at: datetime
     
     class Config:
@@ -162,77 +214,31 @@ class WeeklyPlanResponse(WeeklyPlanBase):
 
 
 # ============================================================================
-# LLM Input/Output Schemas - 상태 분석 (LLM1)
+# Chat / Human Feedback Schemas
 # ============================================================================
 
-class StatusAnalysisInput(BaseModel):
-    """
-    LLM1: 건강 상태 분석용 Input 스키마
-    - LLM 팀원이 API 연동 시 이 데이터를 사용
-    """
-    record_id: int
-    user_id: int
-    measured_at: datetime
-    measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
-    body_type1: Optional[str] = None
-    body_type2: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
-class StatusAnalysisResponse(BaseModel):
-    """LLM1 응답: 프론트엔드에서 LLM API 호출에 사용할 input 반환"""
-    success: bool = True
-    message: str = "LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요."
-    input_data: StatusAnalysisInput
-
-
 class AnalysisChatRequest(BaseModel):
-    """분석 결과에 대한 채팅 요청"""
+    """분석/계획에 대한 대화 요청 (Human Feedback)"""
+    report_id: int
     message: str
-    thread_id: str  # DB에 저장하지 않으므로 클라이언트가 직접 보내줘야 함
+    thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
 
 
 class AnalysisChatResponse(BaseModel):
-    """채팅 응답"""
-    response: str
+    """대화 응답"""
+    reply: str
+    thread_id: str
+    updated_plan: Optional[Dict[str, Any]] = None  # 대화로 인해 계획이 변경된 경우 갱신된 데이터 반환
 
 
 # ============================================================================
-# LLM Input/Output Schemas - 주간 계획 (LLM2)
+# Weekly Plan Chat Schemas
 # ============================================================================
 
-class GoalPlanInput(BaseModel):
-    """
-    LLM2: 주간 계획서 생성용 Input 스키마
-    - LLM 팀원이 API 연동 시 이 데이터를 사용
-    """
-    # 사용자 요구사항
-    user_goal_type: Optional[str] = None
-    user_goal_description: Optional[str] = None
-
-    # 최신 건강 기록
-    record_id: int
-    user_id: int
-    measured_at: datetime
-    measurements: Dict[str, Any]  # 인바디 데이터 전부 + body_type1, 2가 포함됨
-    body_type1: Optional[str] = None
-    body_type2: Optional[str] = None
-
-    # LLM1(status_analysis)의 분석 결과
-    status_analysis_result: Optional[str] = None
-    status_analysis_id: Optional[int] = None
-
-    class Config:
-        from_attributes = True
-
-
-class GoalPlanResponse(BaseModel):
-    """LLM2 응답: 프론트엔드에서 LLM API 호출에 사용할 input 반환"""
-    success: bool = True
-    message: str = "LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요."
-    input_data: GoalPlanInput
+class WeeklyPlanChatRequest(BaseModel):
+    """주간 계획 채팅 요청 스키마"""
+    thread_id: str
+    message: str
 
 
 class GoalPlanRequest(BaseModel):

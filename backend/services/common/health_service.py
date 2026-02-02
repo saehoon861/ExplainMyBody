@@ -11,7 +11,7 @@ from schemas.llm import (
     StatusAnalysisInput,
     GoalPlanInput,
     StatusAnalysisResponse,
-    GoalPlanResponse,
+    GoalPlanPrepareResponse,
     AnalysisReportResponse,
     AnalysisReportCreate
 )
@@ -96,7 +96,7 @@ class HealthService:
         record_id: int,
         user_goal_type: Optional[str] = None,
         user_goal_description: Optional[str] = None
-    ) -> Optional[GoalPlanResponse]:
+    ) -> Optional[GoalPlanPrepareResponse]:
         """
         LLM2: 주간 계획서 생성용 input 데이터 준비 (goal_plan)
 
@@ -111,7 +111,7 @@ class HealthService:
             user_goal_description: 사용자 목표 상세
 
         Returns:
-            GoalPlanResponse: LLM input 데이터
+            GoalPlanPrepareResponse: LLM input 데이터
         """
         # 선택된 건강 기록 조회
         health_record = HealthRecordRepository.get_by_id(db, record_id)
@@ -141,11 +141,12 @@ class HealthService:
             status_analysis_id=status_analysis_id
         )
 
-        return GoalPlanResponse(
+        return GoalPlanPrepareResponse(
             success=True,
             message="LLM input 데이터 준비 완료. 프론트엔드에서 LLM API를 호출하세요.",
             input_data=GoalPlanInput(**input_data)
         )
+
 
     async def analyze_health_record(
         self,
@@ -232,6 +233,14 @@ class HealthService:
         # DB에는 thread_id가 저장되지 않았으므로, 응답 객체에 수동으로 주입하여 프론트엔드에 전달
         response = AnalysisReportResponse.model_validate(analysis_report)
         response.thread_id = thread_id
+        
+        # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
+        # 프론트엔드에서 요약만 먼저 보여주고, 전문은 접었다가 펼칠 수 있도록 함
+        from services.llm.parse_utils import split_analysis_response
+        parsed = split_analysis_response(llm_output)
+        response.summary = parsed["summary"]
+        response.content = parsed["content"]
+        
         return response
 
     def get_record_with_analysis(

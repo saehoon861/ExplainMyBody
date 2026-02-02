@@ -4,14 +4,14 @@
 """
 
 from sqlalchemy.orm import Session
-from repositories.common.user_repository import UserRepository
-from schemas.common import UserCreate, UserLogin
 from fastapi import HTTPException, status
 from typing import Optional
-from schemas.common import UserCreate, UserLogin, UserSignupRequest, HealthRecordCreate
-from schemas.llm import UserDetailCreate
+
+from repositories.common.user_repository import UserRepository
 from repositories.common.health_record_repository import HealthRecordRepository
 from repositories.llm.user_detail_repository import UserDetailRepository
+from schemas.common import UserCreate, UserLogin, UserSignupRequest, HealthRecordCreate
+from schemas.llm import UserDetailCreate
 
 
 class AuthService:

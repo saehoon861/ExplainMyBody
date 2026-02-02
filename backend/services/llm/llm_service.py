@@ -8,9 +8,10 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-from schemas.llm import StatusAnalysisInput
+from schemas.llm import StatusAnalysisInput, GoalPlanInput
 from services.llm.llm_clients import create_llm_client
 from .agent_graph import create_analysis_agent
+from .weekly_plan_graph import create_weekly_plan_agent
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ class LLMService:
         self.model_version = "gpt-4o-mini"  # 또는 설정에서 가져옴
         self.llm_client = create_llm_client(self.model_version)
         self.analysis_agent = create_analysis_agent(self.llm_client)
+        self.weekly_plan_agent = create_weekly_plan_agent(self.llm_client)
 
         # 챗봇 대화 이력 저장소 (메모리 기반)
         # {thread_id: [("user", "메시지"), ("assistant", "응답"), ...]}
@@ -160,14 +162,13 @@ class LLMService:
 
     async def call_goal_plan_llm(
         self,
-        input_data: Dict[str, Any]
+        input_data: GoalPlanInput
     ) -> str:
         """
-        TODO: 팀원이 구현 예정
         LLM2: 주간 계획서 생성 API 호출
 
         Args:
-            input_data: prepare_goal_plan_input()의 반환값
+            input_data: GoalPlanInput 스키마 객체
 
         Returns:
             LLM이 생성한 주간 계획서 텍스트
