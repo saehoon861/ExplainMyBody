@@ -5,6 +5,7 @@
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
@@ -41,7 +42,7 @@ class ConfigManager:
     
     @staticmethod
     def get_default_targets() -> Dict[str, MatchConfig]:
-        """기본 타겟 설정 반환"""
+        """기본 타겟 설정 반환 (2400px 기준 좌표)"""
         return {
             "신장": MatchConfig(r"(\d{3})", (130, 220), "down"),
             "연령": MatchConfig(r"(\d{2})", (130, 220), "down"),
@@ -66,6 +67,36 @@ class ConfigManager:
             "비만도": MatchConfig(r"(\d+)", (1250, 1300), "right"),
             "권장섭취열량": MatchConfig(r"(\d{4})", (1290, 1350), "right"),
         }
+    
+    @staticmethod
+    def scale_targets(targets: Dict[str, MatchConfig], scale_factor: float) -> Dict[str, MatchConfig]:
+        """타겟 좌표를 스케일링 (해상도 변경 시 사용)
+        
+        Args:
+            targets: 원본 타겟 설정 (2400px 기준)
+            scale_factor: 스케일링 팩터 (예: 1200/2400 = 0.5)
+            
+        Returns:
+            스케일링된 타겟 설정 (x_tolerance, y_tolerance도 스케일링)
+        """
+        scaled_targets = {}
+        for key, config in targets.items():
+            yr_min, yr_max = config.y_range
+            scaled_yr = (int(yr_min * scale_factor), int(yr_max * scale_factor))
+            
+            # x_tolerance, y_tolerance도 스케일링 (중요!)
+            scaled_x_tolerance = int(config.x_tolerance * scale_factor)
+            scaled_y_tolerance = int(config.y_tolerance * scale_factor)
+            
+            scaled_targets[key] = MatchConfig(
+                regex=config.regex,
+                y_range=scaled_yr,
+                direction=config.direction,
+                x_tolerance=scaled_x_tolerance,
+                y_tolerance=scaled_y_tolerance,
+                allow_zero=config.allow_zero
+            )
+        return scaled_targets
     
     @staticmethod
     def get_correction_map() -> Dict[str, str]:
@@ -253,6 +284,10 @@ class DocumentRectifier:
 class InBodyMatcher:
     """인바디 결과지 매칭 클래스"""
     
+    # 해상도 설정 (성능 최적화)
+    TARGET_HEIGHT = 1200  # 2400 → 1200 (50% 감소, 60-70% 속도 향상)
+    SCALE_FACTOR = TARGET_HEIGHT / 2400  # 좌표 스케일링 팩터 (0.5)
+    
     def __init__(self, config_path: Optional[str] = None, 
                  auto_perspective: bool = True,
                  skew_threshold: float = 15.0):
@@ -269,17 +304,25 @@ class InBodyMatcher:
             self.ocr = PaddleOCR(
                 lang='korean',
                 ocr_version='PP-OCRv5',
-                text_det_limit_side_len=2560,
-                text_det_unclip_ratio=2.0,
-                use_textline_orientation=True
+                text_det_limit_side_len=960,      # 2560 → 960 (더 공격적)
+                text_det_unclip_ratio=1.6,        # 2.0 → 1.6 (속도 향상)
+                use_textline_orientation=False,   # 인바디는 수평 문서
+                # det_db_thresh=0.3,                # 검출 임계값 낮춤 (더 많은 텍스트)
+                # det_db_box_thresh=0.5             # 박스 임계값 낮춤
             )
         except Exception as e:
             raise Exception(f"PaddleOCR 초기화 실패: {e}")
         
         self.correction_map = ConfigManager.get_correction_map()
-        self.targets = ConfigManager.get_default_targets()
+        
+        # 타겟 좌표 스케일링 (2400px 기준 → TARGET_HEIGHT 기준)
+        base_targets = ConfigManager.get_default_targets()
+        self.targets = ConfigManager.scale_targets(base_targets, self.SCALE_FACTOR)
+        
         self.auto_perspective = auto_perspective
         self.skew_threshold = skew_threshold
+        
+        print(f"✅ OCR 설정: 해상도={self.TARGET_HEIGHT}px, 스케일={self.SCALE_FACTOR:.3f}")
         
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)
@@ -439,8 +482,8 @@ class InBodyMatcher:
             dx = node['center'][0] - key_node['bbox'][2] if config.direction == "right" else abs(node['center'][0] - key_node['center'][0])
             dy = abs(node['center'][1] - key_node['center'][1])
             
-            # ROI 체크
-            if key == "체지방률" and node['center'][1] < 1210:
+            # ROI 체크 (스케일링 적용)
+            if key == "체지방률" and node['center'][1] < int(1210 * self.SCALE_FACTOR):
                 continue
             
             in_roi = (yr_min - 50 <= node['center'][1] <= yr_max + 50)
@@ -501,16 +544,30 @@ class InBodyMatcher:
         return None
     
     def _extract_segment_evaluations(self, nodes: List[Dict]) -> Dict[str, str]:
-        """부위별 평가 추출"""
+        """부위별 평가 추출 (좌표 스케일링 적용)"""
+        # 2400px 기준 좌표를 현재 해상도로 스케일링
+        SCALE = self.SCALE_FACTOR
+        
+        seg_y_min = int(1400 * SCALE)  # 933
+        seg_y_max = int(1900 * SCALE)  # 1267
+        row_top_max = int(1580 * SCALE)  # 1053
+        row_mid_min = int(1580 * SCALE)  # 1053
+        row_mid_max = int(1700 * SCALE)  # 1133
+        row_bot_min = int(1700 * SCALE)  # 1133
+        
         evals = ["표준이하", "표준이상", "표준"]
         seg_nodes = sorted(
-            [n for n in nodes if any(ev in n['text'] for ev in evals) and (1400 <= n['center'][1] <= 1900)],
+            [n for n in nodes if any(ev in n['text'] for ev in evals) 
+             and (seg_y_min <= n['center'][1] <= seg_y_max)],
             key=lambda x: x['center'][1]
         )
         
-        row_top = sorted([n for n in seg_nodes if n['center'][1] < 1580], key=lambda x: x['center'][0])
-        row_mid = sorted([n for n in seg_nodes if 1580 <= n['center'][1] <= 1700], key=lambda x: x['center'][0])
-        row_bot = sorted([n for n in seg_nodes if n['center'][1] > 1700], key=lambda x: x['center'][0])
+        row_top = sorted([n for n in seg_nodes if n['center'][1] < row_top_max], 
+                         key=lambda x: x['center'][0])
+        row_mid = sorted([n for n in seg_nodes if row_mid_min <= n['center'][1] <= row_mid_max], 
+                         key=lambda x: x['center'][0])
+        row_bot = sorted([n for n in seg_nodes if n['center'][1] > row_bot_min], 
+                         key=lambda x: x['center'][0])
         
         results = {}
         
@@ -541,46 +598,66 @@ class InBodyMatcher:
             raise FileNotFoundError(f"이미지 파일을 찾을 수 없습니다: {image_path}")
         
         try:
+            # ⏱️ 전체 처리 시간 측정
+            total_start = time.time()
+            
+            # ⏱️ 1. 이미지 로드
+            load_start = time.time()
             src_img = cv2.imread(image_path)
             if src_img is None:
                 raise ValueError(f"이미지를 읽을 수 없습니다: {image_path}")
+            load_time = time.time() - load_start
             
-            print(f"📸 원본 이미지 크기: {src_img.shape[:2]}")
+            print(f"📸 원본 이미지 크기: {src_img.shape[:2]} (⏱️ {load_time:.3f}초)")
             
+            # ⏱️ 2. 원근 변환 (Perspective Transform)
+            perspective_time = 0.0
             if self.auto_perspective:
+                perspective_start = time.time()
                 src_img, applied, skew_score = DocumentRectifier.rectify_auto(
                     src_img, threshold=self.skew_threshold
                 )
+                perspective_time = time.time() - perspective_start
                 if applied:
-                    print(f"🔄 원근 변환 적용 (기울기 점수: {skew_score:.1f})")
+                    print(f"🔄 원근 변환 적용 (기울기 점수: {skew_score:.1f}, ⏱️ {perspective_time:.3f}초)")
                 else:
                     if skew_score > 0:
-                        print(f"✓ 정면 문서 (기울기 점수: {skew_score:.1f}, 임계값: {self.skew_threshold})")
+                        print(f"✓ 정면 문서 (기울기 점수: {skew_score:.1f}, 임계값: {self.skew_threshold}, ⏱️ {perspective_time:.3f}초)")
             
-            # 해상도 정규화
-            target_h = 2400
+            # ⏱️ 3. 해상도 정규화
+            resize_start = time.time()
+            target_h = self.TARGET_HEIGHT  # 1600px (최적화)
             ratio = target_h / src_img.shape[0]
             img = cv2.resize(
                 src_img,
                 (int(src_img.shape[1] * ratio), target_h),
                 interpolation=cv2.INTER_LANCZOS4
             )
+            resize_time = time.time() - resize_start
             
-            print(f"📏 정규화된 크기: {img.shape[:2]}")
+            print(f"📏 정규화된 크기: {img.shape[:2]} (⏱️ {resize_time:.3f}초)")
             
-            # 전처리 및 OCR
+            # ⏱️ 4. 전처리 (Preprocessing)
+            preprocess_start = time.time()
             with temporary_file() as temp_path:
                 processed_img = self._preprocess_image(img)
                 cv2.imwrite(temp_path, processed_img)
+                preprocess_time = time.time() - preprocess_start
+                print(f"🎨 전처리 완료 (Deskew + CLAHE, ⏱️ {preprocess_time:.3f}초)")
+                
+                # ⏱️ 5. OCR 텍스트 추출 (가장 느린 단계)
+                ocr_start = time.time()
                 all_nodes = self._extract_nodes(temp_path)
+                ocr_time = time.time() - ocr_start
             
-            print(f"📝 추출된 텍스트 노드: {len(all_nodes)}개")
+            print(f"📝 추출된 텍스트 노드: {len(all_nodes)}개 (⏱️ {ocr_time:.3f}초)")
             
             if not all_nodes:
                 print("⚠️ 텍스트를 추출할 수 없습니다")
                 return {}
             
-            # 매칭 수행
+            # ⏱️ 6. 매칭 수행 (Postprocessing)
+            match_start = time.time()
             matched_data = {}
             
             for key, config in self.targets.items():
@@ -596,11 +673,25 @@ class InBodyMatcher:
             # 부위별 평가 추출
             segment_results = self._extract_segment_evaluations(all_nodes)
             matched_data.update(segment_results)
+            match_time = time.time() - match_start
             
             # 매칭 통계
             detected = sum(1 for v in matched_data.values() if v is not None)
             total = len(matched_data)
-            print(f"✅ 매칭 완료: {detected}/{total} 항목 ({detected/total*100:.1f}%)")
+            print(f"✅ 매칭 완료: {detected}/{total} 항목 ({detected/total*100:.1f}%, ⏱️ {match_time:.3f}초)")
+            
+            # ⏱️ 전체 처리 시간 요약
+            total_time = time.time() - total_start
+            print(f"\n⏱️ === OCR 처리 시간 상세 분석 ===")
+            print(f"   1. 이미지 로드:      {load_time:.3f}초 ({load_time/total_time*100:5.1f}%)")
+            print(f"   2. 원근 변환:        {perspective_time:.3f}초 ({perspective_time/total_time*100:5.1f}%)")
+            print(f"   3. 해상도 정규화:    {resize_time:.3f}초 ({resize_time/total_time*100:5.1f}%)")
+            print(f"   4. 전처리 (CLAHE):   {preprocess_time:.3f}초 ({preprocess_time/total_time*100:5.1f}%)")
+            print(f"   5. OCR 텍스트 추출:  {ocr_time:.3f}초 ({ocr_time/total_time*100:5.1f}%) ⚠️ 병목")
+            print(f"   6. 매칭 (후처리):    {match_time:.3f}초 ({match_time/total_time*100:5.1f}%)")
+            print(f"   " + "="*40)
+            print(f"   총 처리 시간:        {total_time:.3f}초")
+            print(f"   " + "="*40 + "\n")
             
             return matched_data
         

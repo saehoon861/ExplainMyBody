@@ -15,6 +15,7 @@ OCR 처리 흐름:
 import os
 import tempfile
 import shutil
+import time
 from typing import Dict, Any, Optional, Union, BinaryIO
 
 from pydantic import ValidationError
@@ -100,21 +101,32 @@ class OCRService:
                 "OCR 엔진이 초기화되지 않았습니다. 서버 로그를 확인하세요."
             )
         
+        # ⏱️ 전체 처리 시간 측정 시작
+        total_start = time.time()
+        
         # Step 1: 임시 파일로 저장
         # 팀원 코드(InBodyMatcher)가 파일 경로를 받으므로 임시 파일 생성 필요
         tmp_path = None
         try:
+            # ⏱️ 파일 저장 시간 측정
+            save_start = time.time()
+            
             # 파일 확장자 추출 (없으면 .jpg 사용)
             file_ext = os.path.splitext(filename)[1] or ".jpg"
             with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
                 shutil.copyfileobj(image_file, tmp_file)
                 tmp_path = tmp_file.name
             
-            print(f"📁 임시 파일 저장: {tmp_path}")
+            save_time = time.time() - save_start
+            print(f"📁 임시 파일 저장: {tmp_path} (⏱️ {save_time:.3f}초)")
             
             # Step 2: OCR 수행
             # 팀원 함수: InBodyMatcher.extract_and_match(image_path: str) -> Dict[str, Optional[str]]
+            # ⏱️ OCR 수행 시간 측정
+            ocr_start = time.time()
             raw_result = self.matcher.extract_and_match(tmp_path)
+            ocr_time = time.time() - ocr_start
+            print(f"🔍 OCR 수행 완료 (⏱️ {ocr_time:.3f}초)")
             
             if not raw_result:
                 raise OCRExtractionFailedError(
@@ -126,14 +138,24 @@ class OCRService:
             # 팀원 코드의 키 이름과 우리 스키마의 키 이름 매핑:
             #   - 팀원: "왼쪽팔 근육" → 우리: 부위별근육분석.왼쪽팔
             #   - 팀원: "왼쪽팔 체지방" → 우리: 부위별체지방분석.왼쪽팔
+            # ⏱️ 구조화 시간 측정
+            struct_start = time.time()
             structured_result = self.matcher.get_structured_results(raw_result)
+            struct_time = time.time() - struct_start
+            print(f"📊 구조화 완료 (⏱️ {struct_time:.3f}초)")
             
             # Step 4: 타입 변환 (생략)
             # 프론트엔드에서 .replace() 등을 사용하므로 문자열 그대로 반환 (Pydantic 검증 시 자동 변환됨)
             # mapped_result = self._convert_types(structured_result)
             
+            # ⏱️ 전체 처리 시간 출력
+            total_time = time.time() - total_start
             print(f"✅ OCR 추출 완료 (검증 없음)")
             print(f"⚠️ 프론트엔드에서 사용자 검증 필요")
+            print(f"⏱️ 총 처리 시간: {total_time:.3f}초")
+            print(f"   ├─ 파일 저장: {save_time:.3f}초 ({save_time/total_time*100:.1f}%)")
+            print(f"   ├─ OCR 수행: {ocr_time:.3f}초 ({ocr_time/total_time*100:.1f}%)")
+            print(f"   └─ 구조화: {struct_time:.3f}초 ({struct_time/total_time*100:.1f}%)")
             
             # Step 5: 검증 없이 dict 그대로 반환
             return structured_result
