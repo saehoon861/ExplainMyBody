@@ -49,6 +49,12 @@ const Chatbot = () => {
     const [showHistorySidebar, setShowHistorySidebar] = useState(false); // 사이드바 표시 여부
     const [chatHistories, setChatHistories] = useState([]); // 저장된 대화 목록
     const [currentChatId, setCurrentChatId] = useState(null); // 현재 대화 ID
+    const chatIdRef = useRef(null); // currentChatId를 동기적으로 추적하기 위한 Ref
+
+    // currentChatId가 변경되면 Ref도 업데이트
+    useEffect(() => {
+        chatIdRef.current = currentChatId;
+    }, [currentChatId]);
 
     // ============================================
     // 봇 타입별 고정 카테고리 버튼 설정
@@ -488,7 +494,15 @@ const Chatbot = () => {
     const saveChatHistory = () => {
         if (messages.length <= 1) return; // 초기 메시지만 있으면 저장 안함
 
-        const chatId = currentChatId || `chat_${Date.now()}_${botType}`;
+        // state 대신 ref를 사용하여 최신 chatId 확인
+        let chatId = chatIdRef.current;
+        if (!chatId) {
+            // ID가 없으면 새로 생성 후 Ref 및 State 업데이트
+            chatId = `chat_${Date.now()}_${botType}`;
+            chatIdRef.current = chatId;
+            setCurrentChatId(chatId);
+        }
+
         const firstUserMessage = messages.find(m => m.sender === 'user');
         const title = firstUserMessage ? firstUserMessage.text.substring(0, 30) + '...' : '새 대화';
         const lastMessage = messages[messages.length - 1];
@@ -499,7 +513,8 @@ const Chatbot = () => {
             title: title,
             timestamp: Date.now(),
             messages: messages,
-            lastMessage: lastMessage.text.substring(0, 50) + '...'
+            lastMessage: lastMessage.text.substring(0, 50) + '...',
+            threadId: threadId // 스레드 ID 저장 (컨텍스트 유지용)
         };
 
         try {
@@ -513,7 +528,6 @@ const Chatbot = () => {
             }
 
             localStorage.setItem('chatHistories', JSON.stringify(all));
-            setCurrentChatId(chatId);
         } catch (error) {
             console.error('채팅 히스토리 저장 오류:', error);
         }
@@ -529,6 +543,12 @@ const Chatbot = () => {
                 setMessages(chat.messages);
                 setCurrentChatId(chatId);
                 setShowHistorySidebar(false);
+
+                // 스레드 ID 복원 및 Ref 업데이트
+                if (chat.threadId) {
+                    setThreadId(chat.threadId);
+                }
+                chatIdRef.current = chatId;
             }
         } catch (error) {
             console.error('채팅 히스토리 불러오기 오류:', error);
