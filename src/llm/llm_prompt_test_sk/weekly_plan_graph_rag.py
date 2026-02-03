@@ -16,7 +16,10 @@ load_dotenv()
 from llm_clients import create_llm_client
 from schemas import GoalPlanInput
 from schemas_inbody import InBodyData as InBodyMeasurements
-from prompt_generator_rag import create_weekly_plan_prompt_with_rag
+from prompt_generator_rag import (
+    create_weekly_plan_summary_prompt_with_rag,
+    create_weekly_plan_detail_prompt_with_rag
+)
 from rag_retriever import SimpleRAGRetriever
 
 
@@ -50,8 +53,8 @@ def create_weekly_plan_agent_with_rag(llm_client, use_rag: bool = True):
 
     # --- 2. 노드 정의 ---
     def generate_initial_plan(state: PlanStateRAG) -> dict:
-        """Node 1: RAG 검색 + 주간 계획 초안 생성"""
-        print("--- LLM2 (RAG): 주간 계획 생성 ---")
+        """Node 1: RAG 검색 + 주간 계획 생성 (2단계 프롬프트)"""
+        print("--- LLM2 (RAG): 주간 계획 생성 (2단계 프롬프트) ---")
         plan_input = state["plan_input"]
 
         # InBody 데이터 모델 변환
@@ -79,19 +82,32 @@ def create_weekly_plan_agent_with_rag(llm_client, use_rag: bool = True):
                 print(f"RAG 검색 실패: {e}")
                 rag_context = ""
 
-        # 2. 프롬프트 생성 (RAG 컨텍스트 포함)
-        system_prompt, user_prompt = create_weekly_plan_prompt_with_rag(
+        # 2-1. 프롬프트 1: 주간 목표 요약 생성
+        print("\n  [Step 1] 주간 목표 요약 생성...")
+        system_prompt_1, user_prompt_1 = create_weekly_plan_summary_prompt_with_rag(
             goal_input=plan_input,
             measurements=measurements,
             rag_context=rag_context
         )
+        summary_response = llm_client.generate_chat(system_prompt_1, user_prompt_1)
+        print(f"  ✓ 요약 완료 ({len(summary_response)} 문자)")
 
-        # 3. LLM 호출
-        response = llm_client.generate_chat(system_prompt, user_prompt)
+        # 2-2. 프롬프트 2: 세부 계획 생성
+        print("\n  [Step 2] 세부 운동/식단 계획 생성...")
+        system_prompt_2, user_prompt_2 = create_weekly_plan_detail_prompt_with_rag(
+            goal_input=plan_input,
+            measurements=measurements,
+            rag_context=rag_context
+        )
+        detail_response = llm_client.generate_chat(system_prompt_2, user_prompt_2)
+        print(f"  ✓ 세부 계획 완료 ({len(detail_response)} 문자)")
+
+        # 2-3. 두 응답 결합
+        combined_response = f"{summary_response}\n\n---\n\n{detail_response}"
 
         # 결과 반환 (대화 기록에 추가)
         return {
-            "messages": [("human", user_prompt), ("ai", response)],
+            "messages": [("human", user_prompt_1 + "\n\n" + user_prompt_2), ("ai", combined_response)],
             "rag_context": rag_context
         }
 

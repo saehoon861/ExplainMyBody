@@ -2,9 +2,10 @@
 Prompt Generator with RAG Support
 - backend/services/llm/prompt_generator.py를 기반으로 RAG 컨텍스트만 추가
 - 기존 구조 100% 동일하게 유지
+- 사용자 프로필 (workout_place, preferred_sport) 분기 처리 지원
 """
 
-from typing import Tuple
+from typing import Tuple, Dict, Any, Optional
 from schemas_inbody import InBodyData as InBodyMeasurements
 from schemas import GoalPlanInput
 
@@ -219,51 +220,342 @@ def create_inbody_analysis_detail_prompt_with_rag(
 
 
 
-def create_weekly_plan_prompt_with_rag(
+def create_weekly_plan_summary_prompt_with_rag(
     goal_input: GoalPlanInput,
     measurements: InBodyMeasurements,
-    rag_context: str = ""
+    rag_context: str = "",
+    user_profile: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, str]:
     """
-    주간 계획 생성용 프롬프트 (RAG 컨텍스트 포함)
+    주간 계획 요약 프롬프트 생성 (Prompt 1)
+    이번 주 핵심 목표와 전략 요약
 
-    기존 prompt_generator.py의 create_weekly_plan_prompt와 동일 + RAG만 추가
+    Args:
+        goal_input: 사용자 목표 정보
+        measurements: 인바디 측정 데이터
+        rag_context: RAG 검색 결과
+        user_profile: 사용자 프로필 (workout_place, preferred_sport 등)
+                     예: {"body_type1": "마른비만형", "body_type2": "상체비만형",
+                          "workout_place": "홈트", "preferred_sport": None}
     """
+    # 사용자 프로필 기반 전략 텍스트 생성
+    strategy_text = ""
+    if user_profile:
+        try:
+            from user_profile_strategy import build_strategy_text_from_dict
+            strategy_text = build_strategy_text_from_dict(user_profile)
+        except ImportError:
+            # 모듈 없으면 스킵
+            pass
+
+    system_prompt = """너는 빡센 헬스 PT다.
+
+사용자의 체성분과 목표를 보고, 이번 주에 집중할 핵심 전략을 딱 3가지로 정리해라.
+존댓말로 작성해라.
+
+## 과학적 근거 활용
+- 제공된 과학 논문 정보가 있다면, 이를 자연스럽게 분석에 통합하세요
+- 논문을 직접 인용하지 말고, 근거로 활용하여 신뢰도를 높이세요
+
+## 사용자 맞춤 전략 활용
+- 제공된 체형별/장소별 전략을 반드시 반영하세요
+- 전략에 명시된 주의사항과 코치 조언을 존중하세요
+"""
+
+    user_prompt = f"""# 사용자 목표
+- 목표 유형: {goal_input.user_goal_type}
+- 상세 내용: {goal_input.user_goal_description}
+
+# 신체 정보
+- 성별: {measurements.기본정보.성별}
+- 나이: {measurements.기본정보.연령}세
+- 신장: {measurements.기본정보.신장}cm
+- 체중: {measurements.체중관리.체중}kg
+- BMI: {measurements.비만분석.BMI}
+- 골격근량: {measurements.체중관리.골격근량}kg
+- 체지방률: {measurements.비만분석.체지방률}%
+{f"- 기초대사량: {measurements.연구항목.기초대사량}kcal" if measurements.연구항목.기초대사량 else ""}
+
+# 조절 목표
+{f"- 체중 조절: {measurements.체중관리.체중조절:+.1f}kg" if measurements.체중관리.체중조절 is not None else ""}
+{f"- 지방 조절: {measurements.체중관리.지방조절:+.1f}kg" if measurements.체중관리.지방조절 is not None else ""}
+{f"- 근육 조절: {measurements.체중관리.근육조절:+.1f}kg" if measurements.체중관리.근육조절 is not None else ""}
+
+{strategy_text if strategy_text else ""}
+
+{rag_context}
+
+---
+
+출력 형식:
+
+🎯 주간 목표 (한 줄 요약)
+
+💪 핵심 전략 1:
+🔥 핵심 전략 2:
+🍽 핵심 전략 3:
+"""
+    return system_prompt, user_prompt
+
+
+def create_weekly_plan_detail_prompt_with_rag(
+    goal_input: GoalPlanInput,
+    measurements: InBodyMeasurements,
+    rag_context: str = "",
+    user_profile: Optional[Dict[str, Any]] = None
+) -> Tuple[str, str]:
+    """
+    주간 계획 세부 프롬프트 생성 (Prompt 2)
+    요일별 운동, 식단, 생활습관 상세 계획
+
+    Args:
+        goal_input: 사용자 목표 정보
+        measurements: 인바디 측정 데이터
+        rag_context: RAG 검색 결과
+        user_profile: 사용자 프로필 (workout_place, preferred_sport 등)
+    """
+    # 사용자 프로필 기반 전략 텍스트 생성
+    strategy_text = ""
+    if user_profile:
+        try:
+            from user_profile_strategy import build_strategy_text_from_dict
+            strategy_text = build_strategy_text_from_dict(user_profile)
+        except ImportError:
+            pass
+
     system_prompt = """당신은 사용자의 건강 데이터와 목표를 분석하여 맞춤형 주간 운동 및 식단 계획을 수립하는 전문 퍼스널 트레이너입니다.
-사용자의 신체 상태(인바디), 목표, 그리고 이전 건강 분석 결과를 종합적으로 고려하여 실천 가능하고 효과적인 1주차 계획을 작성해주세요.
 
 ## 작성 지침
 1. **개인화**: 사용자의 체중, 근육량, 체지방률과 구체적인 목표를 반영하세요.
-2. **구체성**: 운동 종목, 세트 수, 식단 메뉴 등을 구체적으로 제시하세요.
+2. **구체성**: 운동 종목, 세트×횟수, 중량, 식단 메뉴를 구체적으로 제시하세요.
 3. **안전성**: 사용자의 신체 상태에 무리가 가지 않는 수준으로 설정하세요.
 4. **과학적 근거**: 제공된 논문 정보가 있다면 자연스럽게 활용하세요.
+5. **실천 가능**: 일주일 치 계획을 실제로 따라할 수 있게 작성하세요.
+6. **사용자 맞춤 전략**: 제공된 체형별/장소별 전략을 반드시 반영하세요.
 
 ## 출력 형식
-- **주간 목표 요약**: 이번 주 집중할 포인트
-- **운동 계획**: 요일별 운동 루틴
-- **식단 가이드**: 영양 섭취 포인트
-- **생활 습관 팁**: 수면, 수분 섭취 등
+각 섹션을 명확히 구분하여 작성합니다.
 """
 
-    user_prompt_parts = []
-    user_prompt_parts.append(f"# 사용자 목표")
-    user_prompt_parts.append(f"- 목표 유형: {goal_input.user_goal_type}")
-    user_prompt_parts.append(f"- 상세 내용: {goal_input.user_goal_description}")
+    user_prompt = f"""# 사용자 목표
+- 목표 유형: {goal_input.user_goal_type}
+- 상세 내용: {goal_input.user_goal_description}
+{f"- 주요 목표: {goal_input.main_goal}" if goal_input.main_goal else ""}
+{f"- 목표 체중: {goal_input.target_weight}kg" if goal_input.target_weight else ""}
 
-    user_prompt_parts.append(f"\n# 신체 정보")
-    user_prompt_parts.append(f"- 성별: {measurements.기본정보.성별}")
-    user_prompt_parts.append(f"- 체중: {measurements.체중관리.체중}kg")
-    user_prompt_parts.append(f"- 골격근량: {measurements.체중관리.골격근량}kg")
-    user_prompt_parts.append(f"- 체지방률: {measurements.비만분석.체지방률}%")
+# 신체 정보
+- 성별: {measurements.기본정보.성별}
+- 나이: {measurements.기본정보.연령}세
+- 신장: {measurements.기본정보.신장}cm
+- 체중: {measurements.체중관리.체중}kg
+- BMI: {measurements.비만분석.BMI}
+- 골격근량: {measurements.체중관리.골격근량}kg
+- 체지방률: {measurements.비만분석.체지방률}%
+{f"- 기초대사량: {measurements.연구항목.기초대사량}kcal" if measurements.연구항목.기초대사량 else ""}
+{f"- 권장 섭취 열량: {measurements.연구항목.권장섭취열량}kcal" if measurements.연구항목.권장섭취열량 else ""}
 
-    if goal_input.status_analysis_result:
-        user_prompt_parts.append(f"\n# 건강 상태 분석 결과 (참고)")
-        user_prompt_parts.append(goal_input.status_analysis_result)
+# 조절 목표
+{f"- 체중 조절: {measurements.체중관리.체중조절:+.1f}kg" if measurements.체중관리.체중조절 is not None else ""}
+{f"- 지방 조절: {measurements.체중관리.지방조절:+.1f}kg" if measurements.체중관리.지방조절 is not None else ""}
+{f"- 근육 조절: {measurements.체중관리.근육조절:+.1f}kg" if measurements.체중관리.근육조절 is not None else ""}
 
-    # RAG 컨텍스트 추가 (유일한 차이점)
-    if rag_context:
-        user_prompt_parts.append(rag_context)
+# 운동 환경
+{f"- 선호 운동: {', '.join(goal_input.preferred_exercise_types)}" if goal_input.preferred_exercise_types else ""}
+{f"- 주당 운동 가능 일수: {goal_input.available_days_per_week}일" if goal_input.available_days_per_week else ""}
+{f"- 회당 운동 가능 시간: {goal_input.available_time_per_session}분" if goal_input.available_time_per_session else ""}
+{f"- 제약사항: {', '.join(goal_input.restrictions)}" if goal_input.restrictions else ""}
 
-    user_prompt = "\n".join(user_prompt_parts)
+{strategy_text if strategy_text else ""}
 
+{f"# 건강 상태 분석 결과 (참고)\n{goal_input.status_analysis_result}" if goal_input.status_analysis_result else ""}
+
+{rag_context}
+
+---
+
+아래 섹션별로 작성:
+
+🏋️ **운동 계획** (요일별 상세)
+- 월요일: [운동명] [세트×횟수] [중량/시간]
+- 화요일: ...
+(주당 {goal_input.available_days_per_week if goal_input.available_days_per_week else '5'}일 기준)
+
+🍽 **식단 가이드**
+- 일일 목표 칼로리: XXX kcal
+- 단백질/탄수화물/지방 비율:
+- 추천 식단 예시 (아침/점심/저녁/간식)
+
+💡 **생활 습관 팁**
+- 수면, 수분 섭취, 스트레스 관리 등 (3~5가지)
+
+🔥 **동기부여 한방 문장**
+"""
+    return system_prompt, user_prompt
+
+
+def create_workout_plan_prompt_with_rag(
+    goal_input: GoalPlanInput,
+    measurements: InBodyMeasurements,
+    rag_context: str = "",
+    user_profile: Optional[Dict[str, Any]] = None
+) -> Tuple[str, str]:
+    """
+    요일별 운동 계획 프롬프트 (Prompt 3)
+    """
+    # 사용자 프로필 기반 전략 텍스트 생성
+    strategy_text = ""
+    if user_profile:
+        try:
+            from user_profile_strategy import build_strategy_text_from_dict
+            strategy_text = build_strategy_text_from_dict(user_profile)
+        except ImportError:
+            pass
+
+    system_prompt = """당신은 사용자의 체형과 목표에 맞는 요일별 운동 계획을 작성하는 전문 퍼스널 트레이너입니다.
+
+## 작성 지침
+1. 사용자의 운동 장소와 가능 일수를 반영하세요
+2. 각 운동마다 세트×횟수, 중량/시간을 구체적으로 제시하세요
+3. 제공된 체형별 전략을 반드시 반영하세요
+4. 휴식일도 명시하세요
+"""
+
+    user_prompt = f"""# 사용자 정보
+- 체중: {measurements.체중관리.체중}kg
+- 골격근량: {measurements.체중관리.골격근량}kg
+- 체지방률: {measurements.비만분석.체지방률}%
+- 주당 운동 가능: {goal_input.available_days_per_week if goal_input.available_days_per_week else 5}일
+- 회당 시간: {goal_input.available_time_per_session if goal_input.available_time_per_session else 60}분
+
+{strategy_text if strategy_text else ""}
+
+{rag_context}
+
+---
+
+출력 형식:
+
+🏋️ **요일별 운동 계획**
+
+**월요일:**
+- 메인: [운동명] [세트×횟수] [중량/시간]
+- 보조: [운동명] [세트×횟수]
+- 마무리: [스트레칭/유산소]
+
+**화요일:**
+...
+
+(주당 {goal_input.available_days_per_week if goal_input.available_days_per_week else 5}일 기준, 휴식일 포함)
+"""
+    return system_prompt, user_prompt
+
+
+def create_diet_plan_prompt_with_rag(
+    goal_input: GoalPlanInput,
+    measurements: InBodyMeasurements,
+    rag_context: str = "",
+    user_profile: Optional[Dict[str, Any]] = None
+) -> Tuple[str, str]:
+    """
+    식단 계획 프롬프트 (Prompt 4)
+    """
+    # 사용자 프로필 기반 전략 텍스트 생성
+    strategy_text = ""
+    if user_profile:
+        try:
+            from user_profile_strategy import build_strategy_text_from_dict
+            strategy_text = build_strategy_text_from_dict(user_profile)
+        except ImportError:
+            pass
+
+    system_prompt = """당신은 사용자의 목표에 맞는 식단 계획을 작성하는 영양 전문가입니다.
+
+## 작성 지침
+1. 기초대사량과 목표를 고려한 칼로리 설정
+2. 단백질/탄수화물/지방 비율 제시
+3. 구체적인 식단 예시 제공
+4. 제공된 체형별 식단 전략을 반영하세요
+"""
+
+    user_prompt = f"""# 사용자 정보
+- 체중: {measurements.체중관리.체중}kg
+- 골격근량: {measurements.체중관리.골격근량}kg
+- 체지방률: {measurements.비만분석.체지방률}%
+{f"- 기초대사량: {measurements.연구항목.기초대사량}kcal" if measurements.연구항목.기초대사량 else ""}
+{f"- 권장 섭취 열량: {measurements.연구항목.권장섭취열량}kcal" if measurements.연구항목.권장섭취열량 else ""}
+- 목표: {goal_input.user_goal_type}
+
+{strategy_text if strategy_text else ""}
+
+{rag_context}
+
+---
+
+출력 형식:
+
+🍽 **식단 계획**
+
+**일일 목표 칼로리:** XXX kcal
+**영양소 비율:** 단백질 XX% / 탄수화물 XX% / 지방 XX%
+**일일 단백질 목표:** XX g
+
+**추천 식단 예시:**
+
+**아침 (XXX kcal):**
+- 메뉴 1
+- 메뉴 2
+
+**점심 (XXX kcal):**
+- 메뉴 1
+- 메뉴 2
+
+**저녁 (XXX kcal):**
+- 메뉴 1
+- 메뉴 2
+
+**간식:**
+- 추천 간식
+"""
+    return system_prompt, user_prompt
+
+
+def create_lifestyle_motivation_prompt_with_rag(
+    goal_input: GoalPlanInput,
+    measurements: InBodyMeasurements,
+    rag_context: str = "",
+    user_profile: Optional[Dict[str, Any]] = None
+) -> Tuple[str, str]:
+    """
+    생활 습관 팁 및 동기부여 프롬프트 (Prompt 5)
+    """
+    system_prompt = """당신은 사용자의 건강한 생활 습관을 돕는 라이프 코치입니다.
+
+## 작성 지침
+1. 실천 가능한 생활 습관 팁 제공 (3-5가지)
+2. 수면, 수분, 스트레스 관리 포함
+3. 마지막에 강력한 동기부여 문장으로 마무리
+"""
+
+    user_prompt = f"""# 사용자 정보
+- 목표: {goal_input.user_goal_type}
+- 현재 체지방률: {measurements.비만분석.체지방률}%
+- 근육량: {measurements.체중관리.골격근량}kg
+
+{rag_context}
+
+---
+
+출력 형식:
+
+💡 **생활 습관 팁**
+
+1. **수면:** ...
+2. **수분 섭취:** ...
+3. **스트레스 관리:** ...
+4. **회복:** ...
+5. **기타:** ...
+
+🔥 **동기부여 한방 문장**
+[강력하고 긍정적인 동기부여 문장 2-3줄]
+"""
     return system_prompt, user_prompt
