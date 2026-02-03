@@ -4,6 +4,9 @@
 """
 
 import os
+# DEBUG_START
+import random
+# DEBUG_END
 import sys
 import time
 from pathlib import Path
@@ -37,6 +40,33 @@ class MatchConfig:
     allow_zero: bool = False
 
 
+class Scaler:
+    """해상도 스케일링 담당 클래스"""
+    def __init__(self, target_height: int, base_height: int = 2400):
+        self.target_height = target_height
+        self.base_height = base_height
+        self.scale_factor = target_height / base_height
+        
+    def scale(self, value: float) -> int:
+        """단일 값 스케일링"""
+        return int(value * self.scale_factor)
+        
+    def scale_range(self, value_range: Tuple[int, int]) -> Tuple[int, int]:
+        """범위 튜플 스케일링"""
+        return (self.scale(value_range[0]), self.scale(value_range[1]))
+    
+    def scale_config(self, config: MatchConfig) -> MatchConfig:
+        """MatchConfig 객체 전체 스케일링"""
+        return MatchConfig(
+            regex=config.regex,
+            y_range=self.scale_range(config.y_range),
+            direction=config.direction,
+            x_tolerance=self.scale(config.x_tolerance),
+            y_tolerance=self.scale(config.y_tolerance),
+            allow_zero=config.allow_zero
+        )
+
+
 class ConfigManager:
     """설정 관리 클래스"""
     
@@ -50,53 +80,23 @@ class ConfigManager:
             "체수분": MatchConfig(r"(\d+\.\d+)", (300, 380), "right"),
             "단백질": MatchConfig(r"(\d+\.\d+)", (370, 440), "right"),
             "무기질": MatchConfig(r"(\d+\.\d+)", (430, 490), "right"),
-            "체지방": MatchConfig(r"(\d+\.\d+)", (480, 550), "right"),
-            "체중": MatchConfig(r"(\d+\.\d+)", (740, 830), "right"),
-            "골격근량": MatchConfig(r"(\d+\.\d+)", (830, 910), "right"),
-            "체지방량": MatchConfig(r"(\d+\.\d+)", (910, 980), "right"),
+            "체지방": MatchConfig(r"(\d+\.\d+)", (480, 550), "right", x_tolerance=2000),
+            "체중": MatchConfig(r"(\d+\.\d+)", (740, 830), "right", x_tolerance=2000),
+            "골격근량": MatchConfig(r"(\d+\.\d+)", (830, 910), "right", x_tolerance=2000),
+            "체지방량": MatchConfig(r"(\d+\.\d+)", (910, 980), "right", x_tolerance=2000),
             "적정체중": MatchConfig(r"(\d+\.\d+)", (550, 650), "right"),
             "체중조절": MatchConfig(r"([-+]?\d+\.\d+)", (550, 750), "right", allow_zero=True, x_tolerance=1000),
             "지방조절": MatchConfig(r"([-+]?\d+\.\d+)", (600, 800), "right", allow_zero=True, x_tolerance=1000),
             "근육조절": MatchConfig(r"([-+]?\d+\.\d+)", (650, 850), "right", allow_zero=True, x_tolerance=1000),
             "복부지방률": MatchConfig(r"(\d\.\d{2})", (850, 1050), "down"),
             "내장지방레벨": MatchConfig(r"(\d+)", (950, 1150), "down"),
-            "BMI": MatchConfig(r"(\d+\.\d+)", (1120, 1180), "right"),
-            "체지방률": MatchConfig(r"(\d+\.\d+)", (1200, 1260), "right"),
+            "BMI": MatchConfig(r"(\d+\.\d+)", (1120, 1180), "right", x_tolerance=2000),
+            "체지방률": MatchConfig(r"(\d+\.\d+)", (1200, 1260), "right", x_tolerance=2000),
             "제지방량": MatchConfig(r"(\d+\.?\d*)", (1140, 1210), "right"),
             "기초대사량": MatchConfig(r"(\d{4})", (1210, 1260), "right"),
             "비만도": MatchConfig(r"(\d+)", (1250, 1300), "right"),
             "권장섭취열량": MatchConfig(r"(\d{4})", (1290, 1350), "right"),
         }
-    
-    @staticmethod
-    def scale_targets(targets: Dict[str, MatchConfig], scale_factor: float) -> Dict[str, MatchConfig]:
-        """타겟 좌표를 스케일링 (해상도 변경 시 사용)
-        
-        Args:
-            targets: 원본 타겟 설정 (2400px 기준)
-            scale_factor: 스케일링 팩터 (예: 1200/2400 = 0.5)
-            
-        Returns:
-            스케일링된 타겟 설정 (x_tolerance, y_tolerance도 스케일링)
-        """
-        scaled_targets = {}
-        for key, config in targets.items():
-            yr_min, yr_max = config.y_range
-            scaled_yr = (int(yr_min * scale_factor), int(yr_max * scale_factor))
-            
-            # x_tolerance, y_tolerance도 스케일링 (중요!)
-            scaled_x_tolerance = int(config.x_tolerance * scale_factor)
-            scaled_y_tolerance = int(config.y_tolerance * scale_factor)
-            
-            scaled_targets[key] = MatchConfig(
-                regex=config.regex,
-                y_range=scaled_yr,
-                direction=config.direction,
-                x_tolerance=scaled_x_tolerance,
-                y_tolerance=scaled_y_tolerance,
-                allow_zero=config.allow_zero
-            )
-        return scaled_targets
     
     @staticmethod
     def get_correction_map() -> Dict[str, str]:
@@ -273,8 +273,24 @@ class DocumentRectifier:
             
             if skew_score >= threshold:
                 warped = DocumentRectifier.apply_perspective_transform(img, corners)
+                # DEBUG_START
+                if True: # 디버깅 강제
+                    debug_img = img.copy()
+                    cv2.drawContours(debug_img, [corners.astype(int)], -1, (0, 0, 255), 3)
+                    cv2.putText(debug_img, f"Skew: {skew_score:.1f} (Threshold: {threshold}) - WARPED", 
+                                (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    cv2.imwrite("debug_rectification.jpg", debug_img)
+                # DEBUG_END
                 return warped, True, skew_score
             else:
+                # DEBUG_START
+                if True:
+                    debug_img = img.copy()
+                    cv2.drawContours(debug_img, [corners.astype(int)], -1, (0, 255, 0), 3)
+                    cv2.putText(debug_img, f"Skew: {skew_score:.1f} (Threshold: {threshold}) - SKIPPED", 
+                                (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    cv2.imwrite("debug_rectification.jpg", debug_img)
+                # DEBUG_END
                 return img, False, skew_score
                 
         except:
@@ -285,8 +301,7 @@ class InBodyMatcher:
     """인바디 결과지 매칭 클래스"""
     
     # 해상도 설정 (성능 최적화)
-    TARGET_HEIGHT = 1200  # 2400 → 1200 (50% 감소, 60-70% 속도 향상)
-    SCALE_FACTOR = TARGET_HEIGHT / 2400  # 좌표 스케일링 팩터 (0.5)
+    TARGET_HEIGHT = 1200 # 1200 → 960 (사용자 요청, 처리 속도 향상)
     
     def __init__(self, config_path: Optional[str] = None, 
                  auto_perspective: bool = True,
@@ -304,28 +319,38 @@ class InBodyMatcher:
             self.ocr = PaddleOCR(
                 lang='korean',
                 ocr_version='PP-OCRv5',
-                text_det_limit_side_len=960,      # 2560 → 960 (더 공격적)
-                text_det_unclip_ratio=1.6,        # 2.0 → 1.6 (속도 향상)
+                text_det_limit_side_len=960,      # 960 
+                text_det_unclip_ratio=1.5,        # 2.0 → 1.6 (속도 향상)
                 use_textline_orientation=False,   # 인바디는 수평 문서
-                # det_db_thresh=0.3,                # 검출 임계값 낮춤 (더 많은 텍스트)
-                # det_db_box_thresh=0.5             # 박스 임계값 낮춤
+                det_db_thresh=0.3,                # 검출 임계값 낮춤 (더 많은 텍스트)
+                det_db_box_thresh=0.5             # 박스 임계값 낮춤
             )
         except Exception as e:
             raise Exception(f"PaddleOCR 초기화 실패: {e}")
         
         self.correction_map = ConfigManager.get_correction_map()
         
+        # 스케일러 초기화
+        self.scaler = Scaler(self.TARGET_HEIGHT)
+        
         # 타겟 좌표 스케일링 (2400px 기준 → TARGET_HEIGHT 기준)
         base_targets = ConfigManager.get_default_targets()
-        self.targets = ConfigManager.scale_targets(base_targets, self.SCALE_FACTOR)
+        self.targets = {
+            k: self.scaler.scale_config(v) for k, v in base_targets.items()
+        }
         
         self.auto_perspective = auto_perspective
         self.skew_threshold = skew_threshold
         
-        print(f"✅ OCR 설정: 해상도={self.TARGET_HEIGHT}px, 스케일={self.SCALE_FACTOR:.3f}")
+        print(f"✅ OCR 설정: 해상도={self.TARGET_HEIGHT}px, 스케일={self.scaler.scale_factor:.3f}")
         
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)
+
+        # DEBUG_START
+        self.debug_info = {}
+        # DEBUG_END
+
     
     def _load_config(self, config_path: str):
         """외부 설정 파일 로드"""
@@ -340,7 +365,15 @@ class InBodyMatcher:
         try:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-            lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=100, maxLineGap=10)
+            
+            # 해상도에 맞춰 파라미터 스케일링
+            min_line_len = self.scaler.scale(100)
+            max_line_gap = self.scaler.scale(10)
+            
+            # accumulator threshold도 스케일링 (2400px 기준 100 -> 960px 기준 약 40)
+            hough_thresh = self.scaler.scale(100)
+            
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, hough_thresh, minLineLength=min_line_len, maxLineGap=max_line_gap)
             
             if lines is not None:
                 angles = []
@@ -396,7 +429,8 @@ class InBodyMatcher:
                             'bbox': [int(x_min), int(y_min), int(x_max), int(y_max)],
                             'h': int(y_max - y_min),
                             'center': [(x_min + x_max) / 2, (y_min + y_max) / 2],
-                            'conf': float(conf)
+                            'conf': float(conf),
+                            'poly': pts.astype(int).tolist() # 다각형 좌표 저장
                         }
                         all_nodes.append(node)
             
@@ -414,7 +448,9 @@ class InBodyMatcher:
         
         candidates = []
         for node in nodes:
-            if not (yr_min - 50 <= node['center'][1] <= yr_max + 50):
+            # 상하 여백 스케일링 (50px -> 25px at 0.5 scale)
+            y_buffer = self.scaler.scale(50)
+            if not (yr_min - y_buffer <= node['center'][1] <= yr_max + y_buffer):
                 continue
             
             text_without_parens = re.sub(r'\([^)]*\)', '', node['text'])
@@ -431,165 +467,317 @@ class InBodyMatcher:
                 if max_ratio > 0.5:
                     candidates.append(node)
         
-        if candidates:
-            best = max(candidates, key=lambda x: x['conf'])
-            return best
+        if not candidates:
+            return None
+            
+        # 우선순위 정렬: 
+        # 1. 완전 일치 (체중 == 체중)
+        # 2. 시작 일치 (체중... == 체중) -> 접두어
+        # 3. 포함 (저체중 contains 체중) -> 이건 최하위여야 함
+        # 4. Fuzzy 점수
         
-        return None
+        def sort_key(node):
+            text = self._correct_text(re.sub(r'\([^)]*\)', '', node['text']))
+            
+            # 1순위: 완전 일치
+            if text == key:
+                return (0, -node['conf']) # 점수 낮을수록 우선 (0 < 1 < 2)
+            
+            # 2순위: 원래 텍스트 완전 일치
+            if node['text'] == key:
+                return (1, -node['conf'])
+                
+            # 3순위: 접두어로 시작 (예: "체중 :" vs "저체중")
+            if text.startswith(key):
+                return (2, -node['conf'])
+                
+            # 4순위: 포함 (Fuzzy 포함)
+            return (3, -node['conf'])
+
+        candidates.sort(key=sort_key)
+        
+        # 디버그: 키워드 후보가 여러 개일 때 선택된 것 출력
+        # if len(candidates) > 1:
+        #    print(f"[Key Select] '{key}' -> '{candidates[0]['text']}' (from {len(candidates)})")
+            
+        return candidates[0]
     
     def _match_value(self, key: str, key_node: Dict, config: MatchConfig, 
-                     nodes: List[Dict]) -> Optional[str]:
-        """값 노드 매칭"""
+                     nodes: List[Dict], used_node_ids: Optional[set] = None) -> Optional[str]:
+        """값 노드 매칭 (동적 허용오차 적용)"""
         yr_min, yr_max = config.y_range
         candidates = []
         
         # 디버그 모드
-        debug = key in ["체중조절", "지방조절", "근육조절"]
+        debug = key in ["체중조절", "지방조절", "근육조절", "체중", "적정체중", "비만도", 
+                       "BMI", "체지방률", "골격근량", "체지방량"]
         
+        # 기준 높이
+        ref_h = key_node.get('h', self.scaler.scale(30))
+        if ref_h < 1: ref_h = self.scaler.scale(30)
+
+        # 동적 허용오차 (텍스트 높이 기반)
+        base_dy = self.scaler.scale(40)
+        dynamic_dy = int(ref_h * 1.7)
+        dy_max_limit = max(base_dy, dynamic_dy) 
+        
+        roi_buffer = max(self.scaler.scale(100), int(ref_h * 3.0))
+
         if debug:
+            y_buffer_debug = self.scaler.scale(50)
             print(f"\n{'='*60}")
-            print(f"[{key}] 매칭 시작")
-            print(f"  키워드 위치: y={key_node['center'][1]:.0f}, bbox={key_node['bbox']}")
-            print(f"  Y 범위: {yr_min-50} ~ {yr_max+50}")
-            print(f"  정규식: {config.regex}")
-            print(f"  allow_zero: {config.allow_zero}")
+            print(f"[{key}] 매칭 시작 (Dynamic Tolerance)")
+            print(f"  키워드: '{key_node['text']}' (h={ref_h})")
+            print(f"  위치: y={key_node['center'][1]:.0f}, bbox={key_node['bbox']}")
+            print(f"  허용오차 dy_max: {dy_max_limit} (Base: {base_dy}, Dynamic: {dynamic_dy})")
+            print(f"  ROI Y범위: {yr_min} ~ {yr_max} (Buffer: {roi_buffer})")
             print(f"{'='*60}")
         
         for node in nodes:
             if node == key_node:
                 continue
             
+            # 이미 사용된 노드는 제외 (중복 매칭 방지)
+            if used_node_ids is not None and id(node) in used_node_ids:
+                if debug:
+                    pass
+                    # print(f"      [SKIP] 이미 사용된 노드: '{node['text']}'")
+                continue
+            
             # 텍스트 정규화
             clean_text = re.sub(r'\(.*?\)', '', node['text'])
-            clean_text = clean_text.replace('I', '1').replace('l', '1').replace(',', '.')
+            clean_text = clean_text.replace('I', '1').replace('l', '1').replace(',', '.').strip()
             
             # 디버그: Y 범위 내의 모든 노드 출력
-            if debug and (yr_min - 100 <= node['center'][1] <= yr_max + 100):
-                print(f"  노드: '{node['text']}' (정규화: '{clean_text}') at y={node['center'][1]:.0f}")
-            
+            y_buffer_debug_wide = self.scaler.scale(100)
+            if debug and (yr_min - y_buffer_debug_wide <= node['center'][1] <= yr_max + y_buffer_debug_wide):
+                 # print(f"  노드: '{node['text']}' (정규화: '{clean_text}') at y={node['center'][1]:.0f}")
+                 pass
+
             # 정규식 매칭
             match = re.search(config.regex, clean_text)
             if not match:
                 continue
             
-            # 값 추출
             val = match.group(1)
             
-            if debug:
-                print(f"    ✓ 정규식 매칭: '{val}'")
-            
-            # 위치 계산
-            dx = node['center'][0] - key_node['bbox'][2] if config.direction == "right" else abs(node['center'][0] - key_node['center'][0])
-            dy = abs(node['center'][1] - key_node['center'][1])
-            
-            # ROI 체크 (스케일링 적용)
-            if key == "체지방률" and node['center'][1] < int(1210 * self.SCALE_FACTOR):
-                continue
-            
-            in_roi = (yr_min - 50 <= node['center'][1] <= yr_max + 50)
-            is_right_dir = (config.direction == "right" and -50 < dx < config.x_tolerance and dy < 80)
-            is_down_dir = (config.direction == "down" and 0 < (node['center'][1] - key_node['bbox'][3]) < 300 and abs(node['center'][0] - key_node['center'][0]) < 150)
-            
-            if debug:
-                print(f"      dx={dx:.0f}, dy={dy:.0f}")
-                print(f"      in_roi={in_roi}, is_right={is_right_dir}, is_down={is_down_dir}")
+            # 1. ROI 체크
+            in_roi = (yr_min - roi_buffer <= node['center'][1] <= yr_max + roi_buffer)
             
             if not in_roi:
-                if debug:
-                    print(f"      ✗ ROI 밖")
+                # ROI 밖이면 과감히 제외 (사용자 요청: Relaxed ROI 제거)
+                # if debug: print(f"      [SKIP] ROI 밖: '{val}' at y={node['center'][1]:.0f}")
                 continue
             
-            if not (is_right_dir or is_down_dir):
-                if debug:
-                    print(f"      ✗ 방향 조건 불만족")
-                continue
-            
-            # 0값 필터링
-            if not config.allow_zero:
-                if val in ["0.0", "0", "+0.0"]:
-                    if debug:
-                        print(f"      ✗ 0값 필터링")
-                    continue
-            
-            # 눈금선 값 필터링
-            is_scale_mark = node.get('h', 0) < 30
-            
-            # 거리 점수 계산
-            dist_score = (dy * 300) + abs(dx)
-            
-            if node.get('h', 0) > 35:
-                dist_score -= 20000
-            
-            if is_scale_mark:
-                dist_score += 50000
+            # 2. 위치 관계 및 방향 체크
+            is_dir_match = False
+            fail_reason = ""
+
+            if config.direction == "right":
+                key_right = key_node['bbox'][2]
+                node_center_x = node['center'][0]
+                
+                # dx: 키워드 우측 끝 ~ 값 중심 (양수여야 오른쪽)
+                dx = node_center_x - key_right
+                
+                # dy 계산: Center-to-Center와 Top-to-Top 중 더 작은 값 사용
+                # 이유: 폰트 크기 차이가 클 때 Center는 안 맞아도 Top은 맞는 경우가 있음 (또는 그 반대)
+                dy_center = abs(node['center'][1] - key_node['center'][1])
+                dy_top = abs(node['bbox'][1] - key_node['bbox'][1])
+                dy = min(dy_center, dy_top)
+                
+                max_dist_x = config.x_tolerance
+                # 겹침 허용: 키워드 안쪽으로 조금 들어온 것도 허용 (기존 -0.5 -> 0으로 수정)
+                # 사용자 피드백: "적정체중" 등이 왼쪽 노드를 잡는 문제 발생 -> 엄격하게 Right만 허용
+                min_dx = 0 # -int(ref_h * 0.5) 
+                
+                # 상세 조건 체크
+                cond_dx = (min_dx < dx < max_dist_x)
+                cond_vertical = (dy < dy_max_limit)
+                
+                is_dir_match = cond_dx and cond_vertical
+                
+                if not is_dir_match:
+                    if not cond_dx: fail_reason += f"DX_FAIL({dx:.1f} not in {min_dx}~{max_dist_x}) "
+                    if not cond_vertical: fail_reason += f"DY_FAIL({dy:.1f} >= {dy_max_limit}) "
+                
+            elif config.direction == "down":
+                dx = abs(node['center'][0] - key_node['center'][0])
+                dy = node['center'][1] - key_node['bbox'][3]
+                
+                max_dist_x = int(ref_h * 5.0)
+                max_dist_y = self.scaler.scale(300)
+                
+                cond_dx = (dx < max_dist_x)
+                cond_dy = (0 < dy < max_dist_y)
+                
+                is_dir_match = cond_dx and cond_dy
+                
+                if not is_dir_match:
+                     if not cond_dx: fail_reason += f"DX_FAIL({dx:.1f}) "
+                     if not cond_dy: fail_reason += f"DY_FAIL({dy:.1f}) "
             
             if debug:
-                print(f"      ✓ 후보 추가: dist_score={dist_score:.0f}, h={node.get('h', 0)}")
+                status = "PASS" if is_dir_match else "FAIL"
+                print(f"      [{status}] 값: '{val}', dx={dx:.1f}, dy={dy:.1f} (Limit: {dy_max_limit}) {fail_reason}")
+
+            if not is_dir_match:
+                continue
             
-            candidates.append((dist_score, val, node, dx, dy))
-        
+            # 3. 0값 필터링
+            if not config.allow_zero:
+                try:
+                    if abs(float(val)) < 0.01:
+                        continue
+                except:
+                    pass
+            
+            # 4. 눈금선(매우 작은 텍스트) 필터링
+            # 해상도가 낮아지면 OCR 박스 크기가 비선형적으로 변할 수 있으므로, 
+            # 기준 높이의 85% 미만은 과감하게 필터링 (기존 0.7 -> 0.8 상향)
+            if node.get('h', 999) < (ref_h * 0.8):
+                if debug: print(f"      [SKIP] 작은 텍스트: '{val}' h={node['h']} (ref_h={ref_h})")
+                continue
+
+            # 5. 점수 계산
+            # dy 점수 스케일링 (2400px 기준 500점 -> 현재 해상도 기준 조정)
+            # 기존: norm_dy = dy / self.SCALE_FACTOR
+            # Scaler 사용시: dy는 이미 스케일링된 좌표계임. 
+            # 점수 가중치는 해상도에 무관하게 '픽셀 차이'에 비례해야 함.
+            # 하지만 원본 로직이 '2400px 기준 거리'로 환산해서 점수를 매겼었음.
+            # self.scaler.scale_factor로 나누면 원본 2400px 기준 거리가 됨.
+            
+            # dy 점수 스케일링 (2400px 기준 500점 -> 현재 해상도 기준 조정)
+            # 기존: norm_dy = dy / self.SCALE_FACTOR
+            # Scaler 사용시: dy는 이미 스케일링된 좌표계임. 
+            # 점수 가중치는 해상도에 무관하게 '픽셀 차이'에 비례해야 함.
+            # 하지만 원본 로직이 '2400px 기준 거리'로 환산해서 점수를 매겼었음.
+            # self.scaler.scale_factor로 나누면 원본 2400px 기준 거리가 됨.
+            
+            norm_dy = dy / self.scaler.scale_factor
+            norm_dx = abs(dx) / self.scaler.scale_factor
+            
+            # dy 가중치를 10.0으로 복구 (행 바뀜 방지)
+            # 이유: x_tolerance를 2000 등으로 넓혔으므로, 
+            # 다른 행에 있지만 x좌표가 더 가까운 엉뚱한 값을 잡지 않도록 수직(dy) 패널티를 강화해야 함.
+            score = (norm_dy * 10.0) + norm_dx
+            candidates.append((score, val, node))
+
+        # DEBUG_START
+        self.debug_info["matches"].append({
+            "key": key,
+            "key_node": key_node,
+            "config": config,
+            "candidates": [c[2] for c in candidates],
+            "selected": candidates[0][2] if candidates else None,
+            "roi": (yr_min, yr_max)
+        })
+        # DEBUG_END
+
         if candidates:
             candidates.sort(key=lambda x: x[0])
-            best_match = candidates[0]
+            best_node = candidates[0][2]
+            best_val = candidates[0][1]
+            
+            # 선택된 노드 ID 등록
+            if used_node_ids is not None:
+                used_node_ids.add(id(best_node))
             
             if debug:
-                print(f"\n[{key}] 최종 결과: {best_match[1]}")
-                print(f"  전체 후보 ({len(candidates)}개): {[(c[1], f'{c[0]:.0f}') for c in candidates[:5]]}")
+                print(f"    => 최종 선택: '{best_val}' (Score={candidates[0][0]:.1f})")
+            return best_val
             
-            return best_match[1]
-        
-        if debug:
-            print(f"\n[{key}] ✗ 후보 없음!")
-        
         return None
     
+
     def _extract_segment_evaluations(self, nodes: List[Dict]) -> Dict[str, str]:
-        """부위별 평가 추출 (좌표 스케일링 적용)"""
-        # 2400px 기준 좌표를 현재 해상도로 스케일링
-        SCALE = self.SCALE_FACTOR
+        """부위별 평가 추출 (Clustering 방식)"""
+        # 해상도 스케일링된 ROI
+        seg_y_min = self.scaler.scale(1400)
+        seg_y_max = self.scaler.scale(1900)
         
-        seg_y_min = int(1400 * SCALE)  # 933
-        seg_y_max = int(1900 * SCALE)  # 1267
-        row_top_max = int(1580 * SCALE)  # 1053
-        row_mid_min = int(1580 * SCALE)  # 1053
-        row_mid_max = int(1700 * SCALE)  # 1133
-        row_bot_min = int(1700 * SCALE)  # 1133
+        eval_keywords = ["표준이하", "표준이상", "표준"]
         
-        evals = ["표준이하", "표준이상", "표준"]
-        seg_nodes = sorted(
-            [n for n in nodes if any(ev in n['text'] for ev in evals) 
-             and (seg_y_min <= n['center'][1] <= seg_y_max)],
-            key=lambda x: x['center'][1]
-        )
+        # 1. 평가 키워드 노드만 수집 (ROI 내부만)
+        eval_nodes = []
+        for node in nodes:
+            # ROI 필터링
+            if not (seg_y_min <= node['center'][1] <= seg_y_max):
+                continue
+                
+            for k in eval_keywords:
+                if k in node['text']:
+                    eval_nodes.append(node)
+                    break
         
-        row_top = sorted([n for n in seg_nodes if n['center'][1] < row_top_max], 
-                         key=lambda x: x['center'][0])
-        row_mid = sorted([n for n in seg_nodes if row_mid_min <= n['center'][1] <= row_mid_max], 
-                         key=lambda x: x['center'][0])
-        row_bot = sorted([n for n in seg_nodes if n['center'][1] > row_bot_min], 
-                         key=lambda x: x['center'][0])
+        if not eval_nodes:
+            return {}
+
+        # 2. Y좌표 기준으로 정렬
+        eval_nodes.sort(key=lambda x: x['center'][1])
         
+        # 3. 행 구분 (Clustering)
+        rows = []
+        if eval_nodes:
+            current_row = [eval_nodes[0]]
+            avg_h = eval_nodes[0]['h']
+            
+            for i in range(1, len(eval_nodes)):
+                node = eval_nodes[i]
+                prev_node = current_row[-1]
+                
+                # Y 차이가 높이의 0.6배 이상이면 새로운 행
+                if abs(node['center'][1] - prev_node['center'][1]) > (avg_h * 0.6):
+                    current_row.sort(key=lambda x: x['center'][0])
+                    rows.append(current_row)
+                    current_row = []
+                
+                current_row.append(node)
+                avg_h = (avg_h + node['h']) / 2
+                
+            if current_row:
+                current_row.sort(key=lambda x: x['center'][0])
+                rows.append(current_row)
+            
         results = {}
         
-        try:
-            if len(row_top) >= 4:
-                results["왼쪽팔 근육"] = next((ev for ev in evals if ev in row_top[0]['text']), "미검출")
-                results["오른쪽팔 근육"] = next((ev for ev in evals if ev in row_top[1]['text']), "미검출")
-                results["왼쪽팔 체지방"] = next((ev for ev in evals if ev in row_top[2]['text']), "미검출")
-                results["오른쪽팔 체지방"] = next((ev for ev in evals if ev in row_top[3]['text']), "미검출")
-            
-            if len(row_mid) >= 2:
-                results["복부 근육"] = next((ev for ev in evals if ev in row_mid[0]['text']), "미검출")
-                results["복부 체지방"] = next((ev for ev in evals if ev in row_mid[1]['text']), "미검출")
-            
-            if len(row_bot) >= 4:
-                results["왼쪽하체 근육"] = next((ev for ev in evals if ev in row_bot[0]['text']), "미검출")
-                results["오른쪽하체 근육"] = next((ev for ev in evals if ev in row_bot[1]['text']), "미검출")
-                results["왼쪽하체 체지방"] = next((ev for ev in evals if ev in row_bot[2]['text']), "미검출")
-                results["오른쪽하체 체지방"] = next((ev for ev in evals if ev in row_bot[3]['text']), "미검출")
-        except:
-            pass
+        # 행 위치 기반 매핑 (상단, 중단, 하단)
+        row_top = []
+        row_mid = []
+        row_bot = []
         
+        for row in rows:
+            avg_y = sum(n['center'][1] for n in row) / len(row)
+            rel_y = avg_y / self.TARGET_HEIGHT
+            
+            if 0.55 <= rel_y < 0.68:
+                row_top = row
+            elif 0.68 <= rel_y < 0.75:
+                row_mid = row
+            elif 0.75 <= rel_y < 0.90:
+                row_bot = row
+
+        def _get_val(n):
+            for k in eval_keywords:
+                if k in n['text']: return k
+            return "미검출"
+
+        if len(row_top) >= 4:
+            results["왼쪽팔 근육"] = _get_val(row_top[0])
+            results["오른쪽팔 근육"] = _get_val(row_top[1])
+            if len(row_top) > 2: results["왼쪽팔 체지방"] = _get_val(row_top[2])
+            if len(row_top) > 3: results["오른쪽팔 체지방"] = _get_val(row_top[3])
+                
+        if len(row_mid) >= 2:
+             results["복부 근육"] = _get_val(row_mid[0])
+             results["복부 체지방"] = _get_val(row_mid[1])
+             
+        if len(row_bot) >= 4:
+            results["왼쪽하체 근육"] = _get_val(row_bot[0])
+            results["오른쪽하체 근육"] = _get_val(row_bot[1])
+            if len(row_bot) > 2: results["왼쪽하체 체지방"] = _get_val(row_bot[2])
+            if len(row_bot) > 3: results["오른쪽하체 체지방"] = _get_val(row_bot[3])
+            
         return results
     
     def extract_and_match(self, image_path: str) -> Dict[str, Optional[str]]:
@@ -600,6 +788,14 @@ class InBodyMatcher:
         try:
             # ⏱️ 전체 처리 시간 측정
             total_start = time.time()
+            
+            # DEBUG_START
+            self.debug_info = {
+                "nodes": [],
+                "matches": []
+            }
+            # DEBUG_END
+
             
             # ⏱️ 1. 이미지 로드
             load_start = time.time()
@@ -648,6 +844,11 @@ class InBodyMatcher:
                 # ⏱️ 5. OCR 텍스트 추출 (가장 느린 단계)
                 ocr_start = time.time()
                 all_nodes = self._extract_nodes(temp_path)
+                
+                # DEBUG_START
+                self.debug_info["nodes"] = all_nodes
+                # DEBUG_END
+                
                 ocr_time = time.time() - ocr_start
             
             print(f"📝 추출된 텍스트 노드: {len(all_nodes)}개 (⏱️ {ocr_time:.3f}초)")
@@ -659,6 +860,7 @@ class InBodyMatcher:
             # ⏱️ 6. 매칭 수행 (Postprocessing)
             match_start = time.time()
             matched_data = {}
+            used_node_ids = set() # 중복 매칭 방지용
             
             for key, config in self.targets.items():
                 key_node = self._find_key_node(key, all_nodes, config.y_range)
@@ -667,7 +869,7 @@ class InBodyMatcher:
                     matched_data[key] = None
                     continue
                 
-                value = self._match_value(key, key_node, config, all_nodes)
+                value = self._match_value(key, key_node, config, all_nodes, used_node_ids)
                 matched_data[key] = value
             
             # 부위별 평가 추출
@@ -700,6 +902,12 @@ class InBodyMatcher:
             import traceback
             traceback.print_exc()
             raise Exception(f"처리 중 오류 발생: {e}")
+        finally:
+            # DEBUG_START
+            if 'processed_img' in locals():
+                self.save_visualized_result(processed_img, "debug_ocr_result.jpg")
+            # DEBUG_END
+
     
     def save_results(self, results: Dict, output_path: str, format: str = 'json'):
         """결과를 파일로 저장"""
@@ -770,6 +978,70 @@ class InBodyMatcher:
         }
         
         return structured
+
+    # DEBUG_START
+    def save_visualized_result(self, img: np.ndarray, output_path: str):
+        """디버깅용 시각화 이미지 저장"""
+        try:
+            vis_img = img.copy()
+            
+            # 1. 모든 텍스트 노드 그리기 (회색)
+            for node in self.debug_info.get("nodes", []):
+                if 'poly' in node:
+                    pts = np.array(node['poly'], np.int32).reshape((-1, 1, 2))
+                    cv2.polylines(vis_img, [pts], True, (200, 200, 200), 1)
+                else:
+                    bbox = node['bbox']
+                    cv2.rectangle(vis_img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (200, 200, 200), 1)
+            
+            # 2. 매칭 정보 그리기
+            for match in self.debug_info.get("matches", []):
+                key = match['key']
+                key_node = match['key_node']
+                selected = match['selected']
+                candidates = match['candidates']
+                config = match['config']
+                
+                # 색상 생성 (키마다 다르게)
+                color = (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
+                
+                # C. 후보군 (노란색) 및 점수 표시
+                for idx, cand in enumerate(candidates):
+                    # cand 구조: (dist_score, val, node, dx, dy, dy_score, dx_score)
+                    score, val, cand_node, dx, dy, dy_s, dx_s = cand
+                    
+                    c_bbox = cand_node['bbox']
+                    color_cand = (0, 255, 255)
+                    
+                    # 1순위는 조금 더 진하게
+                    if idx == 0:
+                        cv2.rectangle(vis_img, (c_bbox[0], c_bbox[1]), (c_bbox[2], c_bbox[3]), (0, 0, 255), 2)
+                    else:
+                        cv2.rectangle(vis_img, (c_bbox[0], c_bbox[1]), (c_bbox[2], c_bbox[3]), color_cand, 1)
+                    
+                    # 점수 상세 정보 텍스트 표시
+                    info_text = f"S:{int(score)} (Y:{int(dy_s)} X:{int(dx_s)})"
+                    cv2.putText(vis_img, info_text, (c_bbox[2]+5, c_bbox[1]+10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2) # 그림자
+                    cv2.putText(vis_img, info_text, (c_bbox[2]+5, c_bbox[1]+10), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
+                
+                # D. 최종 선택 (빨간색 + 연결선)
+                if selected:
+                    s_bbox = selected['bbox']
+                    # 키 -> 값 연결 선
+                    cv2.line(vis_img, 
+                            (int(key_node['center'][0]), int(key_node['center'][1])),
+                            (int(selected['center'][0]), int(selected['center'][1])),
+                            (0, 0, 255), 2)
+
+            cv2.imwrite(output_path, vis_img)
+            print(f"🐛 디버그 이미지 저장 완료: {output_path}")
+        except Exception as e:
+            print(f"⚠️ 디버그 이미지 저장 실패: {e}")
+    # DEBUG_END
+
 
 
 def main():

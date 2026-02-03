@@ -46,7 +46,7 @@ class OCRService:
         """
         try:
             # 팀원 코드: backend_temp/inbody_matcher.py → backend/services/ocr/inbody_matcher.py
-            from services.ocr.inbody_matcher import InBodyMatcher
+            from inbody_matcher import InBodyMatcher
             
             self.matcher = InBodyMatcher(
                 auto_perspective=True,
