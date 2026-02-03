@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from services.llm.llm_clients import create_llm_client, OpenAIClient
+from services.llm.llm_clients import BaseLLMClient
 from schemas.llm import StatusAnalysisInput
 from .prompt_generator import create_inbody_analysis_prompt
 from schemas.inbody import InBodyData as InBodyMeasurements
@@ -25,7 +25,7 @@ class AnalysisState(TypedDict):
     
     
 # --- 3. 그래프 생성 ---
-def create_analysis_agent(llm_client):
+def create_analysis_agent(llm_client: BaseLLMClient):
     """
     건강 분석 및 휴먼 피드백 Q&A 에이전트 그래프를 생성하고 컴파일합니다.
     
@@ -60,8 +60,8 @@ def create_analysis_agent(llm_client):
 
         # 3-1. OpenAI 임베딩 생성 (1536차원)
         try:
-            openai_client = OpenAIClient()
-            embedding_1536 = openai_client.create_embedding(text=response)
+            # 에이전트 생성 시 주입받은 llm_client를 사용합니다.
+            embedding_1536 = llm_client.create_embedding(text=response)
             print(f"OpenAI 임베딩 생성 완료 (차원: {len(embedding_1536)})")
         except Exception as e:
             print(f"OpenAI 임베딩 생성 실패: {e}")
@@ -98,7 +98,7 @@ def create_analysis_agent(llm_client):
         return {"messages": [("ai", response)]}
 
     def qa_strength_weakness(state: AnalysisState) -> dict:
-        """Node 2-1: 강점/약점 Q&A"""
+        """Node 2-1: 인바디 종합의견 Q&A"""
         system_prompt = """당신은 데이터 기반의 체성분 분석 전문가입니다.
         사용자가 자신의 신체 강점과 약점에 대해 질문했습니다.
         이전 대화에서 제공된 인바디 데이터와 최초 분석 결과를 바탕으로, 다음 항목에 대해 구체적인 수치를 들어 설명해주세요.
@@ -108,7 +108,7 @@ def create_analysis_agent(llm_client):
         return _generate_qa_response(state, "강점/약점", system_prompt)
 
     def qa_health_status(state: AnalysisState) -> dict:
-        """Node 2-2: 건강 상태 Q&A"""
+        """Node 2-2: 이전 인바디와 비교 Q&A"""
         system_prompt = """당신은 예방 의학 관점에서 조언하는 건강 컨설턴트입니다.
         사용자가 현재 자신의 전반적인 건강 상태에 대해 질문했습니다.
         이전 대화 내용을 바탕으로, 건강 관점에서 긍정적인 부분과 잠재적인 위험 요소를 나누어 설명해주세요.
@@ -118,7 +118,7 @@ def create_analysis_agent(llm_client):
         return _generate_qa_response(state, "건강 상태", system_prompt)
 
     def qa_impact(state: AnalysisState) -> dict:
-        """Node 2-3: 일상/운동 영향 Q&A"""
+        """Node 2-3: 질병 및 특이사항"""
         system_prompt = """당신은 운동생리학자이자 라이프스타일 코치입니다.
         사용자가 현재 신체 상태가 일상과 운동 수행능력에 미치는 영향에 대해 질문했습니다.
         이전 대화 내용을 바탕으로, 현재 체성분 상태가 어떤 결과로 이어질 수 있는지 구체적인 예시를 들어 설명해주세요.
@@ -127,7 +127,7 @@ def create_analysis_agent(llm_client):
         return _generate_qa_response(state, "일상/운동 영향", system_prompt)
 
     def qa_priority(state: AnalysisState) -> dict:
-        """Node 2-4: 개선 우선순위 Q&A"""
+        """Node 2-4: 개선 사항 Q&A"""
         system_prompt = """당신은 동기부여가 뛰어난 현실적인 퍼스널 트레이너입니다.
         사용자가 가장 먼저 개선해야 할 우선순위에 대해 질문했습니다.
         이전 대화 내용을 종합하여, 가장 시급하고 효과가 큰 '액션 아이템'을 3가지 우선순위로 제시해주세요.

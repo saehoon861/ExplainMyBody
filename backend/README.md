@@ -23,6 +23,8 @@ backend/
 │   ├── analysis_report.py       # inbody_analysis_reports 테이블 (구 analysis_reports)
 │   ├── user_detail.py           # user_details 테이블 (구 user_goals, 사용자 세부 목표)
 │   ├── weekly_plan.py           # weekly_plans 테이블 (주간 계획)
+│   ├── llm_interaction.py       # llm_interactions 테이블 (LLM 출력 결과)
+│   ├── human_feedback.py        # human_feedbacks 테이블 (사용자 피드백)
 │   └── user_goal.py             # user_goals 테이블 (Legacy, UserDetail로 대체됨)
 │
 ├── schemas/                     # Pydantic 모델 (팀별 분리)
@@ -41,6 +43,8 @@ backend/
 │   └── llm/
 │       ├── analysis_report_repository.py
 │       ├── user_detail_repository.py  # UserDetail 관리
+│       ├── llm_interaction_repository.py
+│       ├── human_feedback_repository.py
 │       ├── weekly_plan_repository.py  # WeeklyPlan 관리
 │       └── user_goal_repository.py    # Legacy
 │
@@ -94,6 +98,10 @@ backend/
     - 사용자는 여러 목표/상세 정보를 가질 수 있습니다 (현재 활성화된 목표는 하나).
 - **User (1) : (N) WeeklyPlan**
     - 한 명의 사용자는 여러 개의 주간 계획표를 생성할 수 있습니다.
+- **User (1) : (N) LLMInteraction**
+    - 한 명의 사용자는 여러 개의 LLM 상호작용 기록을 가집니다.
+- **LLMInteraction (1) : (N) HumanFeedback**
+    - 하나의 LLM 출력 결과에 대해 여러 개의 사용자 피드백이 존재할 수 있습니다.
 
 ---
 
