@@ -28,6 +28,30 @@ class WeeklyPlanService:
         self.llm_service = LLMService()
         self.health_service = HealthService()
 
+    def _should_create_new_plan(
+        self, 
+        db: Session, 
+        user_id: int, 
+        latest_plan: WeeklyPlan | None
+    ) -> bool:
+        """새 주간 계획 생성이 필요한지 판단"""
+        if not latest_plan:
+            return True
+        
+        today = date.today()
+        
+        # 트리거 1: 계획 기간 만료
+        if today > latest_plan.end_date:
+            return True
+        
+        # 트리거 2: 새로운 인바디 측정
+        latest_inbody = HealthService.get_latest_inbody(db, user_id)
+        if latest_inbody and latest_inbody.measured_at >= latest_plan.start_date:
+            return True
+    
+        return False
+
+
     async def generate_plan(
         self,
         db: Session,
@@ -37,6 +61,14 @@ class WeeklyPlanService:
         """
         주간 계획 생성 (LLM 호출)
         """
+        
+        # Early return: 기존 계획 재사용
+        latest_plan = WeeklyPlanRepository.get_latest_plan(db, user_id)
+        if not self._should_create_new_plan(db, user_id, latest_plan):
+            return latest_plan
+
+
+
         # 1. LLM 입력 데이터 준비 (HealthService 활용)
         # prepare_goal_plan은 Response 객체를 반환하므로 input_data만 추출
         prepared_response = self.health_service.prepare_goal_plan(
