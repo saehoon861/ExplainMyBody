@@ -10,7 +10,7 @@ import { getUserHealthRecords } from '../../services/inbodyService';
 
 // ============================================
 // 목업 설정
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 // 목업 데이터: 사용자 정보 및 목표
 const MOCK_USER = {
@@ -627,21 +627,23 @@ const Dashboard = () => {
 
     // 2. 근육/체지방 분석 데이터 (현재 vs 이전)
     const getBodyCompChartData = () => {
-        if (!userData || !userData.inbody_data) return [];
-        const { skeletal_muscle, body_fat_mass } = userData.inbody_data;
+        // 최소 2개의 기록이 필요 (이전 vs 현재 비교)
+        if (healthRecords.length < 2) return [];
 
-        // 이전 기록이 없으면 그래프를 표시하지 않음
-        if (healthRecords.length === 0) return [];
-
-        // 첫 번째 기록에서 이전 데이터 가져오기
+        // 첫 번째 기록 = 이전, 마지막 기록 = 현재
         const previousRecord = healthRecords[0];
+        const currentRecord = healthRecords[healthRecords.length - 1];
+
         const prevMuscle = previousRecord.measurements?.["체중관리"]?.['골격근량'] || 0;
         const prevFat = previousRecord.measurements?.["체중관리"]?.['체지방량'] || 0;
+
+        const currentMuscle = currentRecord.measurements?.["체중관리"]?.['골격근량'] || 0;
+        const currentFat = currentRecord.measurements?.["체중관리"]?.['체지방량'] || 0;
 
         return [
             {
                 name: '골격근량',
-                current: skeletal_muscle || 0,
+                current: currentMuscle,
                 previous: prevMuscle,
                 unit: 'kg',
                 currentColor: '#6366f1', // 파란색 (현재 수치)
@@ -649,7 +651,7 @@ const Dashboard = () => {
             },
             {
                 name: '체지방량',
-                current: body_fat_mass || 0,
+                current: currentFat,
                 previous: prevFat,
                 unit: 'kg',
                 currentColor: '#6366f1', // 파란색 (현재 수치)
@@ -657,6 +659,7 @@ const Dashboard = () => {
             }
         ];
     };
+
 
     const weightChartData = getWeightChartData();
     const bodyCompChartData = getBodyCompChartData();
@@ -777,48 +780,48 @@ const Dashboard = () => {
                             <Scale size={18} /> 체중 변화 추이
                         </h4>
                         <div style={{ width: '100%', height: 220 }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={weightChartData}
-                                        margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
-                                        barSize={50}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                        <XAxis
-                                            dataKey="name"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#64748b', fontSize: 13, fontWeight: 600 }}
-                                        />
-                                        <YAxis
-                                            domain={['dataMin - 5', 'dataMax + 5']}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        />
-                                        <Tooltip
-                                            cursor={{ fill: 'transparent' }}
-                                            content={({ active, payload }) => {
-                                                if (active && payload && payload.length) {
-                                                    const data = payload[0].payload;
-                                                    return (
-                                                        <div style={{ background: 'white', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                                                            <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b', fontSize: '0.95rem' }}>{data.name}</p>
-                                                            <p style={{ margin: '4px 0 0', color: data.color, fontSize: '1.15rem', fontWeight: 'bold' }}>{data.weight} kg</p>
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            }}
-                                        />
-                                        <Bar dataKey="weight" radius={[8, 8, 0, 0]} animationDuration={1500}>
-                                            {weightChartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={weightChartData}
+                                    margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
+                                    barSize={50}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#64748b', fontSize: 13, fontWeight: 600 }}
+                                    />
+                                    <YAxis
+                                        domain={['dataMin - 5', 'dataMax + 5']}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: 'transparent' }}
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                const data = payload[0].payload;
+                                                return (
+                                                    <div style={{ background: 'white', padding: '12px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                                        <p style={{ margin: 0, fontWeight: 'bold', color: '#1e293b', fontSize: '0.95rem' }}>{data.name}</p>
+                                                        <p style={{ margin: '4px 0 0', color: data.color, fontSize: '1.15rem', fontWeight: 'bold' }}>{data.weight} kg</p>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
+                                    <Bar dataKey="weight" radius={[8, 8, 0, 0]} animationDuration={1500}>
+                                        {weightChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
 
                         {/* 2. 근육/체지방 분석 (Bar Chart) */}
                         <div style={{ marginTop: '24px' }}>

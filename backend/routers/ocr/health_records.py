@@ -131,7 +131,7 @@ async def validate_and_save_inbody(
     Raises:
         HTTPException 422: Pydantic 검증 실패 (필드 누락, 타입 오류, 이상치 등)
     """
-    # Step 1: Pydantic 검증
+    # Step 1: Pydantic 검증 (타입, 범위 체크)
     try:
         validated_inbody_data = InBodyData(**inbody_data)
     except ValidationError as e:
@@ -143,6 +143,19 @@ async def validate_and_save_inbody(
                 "errors": e.errors()  # 어떤 필드가 문제인지 상세 정보
             }
         )
+    
+    # Step 1.5: null 값 체크 (OCR 사용 시 모든 필드 필수)
+    null_fields = validated_inbody_data.get_null_fields()
+    if null_fields:
+        # 빈 필드가 있으면 저장 불가
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "OCR로 추출한 데이터는 모든 필드를 입력해야 합니다.",
+                "null_fields": null_fields
+            }
+        )
+
     
     # Step 2: 체형 분석 수행 (저장 전에 먼저 분석)
     body_type1 = None

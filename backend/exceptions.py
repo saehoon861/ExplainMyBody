@@ -29,6 +29,14 @@ class OCRProcessingError(OCRServiceError):
     pass
 
 
+class OCRValidationError(OCRServiceError):
+    """OCR 데이터 검증 실패 (빈 필드 존재)"""
+    def __init__(self, null_fields: dict):
+        self.null_fields = null_fields
+        super().__init__(f"OCR 데이터에 빈 필드가 존재합니다: {null_fields}")
+
+
+
 # ============================================
 # Auth Service 예외
 # ============================================

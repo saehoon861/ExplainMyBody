@@ -6,7 +6,7 @@ import { getUserHealthRecords } from '../../services/inbodyService';
 
 // ============================================
 // 목업 설정
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;  // ✅ 실제 API 사용으로 변경
 
 // 목업 인바디 데이터
 const MOCK_INBODY_DATA = {
@@ -87,9 +87,14 @@ const ChatbotSelector = () => {
             setShowInbodyPopup(true);
         } else {
             // 그 외 (운동 플래너 등) -> 데이터가 있으면 바로 이동
+            // localStorage에서 사용자 정보 가져오기
+            const userData = JSON.parse(localStorage.getItem('user'));
+            const userId = userData?.id || 1; // 로그인된 사용자 ID
+
             navigate(`/chatbot/${botId}`, {
                 state: {
-                    inbodyData: latestInbodyData
+                    inbodyData: latestInbodyData,
+                    userId: userId  // ✅ userId 전달 추가
                 }
             });
         }
@@ -119,8 +124,15 @@ const ChatbotSelector = () => {
         setShowInbodyPopup(false);
         setIsAnalyzing(false);
 
+        // localStorage에서 사용자 정보 가져오기
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const userId = userData?.id || 1; // 로그인된 사용자 ID
+
         navigate('/chatbot/inbody-analyst', {
-            state: { inbodyData: latestInbodyData }
+            state: {
+                inbodyData: latestInbodyData,
+                userId: userId  // ✅ userId 전달 추가
+            }
         });
     };
 
