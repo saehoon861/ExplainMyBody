@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 // 목업 설정
 // USE_MOCK_DATA: true면 기존 로직(목업) 유지, false면 실제 API 연동
 // ============================================
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 const BOT_CONFIG = {
     'inbody-analyst': {
@@ -87,8 +87,18 @@ const Chatbot = () => {
     // 이전 페이지에서 전달받은 데이터
     const { inbodyData, userId } = location.state || {};
 
-    // 개발용 사용자 ID (로그인 안 되어 있을 때 대비)
-    const currentUserId = userId || 1;
+    // 사용자 ID 결정: location.state > localStorage > 기본값 1
+    const getUserId = () => {
+        if (userId) return userId;
+
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userData.id) return userData.id;
+
+        console.warn('⚠️ 사용자 ID를 찾을 수 없어 기본값(1)을 사용합니다.');
+        return 1;
+    };
+
+    const currentUserId = getUserId();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,6 +190,7 @@ const Chatbot = () => {
             setIsTyping(true);
             try {
                 let response;
+                let responseData = null;  // API 응답 데이터 저장용
 
                 if (botType === 'inbody-analyst') {
                     // 1. 인바디 분석 전문가: 분석 결과 조회
@@ -195,11 +206,14 @@ const Chatbot = () => {
                     });
                     if (!res.ok) throw new Error("분석 리포트 생성 실패");
 
-                    const data = await res.json();
-                    // data = { analysis_result: "...", report_id: "...", thread_id: "..." }
-                    response = data.analysis_result;
-                    setReportId(data.report_id);
-                    setThreadId(data.thread_id);
+                    responseData = await res.json();
+                    // responseData = AnalysisReportResponse: { id, summary, content, thread_id, ... }
+
+                    setReportId(responseData.id);  // ✅ 'id' 필드 사용
+                    setThreadId(responseData.thread_id);
+
+                    // response는 메시지 표시용 (summary 우선)
+                    response = responseData.summary || responseData.llm_output;
 
                 } else if (botType === 'workout-planner') {
                     // 2. 운동 플래너 전문가: 주간 계획 생성
@@ -216,18 +230,24 @@ const Chatbot = () => {
                     });
                     if (!res.ok) throw new Error("운동 계획 생성 실패");
 
-                    const data = await res.json();
-                    // data = { weekly_plan: "...", plan_id: "...", thread_id: "..." }
-                    response = data.weekly_plan;
-                    setPlanId(data.plan_id);
-                    setThreadId(data.thread_id);
+                    responseData = await res.json();
+                    // responseData = WeeklyPlanResponse: { id, plan_data: { content, thread_id }, ... }
+
+                    response = responseData.plan_data?.content;
+                    setPlanId(responseData.id);  // ✅ 'id' 필드 사용
+                    setThreadId(responseData.plan_data?.thread_id);
                 }
 
                 // 성공 메시지 추가
                 if (response) {
                     setMessages(prev => [
                         ...prev,
-                        { id: Date.now(), text: response, sender: 'bot' }
+                        {
+                            id: Date.now(),
+                            text: responseData?.summary || response,  // 요약만 표시
+                            details: responseData?.content,           // 전체 내용은 펼치기로
+                            sender: 'bot'
+                        }
                     ]);
 
                     // 인바디 분석 전문가: 카테고리별 빠른 질문 버튼 추가
