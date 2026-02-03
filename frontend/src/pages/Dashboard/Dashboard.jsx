@@ -10,7 +10,8 @@ import { getUserHealthRecords } from '../../services/inbodyService';
 
 // ============================================
 // 목업 설정
-const USE_MOCK_DATA = false;
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 // 목업 데이터: 사용자 정보 및 목표
 const MOCK_USER = {
@@ -51,8 +52,10 @@ const MOCK_RECORDS = [
 
 // 원형 프로그레스 + 마일스톤 컴포넌트
 const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, goalType }) => {
-    const size = 180;
-    const strokeWidth = 14;
+    // 모바일에서는 더 작은 사이즈 사용
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 480;
+    const size = isMobile ? 140 : 160;
+    const strokeWidth = isMobile ? 10 : 12;
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
     const offset = circumference - (progress / 100) * circumference;
@@ -92,7 +95,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '20px 0'
+            padding: isMobile ? '10px 0' : '16px 0'
         }}>
             {/* 원형 프로그레스 */}
             <div style={{ position: 'relative', width: size, height: size }}>
@@ -132,7 +135,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                     textAlign: 'center'
                 }}>
                     <div style={{
-                        fontSize: '2.5rem',
+                        fontSize: isMobile ? '1.8rem' : '2.2rem',
                         fontWeight: 800,
                         color: progressColor,
                         lineHeight: 1
@@ -140,10 +143,10 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                         {progress}%
                     </div>
                     <div style={{
-                        fontSize: '0.85rem',
+                        fontSize: isMobile ? '0.7rem' : '0.8rem',
                         color: '#64748b',
                         fontWeight: 600,
-                        marginTop: '4px'
+                        marginTop: '2px'
                     }}>
                         목표 달성
                     </div>
@@ -155,9 +158,9 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                 display: 'flex',
                 justifyContent: 'space-between',
                 width: '100%',
-                maxWidth: '300px',
-                marginTop: '16px',
-                padding: '0 8px'
+                maxWidth: isMobile ? '220px' : '280px',
+                marginTop: isMobile ? '10px' : '14px',
+                padding: '0 4px'
             }}>
                 {milestones.map((milestone) => {
                     const isAchieved = progress >= milestone.percent;
@@ -174,8 +177,8 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                             }}
                         >
                             <div style={{
-                                width: '40px',
-                                height: '40px',
+                                width: isMobile ? '28px' : '36px',
+                                height: isMobile ? '28px' : '36px',
                                 borderRadius: '50%',
                                 background: isAchieved
                                     ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
@@ -183,18 +186,18 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                fontSize: '18px',
-                                boxShadow: isAchieved ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
-                                border: isCurrent ? '3px solid #fbbf24' : 'none',
+                                fontSize: isMobile ? '12px' : '16px',
+                                boxShadow: isAchieved ? '0 2px 8px rgba(102, 126, 234, 0.3)' : 'none',
+                                border: isCurrent ? '2px solid #fbbf24' : 'none',
                                 animation: isCurrent ? 'pulse 2s infinite' : 'none'
                             }}>
                                 {isAchieved ? milestone.emoji : '○'}
                             </div>
                             <span style={{
-                                fontSize: '0.7rem',
+                                fontSize: isMobile ? '0.6rem' : '0.65rem',
                                 color: isAchieved ? '#475569' : '#94a3b8',
                                 fontWeight: isAchieved ? 600 : 400,
-                                marginTop: '4px'
+                                marginTop: '2px'
                             }}>
                                 {milestone.percent}%
                             </span>
@@ -206,42 +209,42 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
             {/* 다음 마일스톤까지 */}
             {progress < 100 && (
                 <div style={{
-                    marginTop: '16px',
-                    padding: '10px 16px',
+                    marginTop: isMobile ? '10px' : '14px',
+                    padding: isMobile ? '8px 12px' : '10px 16px',
                     background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     textAlign: 'center',
                     border: '1px solid #fbbf24'
                 }}>
-                    <span style={{ fontSize: '0.85rem', color: '#92400e' }}>
-                        다음 마일스톤 <strong>{nextMilestone.emoji} {nextMilestone.percent}%</strong>까지{' '}
-                        <strong style={{ color: '#b45309' }}>{toNextMilestone}kg</strong> 남음!
+                    <span style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', color: '#92400e' }}>
+                        다음 <strong>{nextMilestone.emoji} {nextMilestone.percent}%</strong>까지{' '}
+                        <strong style={{ color: '#b45309' }}>{toNextMilestone}kg</strong>
                     </span>
                 </div>
             )}
 
             {/* 감량/증량 완료 정보 */}
             <div style={{
-                marginTop: '16px',
+                marginTop: isMobile ? '10px' : '14px',
                 textAlign: 'center'
             }}>
                 <div style={{
-                    fontSize: '1.4rem',
+                    fontSize: isMobile ? '1.1rem' : '1.3rem',
                     fontWeight: 700,
                     color: '#1e293b',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px'
+                    gap: '6px'
                 }}>
-                    <span style={{ fontSize: '1.6rem' }}>🔥</span>
+                    <span style={{ fontSize: isMobile ? '1.2rem' : '1.4rem' }}>🔥</span>
                     <span style={{ color: progressColor }}>{weightChanged}kg</span>
                     <span>{actionText} 완료!</span>
                 </div>
                 <div style={{
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.8rem' : '0.85rem',
                     color: '#64748b',
-                    marginTop: '6px'
+                    marginTop: '4px'
                 }}>
                     목표까지 <strong style={{ color: '#475569' }}>{weightRemaining}kg</strong> 남음
                 </div>
@@ -252,23 +255,23 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
                 display: 'flex',
                 justifyContent: 'space-between',
                 width: '100%',
-                maxWidth: '280px',
-                marginTop: '16px',
-                padding: '12px 16px',
+                maxWidth: isMobile ? '220px' : '260px',
+                marginTop: isMobile ? '10px' : '14px',
+                padding: isMobile ? '8px 12px' : '10px 14px',
                 background: '#f8fafc',
-                borderRadius: '12px',
-                fontSize: '0.85rem'
+                borderRadius: '10px',
+                fontSize: isMobile ? '0.75rem' : '0.8rem'
             }}>
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>시작</div>
+                    <div style={{ color: '#94a3b8', marginBottom: '1px', fontSize: isMobile ? '0.65rem' : '0.7rem' }}>시작</div>
                     <div style={{ fontWeight: 700, color: '#64748b' }}>{startWeight}kg</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>현재</div>
+                    <div style={{ color: '#94a3b8', marginBottom: '1px', fontSize: isMobile ? '0.65rem' : '0.7rem' }}>현재</div>
                     <div style={{ fontWeight: 700, color: '#6366f1' }}>{currentWeight}kg</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: '#94a3b8', marginBottom: '2px' }}>목표</div>
+                    <div style={{ color: '#94a3b8', marginBottom: '1px', fontSize: isMobile ? '0.65rem' : '0.7rem' }}>목표</div>
                     <div style={{ fontWeight: 700, color: '#8b5cf6' }}>{targetWeight}kg</div>
                 </div>
             </div>
