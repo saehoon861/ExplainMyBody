@@ -5,10 +5,8 @@ import '../../styles/LoginLight.css';
 
 // ============================================
 // 목업 설정
-// USE_MOCK_DATA: true면 목업 모드 (로그인 불필요)
-// API가 준비되면 false로 변경하세요
-// ============================================
-const USE_MOCK_DATA = true;
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 const InBodyAnalysis = () => {
     const [inbodyImage, setInbodyImage] = useState(null);
@@ -308,10 +306,15 @@ const InBodyAnalysis = () => {
         }
     }, []);
 
+    // 부위별 분석 카테고리 (드롭다운으로 표시할 카테고리)
+    const segmentalCategories = ['부위별근육분석', '부위별체지방분석'];
+    const segmentalOptions = ['표준', '표준이상', '표준이하'];
+
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = inbodyData?.[categoryKey];
         if (!categoryData) return null;
         const isReadOnly = !!selectedRecord; // 이전 기록 조회 시 읽기 전용
+        const isSegmental = segmentalCategories.includes(categoryKey);
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -323,20 +326,35 @@ const InBodyAnalysis = () => {
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
-                        <div className="header-cell">단위</div>
+                        <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
                     {Object.entries(categoryData).map(([field, value]) => (
                         <div className="table-row" key={field}>
                             <div className="row-label">{field}</div>
                             <div className="row-value">
-                                <input
-                                    type="text"
-                                    value={value || ''}
-                                    placeholder="-"
-                                    disabled={isReadOnly}
-                                    style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
-                                    onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                />
+                                {isSegmental ? (
+                                    <select
+                                        value={value || ''}
+                                        disabled={isReadOnly}
+                                        style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className="segmental-select"
+                                    >
+                                        <option value="">선택</option>
+                                        {segmentalOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={value || ''}
+                                        placeholder="-"
+                                        disabled={isReadOnly}
+                                        style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                    />
+                                )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
