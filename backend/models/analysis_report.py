@@ -18,7 +18,7 @@ class InbodyAnalysisReport(Base):
     record_id = Column(Integer, ForeignKey("health_records.id", ondelete="CASCADE"), nullable=False, index=True)
     llm_output = Column(Text, nullable=False)  # LLM 생성 텍스트
     model_version = Column(String(100), nullable=True)  # 사용된 모델 버전
-    analysis_type = Column(String(50), nullable=True)  # "status_analysis" 또는 "goal_plan"
+    analysis_type = Column(String(50), nullable=True)  # "status_analysis" 또는 "goal_plan"  #fixme
     generated_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding_1536 = Column(Vector(1536), nullable=True)  # OpenAI text-embedding-3-small
     embedding_1024 = Column(Vector(1024), nullable=True)  # Ollama bge-m3

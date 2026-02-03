@@ -12,6 +12,17 @@ from services.common.health_service import HealthService
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
 from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput
 
+# 가장 최신 주간 계획이 있는지 없는지 확인
+
+# 있다면 가장 최신 주간 계획 가져오기
+
+# 주간 계획이 현재 진행중인지 확인 (start_date <= today <= end_date)
+# 새로운 inbody 측정값이 있는지 확인 (start_date <= measured_at)
+
+# 하나라도 True면 새로운 주간 계획서 작성
+# 둘 다 False면 새로운 주간 계획서 작성하지 않음 & 기존 주간 계획서 반환
+
+
 class WeeklyPlanService:
     def __init__(self):
         self.llm_service = LLMService()

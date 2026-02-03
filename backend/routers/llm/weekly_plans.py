@@ -18,6 +18,9 @@ from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
 from services.llm.weekly_plan_service import WeeklyPlanService
 from typing import List
 from datetime import date
+# Note: 현재는 Service가 ValueError/Exception을 발생시킴
+# 향후 Service 레이어 개선 시 아래 예외들을 사용할 수 있음
+# from exceptions import WeeklyPlanNotFoundError, WeeklyPlanGenerationError
 
 router = APIRouter()
 weekly_plan_service = WeeklyPlanService()

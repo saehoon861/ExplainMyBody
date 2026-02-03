@@ -630,21 +630,23 @@ const Dashboard = () => {
 
     // 2. 근육/체지방 분석 데이터 (현재 vs 이전)
     const getBodyCompChartData = () => {
-        if (!userData || !userData.inbody_data) return [];
-        const { skeletal_muscle, body_fat_mass } = userData.inbody_data;
+        // 최소 2개의 기록이 필요 (이전 vs 현재 비교)
+        if (healthRecords.length < 2) return [];
 
-        // 이전 기록이 없으면 그래프를 표시하지 않음
-        if (healthRecords.length === 0) return [];
-
-        // 첫 번째 기록에서 이전 데이터 가져오기
+        // 첫 번째 기록 = 이전, 마지막 기록 = 현재
         const previousRecord = healthRecords[0];
+        const currentRecord = healthRecords[healthRecords.length - 1];
+
         const prevMuscle = previousRecord.measurements?.["체중관리"]?.['골격근량'] || 0;
         const prevFat = previousRecord.measurements?.["체중관리"]?.['체지방량'] || 0;
+
+        const currentMuscle = currentRecord.measurements?.["체중관리"]?.['골격근량'] || 0;
+        const currentFat = currentRecord.measurements?.["체중관리"]?.['체지방량'] || 0;
 
         return [
             {
                 name: '골격근량',
-                current: skeletal_muscle || 0,
+                current: currentMuscle,
                 previous: prevMuscle,
                 unit: 'kg',
                 currentColor: '#6366f1', // 파란색 (현재 수치)
@@ -652,7 +654,7 @@ const Dashboard = () => {
             },
             {
                 name: '체지방량',
-                current: body_fat_mass || 0,
+                current: currentFat,
                 previous: prevFat,
                 unit: 'kg',
                 currentColor: '#6366f1', // 파란색 (현재 수치)
@@ -660,6 +662,7 @@ const Dashboard = () => {
             }
         ];
     };
+
 
     const weightChartData = getWeightChartData();
     const bodyCompChartData = getBodyCompChartData();

@@ -88,9 +88,14 @@ const ChatbotSelector = () => {
             setShowInbodyPopup(true);
         } else {
             // 그 외 (운동 플래너 등) -> 데이터가 있으면 바로 이동
+            // localStorage에서 사용자 정보 가져오기
+            const userData = JSON.parse(localStorage.getItem('user'));
+            const userId = userData?.id || 1; // 로그인된 사용자 ID
+
             navigate(`/chatbot/${botId}`, {
                 state: {
-                    inbodyData: latestInbodyData
+                    inbodyData: latestInbodyData,
+                    userId: userId  // ✅ userId 전달 추가
                 }
             });
         }
@@ -120,8 +125,15 @@ const ChatbotSelector = () => {
         setShowInbodyPopup(false);
         setIsAnalyzing(false);
 
+        // localStorage에서 사용자 정보 가져오기
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const userId = userData?.id || 1; // 로그인된 사용자 ID
+
         navigate('/chatbot/inbody-analyst', {
-            state: { inbodyData: latestInbodyData }
+            state: {
+                inbodyData: latestInbodyData,
+                userId: userId  // ✅ userId 전달 추가
+            }
         });
     };
 
