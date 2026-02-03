@@ -5,10 +5,8 @@ import '../../styles/LoginLight.css';
 
 // ============================================
 // 목업 설정
-// USE_MOCK_DATA: true면 목업 모드 (로그인 불필요)
-// API가 준비되면 false로 변경하세요
-// ============================================
-const USE_MOCK_DATA = true;
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 const InBodyAnalysis = () => {
     const [inbodyImage, setInbodyImage] = useState(null);

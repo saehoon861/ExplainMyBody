@@ -6,7 +6,8 @@ import { getUserHealthRecords } from '../../services/inbodyService';
 
 // ============================================
 // 목업 설정
-const USE_MOCK_DATA = true;
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 // 목업 인바디 데이터
 const MOCK_INBODY_DATA = {

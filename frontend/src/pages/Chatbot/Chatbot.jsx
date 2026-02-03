@@ -8,11 +8,8 @@ import { sendChatbotMessage } from '../../services/chatService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// ============================================
-// 목업 설정
-// USE_MOCK_DATA: true면 기존 로직(목업) 유지, false면 실제 API 연동
-// ============================================
-const USE_MOCK_DATA = true;
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 const BOT_CONFIG = {
     'inbody-analyst': {
@@ -435,7 +432,8 @@ const Chatbot = () => {
 
             const botMessage = {
                 id: Date.now() + 1,
-                text: data.response,
+                text: data.reply || data.response, // reply(요약) 또는 response(전체)
+                details: data.details, // 상세 내용
                 sender: 'bot'
             };
             setMessages(prev => [...prev, botMessage]);
