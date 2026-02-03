@@ -23,6 +23,8 @@ class User(Base):
     inbody_analysis_reports = relationship("InbodyAnalysisReport", back_populates="user", cascade="all, delete-orphan")
     user_details = relationship("UserDetail", back_populates="user", cascade="all, delete-orphan")
     weekly_plans = relationship("WeeklyPlan", back_populates="user", cascade="all, delete-orphan")
+    llm_interactions = relationship("LLMInteraction", back_populates="user", cascade="all, delete-orphan")
+    human_feedback_received = relationship("HumanFeedback", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
