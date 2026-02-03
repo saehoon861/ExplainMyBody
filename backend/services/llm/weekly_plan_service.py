@@ -10,6 +10,7 @@ from typing import Dict, Any
 from services.llm.llm_service import LLMService
 from services.common.health_service import HealthService
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
+from repositories.common.health_record_repository import HealthRecordRepository
 from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput
 
 # 가장 최신 주간 계획이 있는지 없는지 확인
@@ -32,7 +33,7 @@ class WeeklyPlanService:
         self, 
         db: Session, 
         user_id: int, 
-        latest_plan: WeeklyPlan | None
+        latest_plan # 타입 힌트 없음.
     ) -> bool:
         """새 주간 계획 생성이 필요한지 판단"""
         if not latest_plan:
@@ -45,8 +46,8 @@ class WeeklyPlanService:
             return True
         
         # 트리거 2: 새로운 인바디 측정
-        latest_inbody = HealthService.get_latest_inbody(db, user_id)
-        if latest_inbody and latest_inbody.measured_at >= latest_plan.start_date:
+        latest_inbody = HealthRecordRepository.get_latest(db, user_id)
+        if latest_inbody and latest_inbody.measured_at.date() >= latest_plan.start_date:
             return True
     
         return False
@@ -63,7 +64,7 @@ class WeeklyPlanService:
         """
         
         # Early return: 기존 계획 재사용
-        latest_plan = WeeklyPlanRepository.get_latest_plan(db, user_id)
+        latest_plan = WeeklyPlanRepository.get_latest(db, user_id)
         if not self._should_create_new_plan(db, user_id, latest_plan):
             return latest_plan
 
