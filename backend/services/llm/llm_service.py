@@ -17,7 +17,7 @@ load_dotenv()
 
 
 class LLMService:
-    """LLM API 호출 서비스 (현재는 input 데이터 반환용)"""
+    """LLM API 호출 서비스"""
 
     def __init__(self):
         """LLM 에이전트 및 클라이언트 초기화"""
@@ -142,6 +142,7 @@ class LLMService:
         user_message: str
     ) -> str:
         """
+        LLM1 에 대한
         휴먼 피드백 (Q&A) 처리: 기존 스레드에 이어서 대화 수행
         """
         config = {"configurable": {"thread_id": thread_id}}

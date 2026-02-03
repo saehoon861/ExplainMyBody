@@ -58,6 +58,14 @@ class WeeklyPlanRepository:
             .first()
     
     @staticmethod
+    def get_latest(db: Session, user_id: int) -> Optional[WeeklyPlan]:
+        """사용자의 가장 최근 주간 계획 조회 (주차 무관)"""
+        return db.query(WeeklyPlan)\
+            .filter(WeeklyPlan.user_id == user_id)\
+            .order_by(desc(WeeklyPlan.created_at))\
+            .first()
+    
+    @staticmethod
     def update(db: Session, plan_id: int, **kwargs) -> Optional[WeeklyPlan]:
         """주간 계획 수정"""
         db_plan = db.query(WeeklyPlan).filter(WeeklyPlan.id == plan_id).first()
