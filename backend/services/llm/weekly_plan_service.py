@@ -47,7 +47,7 @@ class WeeklyPlanService:
         
         # 트리거 2: 새로운 인바디 측정
         latest_inbody = HealthRecordRepository.get_latest(db, user_id)
-        if latest_inbody and latest_inbody.measured_at.date() >= latest_plan.start_date:
+        if latest_inbody and latest_inbody.measured_at > latest_plan.created_at:
             return True
     
         return False
