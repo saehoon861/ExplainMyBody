@@ -253,10 +253,6 @@ def create_weekly_plan_summary_prompt_with_rag(
 사용자의 체성분과 목표를 보고, 이번 주에 집중할 핵심 전략을 딱 3가지로 정리해라.
 존댓말로 작성해라.
 
-## 과학적 근거 활용
-- 제공된 과학 논문 정보가 있다면, 이를 자연스럽게 분석에 통합하세요
-- 논문을 직접 인용하지 말고, 근거로 활용하여 신뢰도를 높이세요
-
 ## 사용자 맞춤 전략 활용
 - 제공된 체형별/장소별 전략을 반드시 반영하세요
 - 전략에 명시된 주의사항과 코치 조언을 존중하세요
@@ -298,100 +294,6 @@ def create_weekly_plan_summary_prompt_with_rag(
     return system_prompt, user_prompt
 
 
-def create_weekly_plan_detail_prompt_with_rag(
-    goal_input: GoalPlanInput,
-    measurements: InBodyMeasurements,
-    rag_context: str = "",
-    user_profile: Optional[Dict[str, Any]] = None
-) -> Tuple[str, str]:
-    """
-    주간 계획 세부 프롬프트 생성 (Prompt 2)
-    요일별 운동, 식단, 생활습관 상세 계획
-
-    Args:
-        goal_input: 사용자 목표 정보
-        measurements: 인바디 측정 데이터
-        rag_context: RAG 검색 결과
-        user_profile: 사용자 프로필 (workout_place, preferred_sport 등)
-    """
-    # 사용자 프로필 기반 전략 텍스트 생성
-    strategy_text = ""
-    if user_profile:
-        try:
-            from user_profile_strategy import build_strategy_text_from_dict
-            strategy_text = build_strategy_text_from_dict(user_profile)
-        except ImportError:
-            pass
-
-    system_prompt = """당신은 사용자의 건강 데이터와 목표를 분석하여 맞춤형 주간 운동 및 식단 계획을 수립하는 전문 퍼스널 트레이너입니다.
-
-## 작성 지침
-1. **개인화**: 사용자의 체중, 근육량, 체지방률과 구체적인 목표를 반영하세요.
-2. **구체성**: 운동 종목, 세트×횟수, 중량, 식단 메뉴를 구체적으로 제시하세요.
-3. **안전성**: 사용자의 신체 상태에 무리가 가지 않는 수준으로 설정하세요.
-4. **과학적 근거**: 제공된 논문 정보가 있다면 자연스럽게 활용하세요.
-5. **실천 가능**: 일주일 치 계획을 실제로 따라할 수 있게 작성하세요.
-6. **사용자 맞춤 전략**: 제공된 체형별/장소별 전략을 반드시 반영하세요.
-
-## 출력 형식
-각 섹션을 명확히 구분하여 작성합니다.
-"""
-
-    user_prompt = f"""# 사용자 목표
-- 목표 유형: {goal_input.user_goal_type}
-- 상세 내용: {goal_input.user_goal_description}
-{f"- 주요 목표: {goal_input.main_goal}" if goal_input.main_goal else ""}
-{f"- 목표 체중: {goal_input.target_weight}kg" if goal_input.target_weight else ""}
-
-# 신체 정보
-- 성별: {measurements.기본정보.성별}
-- 나이: {measurements.기본정보.연령}세
-- 신장: {measurements.기본정보.신장}cm
-- 체중: {measurements.체중관리.체중}kg
-- BMI: {measurements.비만분석.BMI}
-- 골격근량: {measurements.체중관리.골격근량}kg
-- 체지방률: {measurements.비만분석.체지방률}%
-{f"- 기초대사량: {measurements.연구항목.기초대사량}kcal" if measurements.연구항목.기초대사량 else ""}
-{f"- 권장 섭취 열량: {measurements.연구항목.권장섭취열량}kcal" if measurements.연구항목.권장섭취열량 else ""}
-
-# 조절 목표
-{f"- 체중 조절: {measurements.체중관리.체중조절:+.1f}kg" if measurements.체중관리.체중조절 is not None else ""}
-{f"- 지방 조절: {measurements.체중관리.지방조절:+.1f}kg" if measurements.체중관리.지방조절 is not None else ""}
-{f"- 근육 조절: {measurements.체중관리.근육조절:+.1f}kg" if measurements.체중관리.근육조절 is not None else ""}
-
-# 운동 환경
-{f"- 선호 운동: {', '.join(goal_input.preferred_exercise_types)}" if goal_input.preferred_exercise_types else ""}
-{f"- 주당 운동 가능 일수: {goal_input.available_days_per_week}일" if goal_input.available_days_per_week else ""}
-{f"- 회당 운동 가능 시간: {goal_input.available_time_per_session}분" if goal_input.available_time_per_session else ""}
-{f"- 제약사항: {', '.join(goal_input.restrictions)}" if goal_input.restrictions else ""}
-
-{strategy_text if strategy_text else ""}
-
-{f"# 건강 상태 분석 결과 (참고)\n{goal_input.status_analysis_result}" if goal_input.status_analysis_result else ""}
-
-{rag_context}
-
----
-
-아래 섹션별로 작성:
-
-🏋️ **운동 계획** (요일별 상세)
-- 월요일: [운동명] [세트×횟수] [중량/시간]
-- 화요일: ...
-(주당 {goal_input.available_days_per_week if goal_input.available_days_per_week else '5'}일 기준)
-
-🍽 **식단 가이드**
-- 일일 목표 칼로리: XXX kcal
-- 단백질/탄수화물/지방 비율:
-- 추천 식단 예시 (아침/점심/저녁/간식)
-
-💡 **생활 습관 팁**
-- 수면, 수분 섭취, 스트레스 관리 등 (3~5가지)
-
-🔥 **동기부여 한방 문장**
-"""
-    return system_prompt, user_prompt
-
 
 def create_workout_plan_prompt_with_rag(
     goal_input: GoalPlanInput,
@@ -400,7 +302,7 @@ def create_workout_plan_prompt_with_rag(
     user_profile: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, str]:
     """
-    요일별 운동 계획 프롬프트 (Prompt 3)
+    요일별 운동 계획 프롬프트 (Prompt 2)
     """
     # 사용자 프로필 기반 전략 텍스트 생성
     strategy_text = ""
@@ -457,7 +359,7 @@ def create_diet_plan_prompt_with_rag(
     user_profile: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, str]:
     """
-    식단 계획 프롬프트 (Prompt 4)
+    식단 계획 프롬프트 (Prompt 3)
     """
     # 사용자 프로필 기반 전략 텍스트 생성
     strategy_text = ""
@@ -526,7 +428,7 @@ def create_lifestyle_motivation_prompt_with_rag(
     user_profile: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, str]:
     """
-    생활 습관 팁 및 동기부여 프롬프트 (Prompt 5)
+    생활 습관 팁 및 동기부여 프롬프트 (Prompt 4)
     """
     system_prompt = """당신은 사용자의 건강한 생활 습관을 돕는 라이프 코치입니다.
 

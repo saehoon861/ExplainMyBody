@@ -60,10 +60,10 @@ SAMPLE_USER = {
     "user_id": 999,
     "record_id": 888,
     "measured_at": datetime.now(),
-    "body_type1": "마른비만형",
-    "body_type2": "상체비만형",
-    "workout_place": "스포츠",  # "헬스장", "홈트", "아웃도어", "스포츠"
-    "preferred_sport": "테니스"   # workout_place가 "스포츠"일 때: "축구", "농구", "테니스", "배드민턴", "수영", "클라이밍", "기타"
+    "body_type1": "비만형",
+    "body_type2": "하체비만형",
+    "workout_place": "아웃도어",              # "헬스장", "홈트", "아웃도어", "스포츠"
+    "preferred_sport": ""                # workout_place가 "스포츠"일 때: "축구", "농구", "테니스", "배드민턴", "수영", "클라이밍", "기타"
 }
 
 # 샘플 사용자 프로필 (다양한 케이스)
@@ -78,7 +78,7 @@ SAMPLE_PROFILES = {
         "body_type1": "표준형",
         "body_type2": "표준형",
         "workout_place": "헬스장",
-        "preferred_sport": "농구"
+        "preferred_sport": ""
     },
     "스포츠_축구": {
         "body_type1": "근육형",
@@ -90,7 +90,7 @@ SAMPLE_PROFILES = {
         "body_type1": "비만형",
         "body_type2": "하체비만형",
         "workout_place": "아웃도어",
-        "preferred_sport": "농구"
+        "preferred_sport": ""
     }
 }
 

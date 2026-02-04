@@ -24,7 +24,9 @@ from schemas_inbody import InBodyData
 from schemas import GoalPlanInput
 from prompt_generator_rag import (
     create_weekly_plan_summary_prompt_with_rag,
-    create_weekly_plan_detail_prompt_with_rag
+    create_workout_plan_prompt_with_rag,
+    create_diet_plan_prompt_with_rag,
+    create_lifestyle_motivation_prompt_with_rag
 )
 
 
@@ -70,8 +72,8 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
                 {"role": "system", "content": system_prompt_1},
                 {"role": "user", "content": user_prompt_1}
             ],
-            temperature=0.7,
-            max_tokens=1000
+            temperature=1,
+            max_tokens=3000
         )
 
         summary_result = response_1.choices[0].message.content
@@ -91,15 +93,15 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     print("🏋️ Prompt 2: 요일별 운동 계획")
     print("-" * 80)
 
-    system_prompt_2, user_prompt_2 = create_weekly_plan_detail_prompt_with_rag(
+    system_prompt_2_workout, user_prompt_2_workout = create_workout_plan_prompt_with_rag(
         goal_input=goal_input,
         measurements=measurements,
         rag_context="",
         user_profile=profile_data
     )
 
-    # 운동 계획에 집중하도록 시스템 프롬프트 수정
-    system_prompt_2_workout = system_prompt_2 + "\n\n**이번 응답은 요일별 운동 계획에만 집중해주세요. 식단이나 생활습관은 제외하고 운동 내용만 작성해주세요.**"
+    # 운동 계획에만 집중하도록 수정
+    system_prompt_2_workout = system_prompt_2_workout + "\n\n**이번 응답은 요일별 운동 계획에만 집중해주세요. 식단이나 생활습관은 제외하고 운동 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
 
@@ -108,10 +110,10 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt_2_workout},
-                {"role": "user", "content": user_prompt_2}
+                {"role": "user", "content": user_prompt_2_workout}
             ],
-            temperature=0.7,
-            max_tokens=1500
+            temperature=1,
+            max_tokens=4000
         )
 
         workout_result = response_2.choices[0].message.content
@@ -131,8 +133,15 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     print("🍽️ Prompt 3: 식단 계획")
     print("-" * 80)
 
-    # 식단 계획에 집중하도록 시스템 프롬프트 수정
-    system_prompt_3_diet = system_prompt_2 + "\n\n**이번 응답은 식단 계획에만 집중해주세요. 운동이나 생활습관은 제외하고 식단 내용만 작성해주세요.**"
+    system_prompt_3_diet, user_prompt_3_diet = create_diet_plan_prompt_with_rag(
+        goal_input=goal_input,
+        measurements=measurements,
+        rag_context="",
+        user_profile=profile_data
+    )
+
+    # 식단 계획에만 집중하도록 수정
+    system_prompt_3_diet = system_prompt_3_diet + "\n\n**이번 응답은 식단 계획에만 집중해주세요. 운동이나 생활습관은 제외하고 식단 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
 
@@ -141,10 +150,10 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt_3_diet},
-                {"role": "user", "content": user_prompt_2}
+                {"role": "user", "content": user_prompt_3_diet}
             ],
-            temperature=0.7,
-            max_tokens=1500
+            temperature=1,
+            max_tokens=4000
         )
 
         diet_result = response_3.choices[0].message.content
@@ -164,8 +173,15 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     print("💡 Prompt 4: 생활 습관 팁 및 동기부여")
     print("-" * 80)
 
-    # 생활 습관 및 동기부여에 집중하도록 시스템 프롬프트 수정
-    system_prompt_4_lifestyle = system_prompt_2 + "\n\n**이번 응답은 생활 습관 개선 팁과 동기부여 문장에만 집중해주세요. 운동이나 식단은 제외하고 일상 관리와 동기부여 내용만 작성해주세요.**"
+    system_prompt_4_lifestyle, user_prompt_4_lifestyle = create_lifestyle_motivation_prompt_with_rag(
+        goal_input=goal_input,
+        measurements=measurements,
+        rag_context="",
+        user_profile=profile_data
+    )
+
+    # 생활 습관 및 동기부여에만 집중하도록 수정
+    system_prompt_4_lifestyle = system_prompt_4_lifestyle + "\n\n**이번 응답은 생활 습관 개선 팁과 동기부여 문장에만 집중해주세요. 운동이나 식단은 제외하고 일상 관리와 동기부여 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
 
@@ -174,10 +190,10 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt_4_lifestyle},
-                {"role": "user", "content": user_prompt_2}
+                {"role": "user", "content": user_prompt_4_lifestyle}
             ],
-            temperature=0.7,
-            max_tokens=1000
+            temperature=1,
+            max_tokens=3000
         )
 
         lifestyle_result = response_4.choices[0].message.content
