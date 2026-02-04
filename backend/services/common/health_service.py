@@ -18,7 +18,7 @@ from schemas.llm import (
 from services.ocr.body_type_service import BodyTypeService
 from services.llm.llm_service import LLMService
 from typing import Optional, Dict, Any
-from services.llm.parse_utils import split_analysis_response
+
 
 class HealthService:
     """건강 기록 관련 비즈니스 로직"""
@@ -178,7 +178,7 @@ class HealthService:
         
         if existing_report:
             # 기존 리포트도 summary와 content로 분리하여 반환
-
+            from services.llm.parse_utils import split_analysis_response
             
             response = AnalysisReportResponse.model_validate(existing_report)
             parsed = split_analysis_response(existing_report.llm_output)
@@ -224,17 +224,10 @@ class HealthService:
             embedding_1536 = None
             embedding_1024 = None
 
-        # 4-1. LLM 출력 결과를 요약과 전문으로 분리 (DB 저장용)
-        # DB에는 요약만 저장하고, 프론트엔드에서는 필요 시 전문을 다시 생성하도록 함
-        parsed = split_analysis_response(llm_output)
-        summary_text = parsed["summary"]
-        content_text = parsed["content"]
-
-
         # 5. 분석 리포트 저장
         report_data = AnalysisReportCreate(
             record_id=record_id,
-            llm_output=summary_text,                              # llm_output을 넣기 전에 요약과 전문으로 분리해서 요약만 저장하기
+            llm_output=llm_output,
             model_version=self.llm_service.model_version,
             analysis_type="status_analysis",
             thread_id=thread_id,
@@ -249,9 +242,12 @@ class HealthService:
         response = AnalysisReportResponse.model_validate(analysis_report)
         response.thread_id = thread_id
         
+        # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
         # 프론트엔드에서 요약만 먼저 보여주고, 전문은 접었다가 펼칠 수 있도록 함
-        response.summary = summary_text
-        response.content = content_text
+        from services.llm.parse_utils import split_analysis_response
+        parsed = split_analysis_response(llm_output)
+        response.summary = parsed["summary"]
+        response.content = parsed["content"]
         
         return response
 
