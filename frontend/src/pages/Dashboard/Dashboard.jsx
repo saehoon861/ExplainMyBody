@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft, Bot } from 'lucide-react';
+import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
 import '../../styles/LoginLight.css'; // 스타일 재사용
 
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
@@ -439,6 +440,22 @@ const Dashboard = () => {
         goal_description: ''
     });
 
+    // Exercise Plan Popup State
+    const [isExercisePopupOpen, setIsExercisePopupOpen] = useState(false);
+
+    // 건강 정보 섹션 토글 상태 (기본: 접힘)
+    const [isHealthTipsOpen, setIsHealthTipsOpen] = useState(false);
+
+    const handleExercisePlanSubmit = (data) => {
+        setIsExercisePopupOpen(false);
+        navigate('/chatbot/workout-plan', {
+            state: {
+                planRequest: data,
+                userId: userData?.id
+            }
+        });
+    };
+
     const openVideo = (type) => {
         let videoId = 'gMaB-fG4u4g';
         if (type === '상체') videoId = 'tzN69l791VU';
@@ -552,6 +569,12 @@ const Dashboard = () => {
                 const updatedUser = await response.json();
                 setUserData(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
+
+                // exerciseSettings의 goal도 함께 업데이트
+                const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || '{}');
+                savedSettings.goal = editForm.goal_type;
+                localStorage.setItem('exerciseSettings', JSON.stringify(savedSettings));
+
                 setIsEditing(false);
                 alert('목표가 수정되었습니다.');
             } else {
@@ -1081,7 +1104,14 @@ const Dashboard = () => {
             )}
 
             <div className="quick-actions-grid fade-in delay-1">
-                <Link to="/workout-plan" className="action-card primary">
+                <div onClick={() => {
+                    const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || 'null');
+                    if (savedSettings && savedSettings.goal && savedSettings.preferences?.length > 0) {
+                        handleExercisePlanSubmit(savedSettings);
+                    } else {
+                        setIsExercisePopupOpen(true);
+                    }
+                }} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
                         <CalendarDays size={24} />
                     </div>
@@ -1089,61 +1119,53 @@ const Dashboard = () => {
                         <h3>주간 운동 계획표</h3>
                         <p>이번 주 운동 스케줄 확인하기</p>
                     </div>
-                </Link>
+                </div>
 
-                <Link to="/chatbot" className="action-card primary">
+                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
-                        <User size={24} />
+                        <Dumbbell size={24} />
                     </div>
                     <div className="text-box">
-                        <h3>AI 상담소</h3>
-                        <p>궁금한 점 물어보기</p>
+                        <h3>부위별 운동 가이드</h3>
+                        <p>상체, 복근, 하체 운동법 확인하기</p>
                     </div>
-                </Link>
-            </div>
-
-            <div className="section-title fade-in delay-2" style={{ marginTop: '32px', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>부위별 운동법 가이드</h3>
-            </div>
-
-            <div className="quick-actions-grid fade-in delay-2 exercise-category-grid">
-                <div onClick={() => openVideo('상체')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
-                        <Zap size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>상체</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </div>
-
-                <div onClick={() => openVideo('복근')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
-                        <Shield size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>복근</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </div>
-
-                <div onClick={() => openVideo('하체')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
-                        <Activity size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>하체</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </div>
             </div>
+
+
 
             {/* 건강 정보 카드뉴스 섹션 */}
-            <div className="section-title fade-in delay-3" style={{ marginTop: '32px', marginBottom: '16px' }}>
+            <div
+                className="section-title fade-in delay-3"
+                onClick={() => setIsHealthTipsOpen(prev => !prev)}
+                style={{
+                    marginTop: '32px',
+                    marginBottom: '16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}
+            >
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💡 건강 정보 & 팁</h3>
+                <ChevronRight
+                    size={20}
+                    style={{
+                        color: '#64748b',
+                        transition: 'transform 0.3s ease',
+                        transform: isHealthTipsOpen ? 'rotate(90deg)' : 'rotate(0deg)'
+                    }}
+                />
             </div>
 
-            <HealthTipsSection />
+            {isHealthTipsOpen && <HealthTipsSection />}
+
+            {/* Exercise Plan Popup */}
+            <ExercisePlanPopup
+                isOpen={isExercisePopupOpen}
+                onClose={() => setIsExercisePopupOpen(false)}
+                onSubmit={handleExercisePlanSubmit}
+            />
 
             <div style={{ height: '100px' }}></div>
 

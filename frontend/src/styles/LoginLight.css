@@ -120,14 +120,12 @@
 .login-container::before {
     top: -200px;
     right: -100px;
-    animation: moveBlob1 20s infinite alternate ease-in-out;
 }
 
 .login-container::after {
     bottom: -200px;
     left: -100px;
     background: radial-gradient(circle, rgba(132, 140, 194, 0.15) 0%, transparent 70%);
-    animation: moveBlob2 25s infinite alternate-reverse ease-in-out;
 }
 
 @keyframes moveBlob1 {
@@ -438,6 +436,12 @@
 .secondary-button:hover {
     background: rgba(0, 0, 0, 0.05);
     transform: translateY(-2px);
+}
+
+.secondary-button.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
 }
 
 .ghost-button {
