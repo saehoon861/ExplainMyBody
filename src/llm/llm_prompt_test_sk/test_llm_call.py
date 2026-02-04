@@ -6,6 +6,7 @@
 """
 
 import os
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -64,6 +65,7 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     )
 
     print("\n[LLM 호출 중...]")
+    time_1_start = time.time()
 
     try:
         response_1 = client.chat.completions.create(
@@ -76,14 +78,16 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             max_tokens=3000
         )
 
+        time_1 = time.time() - time_1_start
         summary_result = response_1.choices[0].message.content
 
         print("\n[LLM 응답]")
         print(summary_result)
-        print(f"\n사용 토큰: {response_1.usage.total_tokens}")
+        print(f"\n사용 토큰: {response_1.usage.total_tokens} | 소요 시간: {time_1:.2f}s")
 
     except Exception as e:
-        print(f"\n❌ LLM 호출 실패: {e}")
+        time_1 = time.time() - time_1_start
+        print(f"\n❌ LLM 호출 실패: {e} ({time_1:.2f}s)")
         summary_result = None
 
     # ========================================================================
@@ -104,6 +108,7 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     system_prompt_2_workout = system_prompt_2_workout + "\n\n**이번 응답은 요일별 운동 계획에만 집중해주세요. 식단이나 생활습관은 제외하고 운동 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
+    time_2_start = time.time()
 
     try:
         response_2 = client.chat.completions.create(
@@ -116,14 +121,16 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             max_tokens=4000
         )
 
+        time_2 = time.time() - time_2_start
         workout_result = response_2.choices[0].message.content
 
         print("\n[LLM 응답]")
         print(workout_result)
-        print(f"\n사용 토큰: {response_2.usage.total_tokens}")
+        print(f"\n사용 토큰: {response_2.usage.total_tokens} | 소요 시간: {time_2:.2f}s")
 
     except Exception as e:
-        print(f"\n❌ LLM 호출 실패: {e}")
+        time_2 = time.time() - time_2_start
+        print(f"\n❌ LLM 호출 실패: {e} ({time_2:.2f}s)")
         workout_result = None
 
     # ========================================================================
@@ -144,6 +151,7 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     system_prompt_3_diet = system_prompt_3_diet + "\n\n**이번 응답은 식단 계획에만 집중해주세요. 운동이나 생활습관은 제외하고 식단 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
+    time_3_start = time.time()
 
     try:
         response_3 = client.chat.completions.create(
@@ -156,14 +164,16 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             max_tokens=4000
         )
 
+        time_3 = time.time() - time_3_start
         diet_result = response_3.choices[0].message.content
 
         print("\n[LLM 응답]")
         print(diet_result)
-        print(f"\n사용 토큰: {response_3.usage.total_tokens}")
+        print(f"\n사용 토큰: {response_3.usage.total_tokens} | 소요 시간: {time_3:.2f}s")
 
     except Exception as e:
-        print(f"\n❌ LLM 호출 실패: {e}")
+        time_3 = time.time() - time_3_start
+        print(f"\n❌ LLM 호출 실패: {e} ({time_3:.2f}s)")
         diet_result = None
 
     # ========================================================================
@@ -184,6 +194,7 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
     system_prompt_4_lifestyle = system_prompt_4_lifestyle + "\n\n**이번 응답은 생활 습관 개선 팁과 동기부여 문장에만 집중해주세요. 운동이나 식단은 제외하고 일상 관리와 동기부여 내용만 작성해주세요.**"
 
     print("\n[LLM 호출 중...]")
+    time_4_start = time.time()
 
     try:
         response_4 = client.chat.completions.create(
@@ -196,15 +207,31 @@ def test_single_profile_with_llm(profile_name: str, profile_data: dict):
             max_tokens=3000
         )
 
+        time_4 = time.time() - time_4_start
         lifestyle_result = response_4.choices[0].message.content
 
         print("\n[LLM 응답]")
         print(lifestyle_result)
-        print(f"\n사용 토큰: {response_4.usage.total_tokens}")
+        print(f"\n사용 토큰: {response_4.usage.total_tokens} | 소요 시간: {time_4:.2f}s")
 
     except Exception as e:
-        print(f"\n❌ LLM 호출 실패: {e}")
+        time_4 = time.time() - time_4_start
+        print(f"\n❌ LLM 호출 실패: {e} ({time_4:.2f}s)")
         lifestyle_result = None
+
+    # ========================================================================
+    # 소요 시간 요약
+    # ========================================================================
+    total_time = time_1 + time_2 + time_3 + time_4
+    print("\n" + "-" * 80)
+    print("⏱️  소요 시간 요약")
+    print("-" * 80)
+    print(f"  Call 1 (주간 목표 요약):        {time_1:.2f}s")
+    print(f"  Call 2 (요일별 운동 계획):      {time_2:.2f}s")
+    print(f"  Call 3 (식단 계획):            {time_3:.2f}s")
+    print(f"  Call 4 (생활 습관 팁 및 동기부여): {time_4:.2f}s")
+    print(f"  ─────────────────────────────")
+    print(f"  총 소요 시간:                  {total_time:.2f}s")
 
     # ========================================================================
     # 결과 저장

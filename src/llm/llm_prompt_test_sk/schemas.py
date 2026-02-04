@@ -28,6 +28,8 @@ class GoalPlanInput(BaseModel):
     measurements: Optional[Dict[str, Any]] = None  # 테스트 시 선택적
     status_analysis_result: Optional[str] = None
     status_analysis_id: Optional[int] = None
+    
+    
     # 추가 필드 (backend에는 없지만 weekly_plan_graph_rag.py에서 사용)
     main_goal: Optional[str] = None
     target_weight: Optional[float] = None

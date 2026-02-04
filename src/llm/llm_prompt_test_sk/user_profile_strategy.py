@@ -40,13 +40,13 @@ def build_strategy_text_from_dict(user_data: Dict[str, Any]) -> str:
     """
     body_type1 = user_data.get("body_type1", "알 수 없음")
     body_type2 = user_data.get("body_type2", "표준형")
-    workout_place = user_data.get("workout_place", "헬스장")
+    workout_place = user_data.get("workout_place", "홈트")
     preferred_sport = user_data.get("preferred_sport")
 
     # Fallback으로 안전하게 룰 가져오기
     t1 = BODY_TYPE1_RULES.get(body_type1, BODY_TYPE1_RULES["알 수 없음"])  # type: ignore
     t2 = BODY_TYPE2_RULES.get(body_type2, BODY_TYPE2_RULES["표준형"])  # type: ignore
-    tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["헬스장"])  # type: ignore
+    tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["홈트"])  # type: ignore
 
     strategy_text = f"""
 [전체 체형 전략]
@@ -95,11 +95,11 @@ def get_strategy_summary(user_data: Dict[str, Any]) -> Dict[str, str]:
     """
     body_type1 = user_data.get("body_type1", "알 수 없음")
     body_type2 = user_data.get("body_type2", "표준형")
-    workout_place = user_data.get("workout_place", "헬스장")
+    workout_place = user_data.get("workout_place", "홈트")
 
     t1 = BODY_TYPE1_RULES.get(body_type1, BODY_TYPE1_RULES["알 수 없음"])  # type: ignore
     t2 = BODY_TYPE2_RULES.get(body_type2, BODY_TYPE2_RULES["표준형"])  # type: ignore
-    tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["헬스장"])  # type: ignore
+    tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["홈트"])  # type: ignore
 
     return {
         "goal": t1["goal"],
