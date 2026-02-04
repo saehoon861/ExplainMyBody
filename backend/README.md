@@ -8,74 +8,59 @@ FastAPI 기반 인바디 분석 및 건강 관리 백엔드 서버
 
 ```
 backend/
+├── main.py                      # FastAPI 엔트리포인트 (앱 생성 및 라우터 등록)
+├── app_state.py                 # 중요 리소스(OCR 엔진 등) 전역 상태 관리 및 공유
+├── database.py                  # 데이터베이스(PostgreSQL) 연결 및 세션 설정
+├── exceptions.py                # 글로벌 예외 처리기 및 커스텀 에러 정의
+├── pyproject.toml               # uv 기반 프로젝트 의존성 관리
+├── .env.example                 # 로컬 개발용 환경변수 템플릿
 │
-├── main.py                      # FastAPI 앱 생성 + 라우터 등록
-├── app_state.py                 # 애플리케이션 상태 관리
-├── database.py                  # PostgreSQL 연결 설정
-├── requirements.txt             # 패키지 목록
-├── .env.example                 # 환경 변수 예시
-├── .python-version              # Python 버전 명시
+├── models/                      # SQLAlchemy ORM 모델 (DB 테이블 정의)
+│   ├── common.py                # 공통 Base 모델
+│   ├── user.py                  # 사용자 정보
+│   ├── health_record.py         # 인바디 측정 데이터 기록
+│   ├── analysis_report.py       # AI 분석 결과 리포트
+│   ├── user_detail.py           # 사용자 목표 및 신체 특이사항 (Preferences)
+│   └── weekly_plan.py           # AI 생성 주간 운동/식단 계획
 │
-├── models/                      # SQLAlchemy ORM 모델 (DB 테이블)
-│   ├── __init__.py
-│   ├── user.py                  # users 테이블
-│   ├── health_record.py         # health_records 테이블
-│   ├── analysis_report.py       # inbody_analysis_reports 테이블 (구 analysis_reports)
-│   ├── user_detail.py           # user_details 테이블 (구 user_goals, 사용자 세부 목표)
-│   ├── weekly_plan.py           # weekly_plans 테이블 (주간 계획)
-│   ├── llm_interaction.py       # llm_interactions 테이블 (LLM 출력 결과)
-│   ├── human_feedback.py        # human_feedbacks 테이블 (사용자 피드백)
-│   └── user_goal.py             # user_goals 테이블 (Legacy, UserDetail로 대체됨)
+├── schemas/                     # Pydantic 모델 (입출력 검증 및 DTO)
+│   ├── common.py                # User, HealthRecord 관련 스키마
+│   ├── llm.py                   # 분석 리포트, 목표, 주간 계획 관련 스키마
+│   ├── inbody.py                # 인바디 원본 데이터 검증
+│   └── body_type.py             # 체형 분석 결과 데이터 구조
 │
-├── schemas/                     # Pydantic 모델 (팀별 분리)
-│   ├── __init__.py
-│   ├── README.md                # 스키마 구조 및 팀 담당 가이드
-│   ├── common.py                # 공통 스키마 (User, HealthRecord)
-│   ├── llm.py                   # LLM 팀 전담 (InbodyAnalysisReport, UserDetail, WeeklyPlan)
-│   ├── inbody.py                # OCR 팀 전담 (InBody 데이터 검증)
-│   └── body_type.py             # OCR 팀 전담 (체형 분석)
+├── repositories/                # 데이터 액세스 계층 (CRUD 로직)
+│   ├── common/                  # User, HealthRecord DB 접근
+│   └── llm/                     # Analysis, Details, WeeklyPlan DB 접근
 │
-├── repositories/                # DB CRUD 로직 (팀별 분리)
-│   ├── __init__.py
+├── services/                    # 비즈니스 로직 계층
 │   ├── common/
-│   │   ├── user_repository.py
-│   │   └── health_record_repository.py
-│   └── llm/
-│       ├── analysis_report_repository.py
-│       ├── user_detail_repository.py  # UserDetail 관리
-│       ├── llm_interaction_repository.py
-│       ├── human_feedback_repository.py
-│       ├── weekly_plan_repository.py  # WeeklyPlan 관리
-│       └── user_goal_repository.py    # Legacy
-│
-├── services/                    # 비즈니스 로직 (팀별 분리)
-│   ├── __init__.py
-│   ├── common/
-│   │   ├── auth_service.py      # 로그인/회원가입
-│   │   └── health_service.py    # 건강 기록 관련 로직
+│   │   ├── auth_service.py      # 사용자 인증 및 권한 관리
+│   │   └── health_service.py    # 인바디 데이터 관리 및 준비 로직
 │   ├── llm/
-│   │   └── llm_service.py       # LLM API 호출 (상태 분석, 주간 계획 생성)
+│   │   ├── llm_service.py       # AI 기능 통합 서비스
+│   │   ├── agent_graph.py       # LangGraph 기반 상태 분석 워크플로우
+│   │   ├── weekly_plan_graph.py # LangGraph 기반 주간 계획 생성 워크플로우
+│   │   ├── prompt_generator.py  # 동적 프롬프트 생성기
+│   │   └── llm_clients.py       # LLM 모델(OpenAI, Claude 등) 인스턴스 관리
 │   └── ocr/
-│       ├── ocr_service.py       # OCR 처리
-│       ├── inbody_matcher.py    # InBody 데이터 추출 및 매칭
-│       └── body_type_service.py # 체형 분류
+│       ├── ocr_service.py       # PaddleOCR 기반 텍스트 추출 가공
+│       ├── inbody_matcher.py    # 인바디 결과지 좌표 기반 데이터 매칭
+│       └── body_type_service.py # 룰 기반 체형 분류 엔진
 │
-├── routers/                     # API 엔드포인트 (팀별 분리)
-│   ├── __init__.py
+├── routers/                     # API 엔드포인트 계층 (Controller)
 │   ├── common/
-│   │   ├── auth.py              # /api/auth/*
-│   │   └── users.py             # /api/users/*
+│   │   ├── auth.py              # 회원가입/로그인 (`/api/auth`)
+│   │   └── users.py             # 사용자 관리 (`/api/users`)
 │   ├── llm/
-│   │   ├── analysis.py          # /api/analysis/*
-│   │   └── goals.py             # /api/goals/* (UserDetail 사용)
+│   │   ├── analysis.py          # 신체 상태 분석 (`/api/analysis`)
+│   │   ├── details.py           # 목표 및 선호도 (`/api/details`)
+│   │   └── weekly_plans.py      # 주간 계획 생성/조회 (`/api/weekly-plans`)
 │   └── ocr/
-│       └── health_records.py    # /api/health-records/*
+│       └── health_records.py    # 인바디 업로드 및 데이터 추출 (`/api/health-records`)
 │
-├── utils/                       # 유틸리티
-│   ├── __init__.py
-│   └── dependencies.py          # DB 세션, 인증 등
-│
-└── migrations/                  # 데이터베이스 마이그레이션
+├── utils/                       # 전역 유틸리티 (인증 의존성 등)
+└── uv.lock                      # uv 의존성 잠금 파일
 ```
 
 ## 🚀 빠른 시작 (Quickstart)
