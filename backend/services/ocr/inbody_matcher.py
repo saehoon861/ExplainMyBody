@@ -25,6 +25,233 @@ import difflib
 from paddleocr import PaddleOCR
 
 
+class ScaleManager:
+    """해상도 스케일링 관리 클래스"""
+    
+    def __init__(self, target_height: int, base_height: int = 2400):
+        """
+        Args:
+            target_height: 현재 이미지의 높이
+            base_height: 기준 높이 (기본값: 2400 - 원본 하드코딩 기준)
+        """
+        # Scaling Policy:
+        # scale_ratio = current_image_height / BASE_HEIGHT (2400)
+        self.scale_ratio = target_height / base_height
+    
+    def scale_y(self, y: int) -> int:
+        """Y 좌표/거리 스케일링"""
+        return int(y * self.scale_ratio)
+    
+    def scale_x(self, x: int) -> int:
+        """X 좌표/거리 스케일링 (높이 비율 기반)"""
+        # X-related distances also scale by height ratio to maintain aspect ratio logic
+        return int(x * self.scale_ratio)
+    
+    def scale_range(self, y_range: Tuple[int, int]) -> Tuple[int, int]:
+        """Y 범위 스케일링"""
+        return (int(y_range[0] * self.scale_ratio), int(y_range[1] * self.scale_ratio))
+
+
+@dataclass
+class ScaledMatchingParameters:
+    """스케일링된 매칭 파라미터 (Read-only)"""
+    # A. Position Values
+    segment_y_min: int
+    segment_y_max: int
+    segment_row_top_max: int
+    segment_row_mid_min: int
+    segment_row_mid_max: int
+    segment_row_bot_min: int
+    body_fat_percent_y_min: int
+
+    # B. Distance/Tolerance Values
+    keyword_search_y_margin: int
+    roi_y_margin: int
+    right_dir_x_min: int
+    right_dir_y_max: int
+    right_dir_x_tolerance_default: int
+    down_dir_y_max: int
+    down_dir_x_tolerance: int
+    scale_mark_height_max: int
+    large_node_height_min: int
+    distance_y_weight: int # Scaled per policy
+
+    # C. Ratio/Weight Values (No Scale)
+    similarity_threshold: float
+    large_node_bonus: int
+    scale_mark_penalty: int
+    
+    # Hough Transform (Scaled)
+    hough_min_line_length: int
+    hough_max_line_gap: int
+
+
+@dataclass
+class MatchingParameters:
+    """
+    매칭 로직에 사용되는 파라미터 및 허용 오차 정의 (Base: 2400px)
+    """
+    # ==========================================
+    # Category A: Position Values (SCALE)
+    # ==========================================
+    
+    # 의미: 부위별 평가(근육, 체지방) 섹션이 시작되는 최소 Y 좌표
+    # 근거: 인바디 결과지 레이아웃 상 상단 테이블 이후에 위치함
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_y_min: int = 1400
+    
+    # 의미: 부위별 평가 섹션이 끝나는 최대 Y 좌표
+    # 근거: 하단 로고나 기타 정보 직전까지
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_y_max: int = 1900
+    
+    # 의미: 부위별 평가 상단 행(팔)의 최대 Y 좌표
+    # 근거: 팔 데이터와 복부 데이터 사이의 경계
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_row_top_max: int = 1580
+    
+    # 의미: 부위별 평가 중간 행(복부)의 최소 Y 좌표
+    # 근거: 상단 행(팔) 직후 시작
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_row_mid_min: int = 1580
+    
+    # 의미: 부위별 평가 중간 행(복부)의 최대 Y 좌표
+    # 근거: 복부 데이터와 하체 데이터 사이의 경계
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_row_mid_max: int = 1700
+    
+    # 의미: 부위별 평가 하단 행(하체)의 최소 Y 좌표
+    # 근거: 중간 행(복부) 직후 시작
+    # 스케일링: 필요 (Y 좌표 위치)
+    segment_row_bot_min: int = 1700
+    
+    # 의미: '체지방률' 항목 필터링을 위한 최소 Y 위치
+    # 근거: 비만 분석 섹션 내의 체지방률만 찾기 위해 상단의 다른 체지방률 텍스트 무시
+    # 스케일링: 필요 (Y 좌표 위치)
+    body_fat_percent_y_min: int = 1210
+
+    # ==========================================
+    # Category B: Distance/Tolerance Values (SCALE)
+    # ==========================================
+
+    # 의미: 키워드 노드(예: '신장')를 찾을 때 예상 범위 앞뒤로 주는 여유 마진
+    # 근거: 문서의 미세한 이동이나 OCR 박스 크기 변화 대응
+    # 스케일링: 필요 (픽셀 거리)
+    keyword_search_y_margin: int = 50
+    
+    # 의미: 값 노드를 매칭할 때 키워드 기준 Y축 탐색 범위(위아래)
+    # 근거: 키워드와 값의 중심 Y좌표가 정확히 일치하지 않을 수 있음
+    # 스케일링: 필요 (픽셀 거리)
+    roi_y_margin: int = 50
+    
+    # 의미: Right 방향 매칭 시, 키워드보다 약간 왼쪽(-X)에 있는 값도 허용하는 범위
+    # 근거: 정렬 오차로 인해 값이 키워드 왼쪽 끝보다 살짝 앞으로 튀어나올 수 있음
+    # 스케일링: 필요 (픽셀 거리)
+    right_dir_x_min: int = -50
+    
+    # 의미: Right 방향 매칭 시, 같은 행으로 간주하는 최대 Y 차이
+    # 근거: 키워드와 값이 같은 라인에 있다고 판단하는 기준
+    # 스케일링: 필요 (픽셀 거리)
+    right_dir_y_max: int = 80
+    
+    # 의미: Right 방향 매칭 시 값 탐색 최대 거리
+    # 근거: 키워드로부터 너무 멀리 떨어진 값은 오매칭 방지
+    # 스케일링: 필요 (픽셀 거리)
+    right_dir_x_tolerance_default: int = 800
+    
+    # 의미: Down 방향 매칭 시 값 탐색 최대 Y 거리
+    # 근거: 키워드 바로 아래에 있는 값을 찾기 위함
+    # 스케일링: 필요 (픽셀 거리)
+    down_dir_y_max: int = 300
+    
+    # 의미: Down 방향 매칭 시 좌우 X축 허용 오차
+    # 근거: 키워드와 값이 수직으로 잘 정렬되어 있는지 확인
+    # 스케일링: 필요 (픽셀 거리)
+    down_dir_x_tolerance: int = 150
+    
+    # 의미: 눈금선으로 판단하여 제외할 최대 높이
+    # 근거: 그래프나 테이블의 작은 눈금선들이 OCR로 잡히는 것 방지
+    # 스케일링: 필요 (노드 크기 픽셀)
+    scale_mark_height_max: int = 30
+    
+    # 의미: 중요 텍스트(큰 글자)로 판단할 최소 높이
+    # 근거: 결과값은 보통 텍스트보다 크게 인쇄됨
+    # 스케일링: 필요 (노드 크기 픽셀)
+    large_node_height_min: int = 35
+    
+    # 의미: 거리 점수 계산 시 Y 차이에 부여하는 가중치 (score = dy * weight + dx)
+    # 근거: 같은 행(Y차이가 적음)에 있는 것이 X 거리가 가까운 것보다 훨씬 중요함
+    # 스케일링: 필요 (픽셀 단위 가중치이므로 해상도에 따라 의미가 달라질 수 있어 스케일링 결정)
+    distance_y_weight: int = 300
+
+    # ==========================================
+    # Category C: Ratio/Weight Values (NO SCALE)
+    # ==========================================
+    
+    # 의미: 문자열 유사도 매칭 임계값 (0.0 ~ 1.0)
+    # 근거: difflib.SequenceMatcher 기준
+    # 스케일링: 불필요 (비율값)
+    similarity_threshold: float = 0.5
+    
+    # 의미: 큰 노드(중요 값)에 부여하는 점수 보너스 (낮을수록 좋음)
+    # 근거: 우선순위 조정을 위한 상대적 점수
+    # 스케일링: 불필요 (상대적 가중치)
+    large_node_bonus: int = 20000
+    
+    # 의미: 눈금선(노이즈)에 부여하는 점수 페널티 (높을수록 나쁨)
+    # 근거: 우선순위 조정을 위한 상대적 점수
+    # 스케일링: 불필요 (상대적 가중치)
+    scale_mark_penalty: int = 50000
+    
+    # ==========================================
+    # Hough Transform (Scale needed)
+    # ==========================================
+    # 의미: 선으로 인식할 최소 길이
+    # 근거: 너무 짧은 선은 노이즈로 처리
+    # 스케일링: 필요
+    hough_min_line_length: int = 100
+    
+    # 의미: 하나의 선으로 간주할 최대 끊김 거리
+    # 근거: 점선이나 약간 끊긴 선 연결
+    # 스케일링: 필요
+    hough_max_line_gap: int = 10
+
+    def scale(self, manager: ScaleManager) -> ScaledMatchingParameters:
+        """현재 해상도에 맞춰 파라미터 스케일링"""
+        return ScaledMatchingParameters(
+            # A. Position Values
+            segment_y_min=manager.scale_y(self.segment_y_min),
+            segment_y_max=manager.scale_y(self.segment_y_max),
+            segment_row_top_max=manager.scale_y(self.segment_row_top_max),
+            segment_row_mid_min=manager.scale_y(self.segment_row_mid_min),
+            segment_row_mid_max=manager.scale_y(self.segment_row_mid_max),
+            segment_row_bot_min=manager.scale_y(self.segment_row_bot_min),
+            body_fat_percent_y_min=manager.scale_y(self.body_fat_percent_y_min),
+
+            # B. Distance/Tolerance Values
+            keyword_search_y_margin=manager.scale_y(self.keyword_search_y_margin),
+            roi_y_margin=manager.scale_y(self.roi_y_margin),
+            right_dir_x_min=manager.scale_x(self.right_dir_x_min),
+            right_dir_y_max=manager.scale_y(self.right_dir_y_max),
+            right_dir_x_tolerance_default=manager.scale_x(self.right_dir_x_tolerance_default),
+            down_dir_y_max=manager.scale_y(self.down_dir_y_max),
+            down_dir_x_tolerance=manager.scale_x(self.down_dir_x_tolerance),
+            scale_mark_height_max=manager.scale_y(self.scale_mark_height_max),
+            large_node_height_min=manager.scale_y(self.large_node_height_min),
+            distance_y_weight=manager.scale_y(self.distance_y_weight),
+
+            # C. Ratio/Weight Values
+            similarity_threshold=self.similarity_threshold,
+            large_node_bonus=self.large_node_bonus,
+            scale_mark_penalty=self.scale_mark_penalty,
+            
+            # Hough Transform (Lower bound applied)
+            # 최소값 보장: 길이 40px, 간격 5px
+            hough_min_line_length=max(40, manager.scale_x(self.hough_min_line_length)),
+            hough_max_line_gap=max(5, manager.scale_x(self.hough_max_line_gap))
+        )
+
+
 @dataclass
 class MatchConfig:
     """매칭 설정 데이터 클래스"""
@@ -41,7 +268,7 @@ class ConfigManager:
     
     @staticmethod
     def get_default_targets() -> Dict[str, MatchConfig]:
-        """기본 타겟 설정 반환"""
+        """기본 타겟 설정 반환 (Based on 2400px)"""
         return {
             "신장": MatchConfig(r"(\d{3})", (130, 220), "down"),
             "연령": MatchConfig(r"(\d{2})", (130, 220), "down"),
@@ -255,13 +482,21 @@ class InBodyMatcher:
     
     def __init__(self, config_path: Optional[str] = None, 
                  auto_perspective: bool = True,
-                 skew_threshold: float = 15.0):
+                 skew_threshold: float = 15.0,
+                 target_height: int = 960):   # 해상도 변경하기  #fixme
         """
         Args:
             config_path: 설정 파일 경로 (JSON)
             auto_perspective: 자동 원근 변환 활성화 (기본: True)
             skew_threshold: 기울기 임계값 (0-100, 기본: 15.0)
+            target_height: OCR 수행 시 정규화할 높이 (기본: 2400)
         """
+        self.target_height = target_height
+        
+        # 해상도에 따른 PaddleOCR 파라미터 미세 조정 (비례적용)
+        # 2400px 기준 2560 사용. 960px이면 약 1000이 적당함.
+        det_limit = max(960, int(2560 * (target_height / 2400)))
+        
         try:
             import logging
             logging.getLogger('ppocr').setLevel(logging.ERROR)
@@ -269,7 +504,7 @@ class InBodyMatcher:
             self.ocr = PaddleOCR(
                 lang='korean',
                 ocr_version='PP-OCRv5',
-                text_det_limit_side_len=2560,
+                text_det_limit_side_len=det_limit,
                 text_det_unclip_ratio=2.0,
                 use_textline_orientation=True
             )
@@ -277,12 +512,42 @@ class InBodyMatcher:
             raise Exception(f"PaddleOCR 초기화 실패: {e}")
         
         self.correction_map = ConfigManager.get_correction_map()
-        self.targets = ConfigManager.get_default_targets()
+        
+        # Base Configuration (2400px)
+        self.base_targets = ConfigManager.get_default_targets() 
+        self.base_params = MatchingParameters()
+        
+        # Scaled (Initialized in extract_and_match)
+        self.scale_manager: Optional[ScaleManager] = None
+        self.params: Optional[ScaledMatchingParameters] = None
+        self.targets: Optional[Dict[str, MatchConfig]] = None
+        
         self.auto_perspective = auto_perspective
         self.skew_threshold = skew_threshold
         
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)
+
+    def _initialize_scaling(self, img_height: int):
+        """현재 이미지 높이에 맞춰 스케일링 초기화 (Method B)"""
+        self.scale_manager = ScaleManager(target_height=img_height)
+        
+        # 1. MatchingParameters 스케일링
+        self.params = self.base_params.scale(self.scale_manager)
+        
+        # 2. MatchConfig 타겟 스케일링
+        self.targets = {}
+        for key, cfg in self.base_targets.items():
+            self.targets[key] = MatchConfig(
+                regex=cfg.regex,
+                y_range=self.scale_manager.scale_range(cfg.y_range),
+                direction=cfg.direction,
+                x_tolerance=self.scale_manager.scale_x(cfg.x_tolerance),
+                y_tolerance=self.scale_manager.scale_y(cfg.y_tolerance),
+                allow_zero=cfg.allow_zero
+            )
+            
+        print(f"⚖️ Scaling Initialized: ratio={self.scale_manager.scale_ratio:.3f} (h={img_height})")
     
     def _load_config(self, config_path: str):
         """외부 설정 파일 로드"""
@@ -297,7 +562,12 @@ class InBodyMatcher:
         try:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-            lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=100, maxLineGap=10)
+            
+            # Use scaled Hough parameters if available, else default
+            min_len = self.params.hough_min_line_length if self.params else 100
+            max_gap = self.params.hough_max_line_gap if self.params else 10
+            
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=min_len, maxLineGap=max_gap)
             
             if lines is not None:
                 angles = []
@@ -368,10 +638,12 @@ class InBodyMatcher:
     def _find_key_node(self, key: str, nodes: List[Dict], y_range: Tuple[int, int]) -> Optional[Dict]:
         """키워드에 해당하는 노드 찾기"""
         yr_min, yr_max = y_range
+        # Use scaled margin
+        y_buffer = self.params.keyword_search_y_margin if self.params else 50
         
         candidates = []
         for node in nodes:
-            if not (yr_min - 50 <= node['center'][1] <= yr_max + 50):
+            if not (yr_min - y_buffer <= node['center'][1] <= yr_max + y_buffer):
                 continue
             
             text_without_parens = re.sub(r'\([^)]*\)', '', node['text'])
@@ -385,7 +657,9 @@ class InBodyMatcher:
                 ratio2 = difflib.SequenceMatcher(None, key, original_corrected).ratio()
                 max_ratio = max(ratio1, ratio2)
                 
-                if max_ratio > 0.5:
+                # Similarity threshold (No Scale)
+                threshold = self.params.similarity_threshold if self.params else 0.5
+                if max_ratio > threshold:
                     candidates.append(node)
         
         if candidates:
@@ -397,20 +671,19 @@ class InBodyMatcher:
     def _match_value(self, key: str, key_node: Dict, config: MatchConfig, 
                      nodes: List[Dict]) -> Optional[str]:
         """값 노드 매칭"""
+        # Ensure params are loaded
+        if not self.params:
+            raise RuntimeError("MatchingParameters not initialized. Call extract_and_match first.")
+
+        p = self.params
         yr_min, yr_max = config.y_range
         candidates = []
         
         # 디버그 모드
         debug = key in ["체중조절", "지방조절", "근육조절"]
         
-        if debug:
-            print(f"\n{'='*60}")
-            print(f"[{key}] 매칭 시작")
-            print(f"  키워드 위치: y={key_node['center'][1]:.0f}, bbox={key_node['bbox']}")
-            print(f"  Y 범위: {yr_min-50} ~ {yr_max+50}")
-            print(f"  정규식: {config.regex}")
-            print(f"  allow_zero: {config.allow_zero}")
-            print(f"{'='*60}")
+        # Check buffer for debug printing (Scaled)
+        y_chk_buffer = p.roi_y_margin * 2
         
         for node in nodes:
             if node == key_node:
@@ -421,7 +694,7 @@ class InBodyMatcher:
             clean_text = clean_text.replace('I', '1').replace('l', '1').replace(',', '.')
             
             # 디버그: Y 범위 내의 모든 노드 출력
-            if debug and (yr_min - 100 <= node['center'][1] <= yr_max + 100):
+            if debug and (yr_min - y_chk_buffer <= node['center'][1] <= yr_max + y_chk_buffer):
                 print(f"  노드: '{node['text']}' (정규화: '{clean_text}') at y={node['center'][1]:.0f}")
             
             # 정규식 매칭
@@ -432,85 +705,78 @@ class InBodyMatcher:
             # 값 추출
             val = match.group(1)
             
-            if debug:
-                print(f"    ✓ 정규식 매칭: '{val}'")
-            
             # 위치 계산
             dx = node['center'][0] - key_node['bbox'][2] if config.direction == "right" else abs(node['center'][0] - key_node['center'][0])
             dy = abs(node['center'][1] - key_node['center'][1])
             
-            # ROI 체크
-            if key == "체지방률" and node['center'][1] < 1210:
+            # ROI 체크 (체지방률 특수 처리)
+            if key == "체지방률" and node['center'][1] < p.body_fat_percent_y_min:
                 continue
             
-            in_roi = (yr_min - 50 <= node['center'][1] <= yr_max + 50)
-            is_right_dir = (config.direction == "right" and -50 < dx < config.x_tolerance and dy < 80)
-            is_down_dir = (config.direction == "down" and 0 < (node['center'][1] - key_node['bbox'][3]) < 300 and abs(node['center'][0] - key_node['center'][0]) < 150)
+            in_roi = (yr_min - p.roi_y_margin <= node['center'][1] <= yr_max + p.roi_y_margin)
             
-            if debug:
-                print(f"      dx={dx:.0f}, dy={dy:.0f}")
-                print(f"      in_roi={in_roi}, is_right={is_right_dir}, is_down={is_down_dir}")
+            # Direction checks using scaled parameters
+            # config.x_tolerance is already scaled in _initialize_scaling
+            is_right_dir = (
+                config.direction == "right" and 
+                p.right_dir_x_min < dx < config.x_tolerance and 
+                dy < p.right_dir_y_max
+            )
+            is_down_dir = (
+                config.direction == "down" and 
+                0 < (node['center'][1] - key_node['bbox'][3]) < p.down_dir_y_max and 
+                abs(node['center'][0] - key_node['center'][0]) < p.down_dir_x_tolerance
+            )
             
-            if not in_roi:
-                if debug:
-                    print(f"      ✗ ROI 밖")
-                continue
-            
-            if not (is_right_dir or is_down_dir):
-                if debug:
-                    print(f"      ✗ 방향 조건 불만족")
+            if not in_roi or not (is_right_dir or is_down_dir):
                 continue
             
             # 0값 필터링
             if not config.allow_zero:
                 if val in ["0.0", "0", "+0.0"]:
-                    if debug:
-                        print(f"      ✗ 0값 필터링")
                     continue
             
             # 눈금선 값 필터링
-            is_scale_mark = node.get('h', 0) < 30
+            is_scale_mark = node.get('h', 0) < p.scale_mark_height_max
             
-            # 거리 점수 계산
-            dist_score = (dy * 300) + abs(dx)
+            # 거리 점수 계산 (Scaled weight)
+            dist_score = (dy * p.distance_y_weight) + abs(dx)
             
-            if node.get('h', 0) > 35:
-                dist_score -= 20000
+            # Large node bonus (No Scale)
+            if node.get('h', 0) > p.large_node_height_min:
+                dist_score -= p.large_node_bonus
             
+            # Scale mark penalty (No Scale)
             if is_scale_mark:
-                dist_score += 50000
-            
-            if debug:
-                print(f"      ✓ 후보 추가: dist_score={dist_score:.0f}, h={node.get('h', 0)}")
+                dist_score += p.scale_mark_penalty
             
             candidates.append((dist_score, val, node, dx, dy))
         
         if candidates:
             candidates.sort(key=lambda x: x[0])
             best_match = candidates[0]
-            
             if debug:
-                print(f"\n[{key}] 최종 결과: {best_match[1]}")
-                print(f"  전체 후보 ({len(candidates)}개): {[(c[1], f'{c[0]:.0f}') for c in candidates[:5]]}")
-            
+                print(f"  [{key}] Selected: {best_match[1]} (score={best_match[0]:.0f})")
             return best_match[1]
-        
-        if debug:
-            print(f"\n[{key}] ✗ 후보 없음!")
         
         return None
     
     def _extract_segment_evaluations(self, nodes: List[Dict]) -> Dict[str, str]:
         """부위별 평가 추출"""
+        if not self.params:
+             return {}
+
+        p = self.params
         evals = ["표준이하", "표준이상", "표준"]
+        
         seg_nodes = sorted(
-            [n for n in nodes if any(ev in n['text'] for ev in evals) and (1400 <= n['center'][1] <= 1900)],
+            [n for n in nodes if any(ev in n['text'] for ev in evals) and (p.segment_y_min <= n['center'][1] <= p.segment_y_max)],
             key=lambda x: x['center'][1]
         )
         
-        row_top = sorted([n for n in seg_nodes if n['center'][1] < 1580], key=lambda x: x['center'][0])
-        row_mid = sorted([n for n in seg_nodes if 1580 <= n['center'][1] <= 1700], key=lambda x: x['center'][0])
-        row_bot = sorted([n for n in seg_nodes if n['center'][1] > 1700], key=lambda x: x['center'][0])
+        row_top = sorted([n for n in seg_nodes if n['center'][1] < p.segment_row_top_max], key=lambda x: x['center'][0])
+        row_mid = sorted([n for n in seg_nodes if p.segment_row_mid_min <= n['center'][1] <= p.segment_row_mid_max], key=lambda x: x['center'][0])
+        row_bot = sorted([n for n in seg_nodes if n['center'][1] > p.segment_row_bot_min], key=lambda x: x['center'][0])
         
         results = {}
         
@@ -537,10 +803,15 @@ class InBodyMatcher:
     
     def extract_and_match(self, image_path: str) -> Dict[str, Optional[str]]:
         """이미지에서 인바디 데이터 추출 및 매칭"""
+        import time
+        start_time = time.time()
+        
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"이미지 파일을 찾을 수 없습니다: {image_path}")
         
         try:
+            # 1. 이미지 로드 및 원근 변환
+            step_start = time.time()
             src_img = cv2.imread(image_path)
             if src_img is None:
                 raise ValueError(f"이미지를 읽을 수 없습니다: {image_path}")
@@ -556,9 +827,11 @@ class InBodyMatcher:
                 else:
                     if skew_score > 0:
                         print(f"✓ 정면 문서 (기울기 점수: {skew_score:.1f}, 임계값: {self.skew_threshold})")
+            print(f"⏱️ [1/4] 이미지 로드 및 보정: {time.time() - step_start:.4f}초")
             
-            # 해상도 정규화
-            target_h = 2400
+            # 2. 해상도 정규화 및 스케일링 초기화
+            step_start = time.time()
+            target_h = self.target_height
             ratio = target_h / src_img.shape[0]
             img = cv2.resize(
                 src_img,
@@ -568,19 +841,26 @@ class InBodyMatcher:
             
             print(f"📏 정규화된 크기: {img.shape[:2]}")
             
-            # 전처리 및 OCR
+            # 스케일링 초기화 (Method B)
+            self._initialize_scaling(img.shape[0])
+            print(f"⏱️ [2/4] 리사이징 및 스케일링 초기화: {time.time() - step_start:.4f}초")
+            
+            # 3. 전처리 및 OCR 수행
+            step_start = time.time()
             with temporary_file() as temp_path:
                 processed_img = self._preprocess_image(img)
                 cv2.imwrite(temp_path, processed_img)
                 all_nodes = self._extract_nodes(temp_path)
             
             print(f"📝 추출된 텍스트 노드: {len(all_nodes)}개")
+            print(f"⏱️ [3/4] 전처리 및 OCR 추론: {time.time() - step_start:.4f}초")
             
             if not all_nodes:
                 print("⚠️ 텍스트를 추출할 수 없습니다")
                 return {}
             
-            # 매칭 수행
+            # 4. 매칭 수행
+            step_start = time.time()
             matched_data = {}
             
             for key, config in self.targets.items():
@@ -601,6 +881,9 @@ class InBodyMatcher:
             detected = sum(1 for v in matched_data.values() if v is not None)
             total = len(matched_data)
             print(f"✅ 매칭 완료: {detected}/{total} 항목 ({detected/total*100:.1f}%)")
+            print(f"⏱️ [4/4] 데이터 매칭: {time.time() - step_start:.4f}초")
+            
+            print(f"✨ 전체 소요 시간: {time.time() - start_time:.4f}초")
             
             return matched_data
         
@@ -726,11 +1009,7 @@ def main():
         if not has_data:
             print("\n⚠️ 모든 항목이 미검출입니다!")
         else:
-            # 파일로 저장하지 않고 데이터 구조만 반환합니다.
-            # matcher.save_results(result, "inbody_result.json", format='json')
-            
             structured = matcher.get_structured_results(result)
-            # matcher.save_results(structured, "inbody_result_structured.json", format='json')
             
             print("\n" + "=" * 50)
             print("📦 추출된 데이터 딕셔너리")

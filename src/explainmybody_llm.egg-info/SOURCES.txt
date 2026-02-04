@@ -1,0 +1,16 @@
+LICENSE
+pyproject.toml
+src/explainmybody_llm.egg-info/PKG-INFO
+src/explainmybody_llm.egg-info/SOURCES.txt
+src/explainmybody_llm.egg-info/dependency_links.txt
+src/explainmybody_llm.egg-info/requires.txt
+src/explainmybody_llm.egg-info/top_level.txt
+src/rule_based_bodytype/main_test.py
+src/rule_based_bodytype/utils_test.py
+src/rule_based_bodytype/body_analysis/__init__.py
+src/rule_based_bodytype/body_analysis/constants.py
+src/rule_based_bodytype/body_analysis/metrics.py
+src/rule_based_bodytype/body_analysis/models.py
+src/rule_based_bodytype/body_analysis/pipeline.py
+src/rule_based_bodytype/body_analysis/segmental.py
+src/rule_based_bodytype/body_analysis/stages.py
