@@ -17,16 +17,12 @@ uv.lock
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-rule_based_bodytype/__pycache__/
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+*.egg-info/
+
+# Environment
+.env
+.env.local
+**/.env
 
 # Database
 *.db
