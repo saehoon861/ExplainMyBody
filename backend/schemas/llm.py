@@ -176,6 +176,8 @@ class GoalPlanResponse(BaseModel):
     plan_id: int
     report_id: int
     weekly_plan: Dict[str, Any]
+    thread_id: str  # LangGraph 스레드 ID
+    initial_llm_interaction_id: int  # 첫 LLM 상호작용 ID
     message: Optional[str] = None
 
 
@@ -258,6 +260,13 @@ class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
 
+
+class WeeklyPlanFeedbackRequest(BaseModel):
+    """주간 계획 피드백 요청 스키마"""
+    thread_id: str
+    parent_interaction_id: int
+    feedback_category: str
+    feedback_text: str
 
 # ============================================================================
 # LLM Interaction Schemas

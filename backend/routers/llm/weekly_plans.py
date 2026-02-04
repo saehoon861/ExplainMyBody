@@ -12,7 +12,8 @@ from schemas.llm import (
     WeeklyPlanUpdate,
     GoalPlanRequest,
     WeeklyPlanChatRequest,
-    WeeklyPlanChatResponse
+    WeeklyPlanChatResponse,
+    WeeklyPlanFeedbackRequest
 )
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
 from services.llm.weekly_plan_service import WeeklyPlanService
@@ -79,16 +80,38 @@ async def chat_with_plan(
         return WeeklyPlanChatResponse(response=response)
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"채팅 중 오류가 발생했습니다: {str(e)}")
-
-
-
-
-@router.post("/", response_model=WeeklyPlanResponse, status_code=201)
-def create_weekly_plan(
-    user_id: int,
-    plan_data: WeeklyPlanCreate,
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"채팅 중 오류가 발생했습니다: {str(e)}")
+    
+    
+    @router.post("/feedback", response_model=WeeklyPlanChatResponse)
+    async def feedback_on_plan(
+        user_id: int,
+        request: WeeklyPlanFeedbackRequest,
+        db: Session = Depends(get_db)
+    ):
+        """
+        주간 계획에 대한 구조화된 피드백 제출 및 계획 수정
+        
+        - **user_id**: 사용자 ID
+        - **request**: 피드백 요청 데이터
+        """
+        try:
+            response_text = await weekly_plan_service.refine_plan_with_feedback(
+                db=db,
+                user_id=user_id,
+                request=request
+            )
+            return WeeklyPlanChatResponse(response=response_text)
+        except Exception as e:
+            # TODO: 더 구체적인 예외 처리
+            raise HTTPException(status_code=500, detail=f"피드백 처리 중 오류가 발생했습니다: {str(e)}")
+    
+    
+    @router.post("/", response_model=WeeklyPlanResponse, status_code=201)
+    def create_weekly_plan(
+        user_id: int,
+        plan_data: WeeklyPlanCreate,
     db: Session = Depends(get_db)
 ):
     """

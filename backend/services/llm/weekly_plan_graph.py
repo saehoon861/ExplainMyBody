@@ -114,8 +114,10 @@ def create_weekly_plan_agent(llm_client):
         category = state.get("feedback_category")
 
         if not category:
-            print("--- 라우팅: 피드백 대기 (중단) ---")
-            return END
+            # feedback_category가 없을 경우, 일반 Q&A 요청으로 간주
+            # 기존 chat API 호출은 여기에 해당하며 qa_general 노드로 라우팅
+            print("--- 라우팅: 피드백 카테고리 없음, 일반 Q&A (폴백) ---")
+            return "qa_general" # 기존 chat API 호환성을 위해 qa_general로 바로 라우팅
 
         print(f"--- 라우팅: {category} ---")
         if category == "운동 플랜 조정":
@@ -127,6 +129,8 @@ def create_weekly_plan_agent(llm_client):
         elif category == "최종 플랜으로 저장":
             return "finalize_plan"
         else:
+            # 정의되지 않은 카테고리의 경우에도 일반 Q&A로 처리
+            print(f"--- 라우팅: 알 수 없는 카테고리 '{category}', 일반 Q&A로 처리 ---")
             return "qa_general"
 
     workflow = StateGraph(PlanState)
