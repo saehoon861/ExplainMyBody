@@ -11,6 +11,10 @@ class LLMInteractionBase(BaseModel):
     category_type: Optional[str] = None
     output_text: str
     model_version: Optional[str] = None
+    
+    # 수정 이력 추적을 위한 필드 추가
+    parent_interaction_id: Optional[int] = None
+    triggering_feedback_id: Optional[int] = None
 
 class LLMInteractionCreate(LLMInteractionBase):
     """LLMInteraction 생성 요청 스키마"""

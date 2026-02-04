@@ -24,7 +24,7 @@ from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput
 # 둘 다 False면 새로운 주간 계획서 작성하지 않음 & 기존 주간 계획서 반환
 
 
-class WeeklyPlanService:
+class WeeklyPlanService :
     def __init__(self):
         self.llm_service = LLMService()
         self.health_service = HealthService()
