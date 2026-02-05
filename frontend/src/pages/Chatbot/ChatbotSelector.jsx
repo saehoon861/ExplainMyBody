@@ -1,38 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, X, TrendingUp, Activity, Zap, FileText, AlertCircle, Loader2, Lock } from 'lucide-react';
+import { Sparkles, ArrowRight, X, TrendingUp, Activity, Zap } from 'lucide-react';
 import '../../styles/LoginLight.css';
 import { getUserHealthRecords } from '../../services/inbodyService';
-
-// ============================================
-// 목업 설정
-// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
-const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
-
-// 목업 인바디 데이터
-const MOCK_INBODY_DATA = {
-    id: 1,
-    created_at: new Date().toISOString(),
-    body_type1: '표준 체형',
-    measurements: {
-        "체중관리": { "체중": 72.5, "골격근량": 32.8 },
-        "비만분석": { "체지방률": 18.5, "BMI": 23.2 }
-    }
-};
 
 const ChatbotSelector = () => {
     const navigate = useNavigate();
     const [showInbodyPopup, setShowInbodyPopup] = useState(false);
-    // OCR 검사 안내 팝업 (OCR 데이터가 없을 때)
-    const [showNoDataPopup, setShowNoDataPopup] = useState(false);
     const [latestInbodyData, setLatestInbodyData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    // 팝업 타입 상태 ('ocr': OCR 안내, 'guide': 분석가 안내)
-    const [popupType, setPopupType] = useState('ocr');
-    // 분석 중 상태 (로딩 애니메이션 표시용)
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analyzeProgress, setAnalyzeProgress] = useState(0);
-    const [analyzeMessage, setAnalyzeMessage] = useState('');
 
     // 인바디 데이터 로드
     useEffect(() => {
@@ -42,17 +18,6 @@ const ChatbotSelector = () => {
 
             setIsLoading(true);
             try {
-                if (USE_MOCK_DATA) {
-                    // 테스트: 데이터 있음 (잠금 해제)
-                    setLatestInbodyData(MOCK_INBODY_DATA);
-
-                    // 테스트: 데이터 없음 (잠금 확인용)
-                    // setLatestInbodyData(null);
-
-                    setIsLoading(false);
-                    return;
-                }
-
                 const records = await getUserHealthRecords(userData.id, 1);
                 if (records && records.length > 0) {
                     setLatestInbodyData(records[0]);
@@ -68,73 +33,11 @@ const ChatbotSelector = () => {
     }, []);
 
     const handleBotClick = (botId) => {
-        // 데이터가 없는 경우 처리
-        if (!latestInbodyData) {
-            if (botId === 'workout-planner') {
-                // 운동 플래너 클릭 시 -> "인바디 분석 전문가 먼저 이용하세요" 안내
-                setPopupType('guide');
-                setShowNoDataPopup(true);
-                return;
-            } else if (botId === 'inbody-analyst') {
-                // 인바디 분석가 클릭 시 -> "OCR 검사 하러가기" 안내
-                setPopupType('ocr');
-                setShowNoDataPopup(true);
-                return;
-            }
-        }
-
-        if (botId === 'inbody-analyst') {
-            // 데이터가 있으면 인바디 정보 팝업 표시
+        if (botId === 'inbody-analyst' && latestInbodyData) {
             setShowInbodyPopup(true);
         } else {
-            // 그 외 (운동 플래너 등) -> 데이터가 있으면 바로 이동
-            // localStorage에서 사용자 정보 가져오기
-            const userData = JSON.parse(localStorage.getItem('user'));
-            const userId = userData?.id || 1; // 로그인된 사용자 ID
-
-            navigate(`/chatbot/${botId}`, {
-                state: {
-                    inbodyData: latestInbodyData,
-                    userId: userId  // ✅ userId 전달 추가
-                }
-            });
+            navigate(`/chatbot/${botId}`);
         }
-    };
-
-    /**
-     * AI 정밀분석 버튼 클릭 핸들러
-     */
-    const handleStartAnalysis = async () => {
-        setIsAnalyzing(true);
-        setAnalyzeProgress(0);
-        setAnalyzeMessage('분석 중');
-
-        const messages = ['분석 중', '체성분 분석', '지표 계산', 'AI 분석', '결과 생성'];
-
-        for (let i = 0; i <= 100; i += 2) {
-            await new Promise(resolve => setTimeout(resolve, 40));
-            setAnalyzeProgress(i);
-            const messageIndex = Math.floor(i / 25);
-            if (messageIndex < messages.length) {
-                setAnalyzeMessage(messages[messageIndex]);
-            }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        setShowInbodyPopup(false);
-        setIsAnalyzing(false);
-
-        // localStorage에서 사용자 정보 가져오기
-        const userData = JSON.parse(localStorage.getItem('user'));
-        const userId = userData?.id || 1; // 로그인된 사용자 ID
-
-        navigate('/chatbot/inbody-analyst', {
-            state: {
-                inbodyData: latestInbodyData,
-                userId: userId  // ✅ userId 전달 추가
-            }
-        });
     };
 
     const bots = [
@@ -186,157 +89,106 @@ const ChatbotSelector = () => {
                 maxWidth: '480px',
                 margin: '0 auto'
             }}>
-                {bots.map((bot, index) => {
-                    // workout-planner인 경우 데이터 없으면 잠김 처리
-                    const isLocked = bot.id === 'workout-planner' && !latestInbodyData;
+                {bots.map((bot, index) => (
+                    <div
+                        key={bot.id}
+                        onClick={() => handleBotClick(bot.id)}
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(20px)',
+                            borderRadius: '28px',
+                            padding: '28px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            border: '1px solid rgba(255, 255, 255, 0.8)',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+                            animation: 'premiumFade 0.5s ease-out forwards',
+                            animationDelay: `${index * 0.1}s`,
+                            opacity: 0
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)';
+                            e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                            e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06)';
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px' }}>
+                            {/* Profile Icon */}
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '20px',
+                                background: bot.gradient,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '32px',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                flexShrink: 0
+                            }}>
+                                {bot.icon}
+                            </div>
 
-                    return (
-                        <div
-                            key={bot.id}
-                            onClick={() => handleBotClick(bot.id)}
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.9)',
-                                backdropFilter: 'blur(20px)',
-                                borderRadius: '28px',
-                                padding: '28px',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                border: '1px solid rgba(255, 255, 255, 0.8)',
-                                boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-                                animation: 'premiumFade 0.5s ease-out forwards',
-                                animationDelay: `${index * 0.1}s`,
-                                opacity: 0,
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)';
-                                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                                e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06)';
-                            }}
-                        >
-
-                            {/* 잠금 오버레이 */}
-                            {isLocked && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    background: 'rgba(255, 255, 255, 0.4)',
-                                    zIndex: 10,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    backdropFilter: 'blur(12px)',
-                                    transition: 'all 0.3s ease'
+                            {/* Content */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <h2 style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: 700,
+                                    color: '#1e293b',
+                                    marginBottom: '6px',
+                                    letterSpacing: '-0.02em'
                                 }}>
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                                        borderRadius: '20px',
-                                        padding: '16px',
-                                        marginBottom: '12px',
-                                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(255,255,255,0.5)'
-                                    }}>
-                                        <Lock size={28} color="#64748b" />
-                                    </div>
-                                    <span style={{
-                                        fontSize: '0.95rem',
-                                        fontWeight: 800,
-                                        color: '#475569',
-                                        background: 'rgba(255, 255, 255, 0.9)',
-                                        padding: '8px 16px',
-                                        borderRadius: '16px',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                        border: '1px solid rgba(255,255,255,0.8)',
-                                        letterSpacing: '-0.02em'
-                                    }}>
-                                        인바디 분석 필요
-                                    </span>
-                                </div>
-                            )}
-
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px', opacity: isLocked ? 0.5 : 1 }}>
-                                {/* Profile Icon */}
-                                <div style={{
-                                    width: '64px',
-                                    height: '64px',
-                                    borderRadius: '20px',
-                                    background: bot.gradient,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '32px',
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                                    flexShrink: 0
+                                    {bot.name}
+                                </h2>
+                                <p style={{
+                                    color: '#64748b',
+                                    fontSize: '0.88rem',
+                                    lineHeight: 1.5,
+                                    marginBottom: '14px'
                                 }}>
-                                    {bot.icon}
-                                </div>
+                                    {bot.desc}
+                                </p>
 
-                                {/* Content */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <h2 style={{
-                                        fontSize: '1.2rem',
-                                        fontWeight: 700,
-                                        color: '#1e293b',
-                                        marginBottom: '6px',
-                                        letterSpacing: '-0.02em'
-                                    }}>
-                                        {bot.name}
-                                    </h2>
-                                    <p style={{
-                                        color: '#64748b',
-                                        fontSize: '0.88rem',
-                                        lineHeight: 1.5,
-                                        marginBottom: '14px'
-                                    }}>
-                                        {bot.desc}
-                                    </p>
-
-                                    {/* Feature Tags */}
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        {bot.features.map(f => (
-                                            <span
-                                                key={f}
-                                                style={{
-                                                    padding: '6px 12px',
-                                                    background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                                                    color: '#475569',
-                                                    borderRadius: '20px',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 600
-                                                }}
-                                            >
-                                                {f}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Arrow */}
-                                <div style={{
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '12px',
-                                    background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                    marginTop: '14px'
-                                }}>
-                                    {isLocked ? <Lock size={18} color="#94a3b8" /> : <ArrowRight size={18} color="#64748b" />}
+                                {/* Feature Tags */}
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {bot.features.map(f => (
+                                        <span
+                                            key={f}
+                                            style={{
+                                                padding: '6px 12px',
+                                                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                                                color: '#475569',
+                                                borderRadius: '20px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            {f}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
+
+                            {/* Arrow */}
+                            <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '12px',
+                                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                marginTop: '14px'
+                            }}>
+                                <ArrowRight size={18} color="#64748b" />
+                            </div>
                         </div>
-                    )
-                })}
+                    </div>
+                ))}
             </div>
 
             <div style={{ height: '100px' }}></div>
@@ -528,223 +380,41 @@ const ChatbotSelector = () => {
                             </div>
                         )}
 
-                        {/* AI 정밀분석 버튼 */}
+                        {/* 인바디 분석 피드백 버튼 */}
                         <button
-                            onClick={handleStartAnalysis}
-                            disabled={isAnalyzing}
+                            onClick={() => {
+                                setShowInbodyPopup(false);
+                                navigate('/chatbot/inbody-analyst');
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '16px',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                background: isAnalyzing
-                                    ? 'rgba(100, 116, 139, 0.2)'
-                                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '16px',
                                 fontSize: '1rem',
                                 fontWeight: 700,
-                                cursor: isAnalyzing ? 'default' : 'pointer',
+                                cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
                                 transition: 'all 0.3s',
-                                boxShadow: isAnalyzing
-                                    ? '0 4px 16px rgba(102, 126, 234, 0.2)'
-                                    : '0 4px 16px rgba(102, 126, 234, 0.3)'
+                                boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)'
                             }}
                             onMouseEnter={(e) => {
-                                if (!isAnalyzing) {
-                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
-                                }
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
                             }}
                             onMouseLeave={(e) => {
-                                if (!isAnalyzing) {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.3)';
-                                }
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.3)';
                             }}
                         >
-                            {/* 진행바 */}
-                            {isAnalyzing && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    height: '100%',
-                                    width: `${analyzeProgress}%`,
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-                                    transition: 'width 0.15s ease-out',
-                                    borderRadius: '16px'
-                                }} />
-                            )}
-                            <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {isAnalyzing ? (
-                                    <>
-                                        <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                                        {analyzeProgress < 100 ? `${analyzeMessage} ${analyzeProgress}%` : '완료!'}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles size={20} />
-                                        AI 정밀분석
-                                    </>
-                                )}
-                            </span>
+                            <Sparkles size={20} />
+                            인바디 분석 피드백 받기
                         </button>
-                    </div>
-                </div>
-            )}
-
-            {/* 안내 팝업 (OCR 안내 OR 분석가 이용 안내) */}
-            {showNoDataPopup && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0, 0, 0, 0.5)',
-                        backdropFilter: 'blur(4px)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
-                        padding: '20px',
-                        animation: 'fadeIn 0.2s ease-out'
-                    }}
-                    onClick={() => setShowNoDataPopup(false)}
-                >
-                    <div
-                        style={{
-                            background: 'white',
-                            borderRadius: '24px',
-                            padding: '32px',
-                            maxWidth: '400px',
-                            width: '100%',
-                            position: 'relative',
-                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                            animation: 'slideUp 0.3s ease-out'
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setShowNoDataPopup(false)}
-                            style={{
-                                position: 'absolute',
-                                top: '16px',
-                                right: '16px',
-                                background: '#f1f5f9',
-                                border: 'none',
-                                borderRadius: '12px',
-                                width: '36px',
-                                height: '36px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <X size={20} color="#64748b" />
-                        </button>
-
-                        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                            <div style={{
-                                width: '80px',
-                                height: '80px',
-                                borderRadius: '24px',
-                                background: popupType === 'ocr'
-                                    ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
-                                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                margin: '0 auto 16px',
-                                boxShadow: popupType === 'ocr'
-                                    ? '0 8px 24px rgba(251, 191, 36, 0.3)'
-                                    : '0 8px 24px rgba(102, 126, 234, 0.3)'
-                            }}>
-                                {popupType === 'ocr' ? (
-                                    <AlertCircle size={40} color="white" />
-                                ) : (
-                                    <Sparkles size={40} color="white" />
-                                )}
-                            </div>
-                            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b', marginBottom: '8px', wordKeepAll: 'break-word' }}>
-                                {popupType === 'ocr' ? '인바디 검사가 필요해요' : '순서가 중요해요!'}
-                            </h2>
-                            <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6, wordKeepAll: 'break-word' }}>
-                                {popupType === 'ocr' ? (
-                                    <>아직 인바디 검사 결과가 없습니다.<br />먼저 인바디 검사지를 등록해주세요.</>
-                                ) : (
-                                    <>정확한 운동 추천을 위해서는<br /><b>인바디 분석 전문가</b>와의 상담이 선행되어야 합니다.</>
-                                )}
-                            </p>
-                        </div>
-
-                        {popupType === 'ocr' ? (
-                            <button
-                                onClick={() => {
-                                    setShowNoDataPopup(false);
-                                    navigate('/inbody');
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '16px',
-                                    fontSize: '1rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px',
-                                    transition: 'all 0.3s',
-                                    boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)'
-                                }}
-                            >
-                                <FileText size={20} />
-                                인바디 검사하러 가기
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setShowNoDataPopup(false)}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '16px',
-                                    fontSize: '1rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px',
-                                    transition: 'all 0.3s',
-                                    boxShadow: '0 4px 16px rgba(240, 147, 251, 0.3)'
-                                }}
-                            >
-                                <Sparkles size={20} />
-                                네, 알겠습니다
-                            </button>
-                        )}
-
-                        {popupType === 'ocr' && (
-                            <p style={{ marginTop: '16px', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', lineHeight: 1.5 }}>
-                                검사지를 촬영하면 OCR로 자동 분석됩니다.
-                            </p>
-                        )}
                     </div>
                 </div>
             )}
@@ -779,15 +449,6 @@ const ChatbotSelector = () => {
                         opacity: 1;
                         transform: translateY(0);
                     }
-                }
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-
-                @keyframes pulse {
-                    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-                    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
                 }
             `}</style>
         </div>

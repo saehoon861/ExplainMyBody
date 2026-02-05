@@ -8,7 +8,7 @@ const Signup = () => {
 
     const preferredExercisesList = [
         '유산소', '무산소', '러닝', '걷기', '고강도운동',
-        '웨이트', '요가', '필라테스',
+        '에이트', '요가', '필라테스',
         '맨몸운동', '실내운동', '실외운동', '기타'
     ];
 
@@ -186,25 +186,7 @@ const Signup = () => {
         }
     };
 
-    // 부위별 분석 카테고리 (드롭다운으로 표시할 카테고리)
-    const segmentalCategories = ['부위별근육분석', '부위별체지방분석'];
-
     const handleInbodyFieldChange = (category, field, value) => {
-        // 부위별 분석 카테고리는 드롭다운으로 선택하므로 검증 없이 바로 저장
-        if (segmentalCategories.includes(category)) {
-            setFormData(prev => ({
-                ...prev,
-                inbodyData: {
-                    ...prev.inbodyData,
-                    [category]: {
-                        ...prev.inbodyData[category],
-                        [field]: value
-                    }
-                }
-            }));
-            return;
-        }
-
         // Validation Logic
         let isValid = true;
 
@@ -526,15 +508,12 @@ const Signup = () => {
     };
 
     const medicalConditionsList = [
-        '고혈압', '당뇨', '심장 질환', '호흡기 질환', '관절염', '허리 디스크', '근골격계 질환', '기타'
+        '고혈압', '당뇨', '심장 질환', '호흡기 질환', '관절염', '허리 디스크', '기타 근골격계 질환', '기타', '없음'
     ];
-
-    const segmentalOptions = ['표준', '표준이상', '표준이하'];
 
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = formData.inbodyData?.[categoryKey];
         if (!categoryData) return null;
-        const isSegmental = segmentalCategories.includes(categoryKey);
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -546,31 +525,18 @@ const Signup = () => {
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
-                        <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
+                        <div className="header-cell">단위</div>
                     </div>
                     {Object.entries(categoryData).map(([field, value]) => (
                         <div className="table-row" key={field}>
                             <div className="row-label">{field}</div>
                             <div className="row-value">
-                                {isSegmental ? (
-                                    <select
-                                        value={value || ''}
-                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                        className="segmental-select"
-                                    >
-                                        <option value="">선택</option>
-                                        {segmentalOptions.map(option => (
-                                            <option key={option} value={option}>{option}</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        type="text"
-                                        value={value || ''}
-                                        placeholder="-"
-                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                    />
-                                )}
+                                <input
+                                    type="text"
+                                    value={value || ''}
+                                    placeholder="-"
+                                    onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                />
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
@@ -1231,13 +1197,13 @@ const Signup = () => {
                                 </div>
                             </div>
                             <div className="profile-field-row">
-                                <span className="field-label">시작 체중 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '400' }}>(인바디 기준)</span></span>
+                                <span className="field-label">시작 체중</span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
                                         type="number"
                                         value={formData.startWeight}
-                                        disabled
-                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center', background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                                        onChange={(e) => handleInputChange('startWeight', e.target.value)}
+                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}
                                     />
                                     <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>

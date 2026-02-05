@@ -44,14 +44,6 @@ body {
     }
 }
 
-@media (min-width: 769px) {
-    .app-layout {
-        height: auto;
-        min-height: 100vh;
-        overflow-y: visible;
-    }
-}
-
 .main-content-container {
     flex: 1;
     display: flex;
@@ -358,7 +350,6 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -858,27 +849,6 @@ body {
 
     .chat-input-area {
         padding: 10px;
-    }
-
-    /* 모바일에서 차트 카드 크기 줄이기 */
-    .chart-card {
-        padding: 14px !important;
-        margin-top: 14px !important;
-    }
-
-    .chart-card h3 {
-        font-size: 1rem !important;
-        margin-bottom: 8px !important;
-    }
-
-    .chart-card h4 {
-        font-size: 0.9rem !important;
-        margin-bottom: 10px !important;
-    }
-
-    .dashboard-card {
-        padding: 14px;
-        border-radius: 16px;
     }
 }
 
