@@ -3,12 +3,15 @@ LLM 서비스
 AI 분석 및 계획 생성 (LangGraph 에이전트 사용)
 """
 
+from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 from dotenv import load_dotenv
 
 from schemas.llm import StatusAnalysisInput, GoalPlanInput
+from schemas.llm_interaction import LLMInteractionCreate
+from repositories.llm.llm_interaction_repository import LLMInteractionRepository
 from services.llm.llm_clients import create_llm_client
 from .agent_graph import create_analysis_agent
 from .weekly_plan_graph import create_weekly_plan_agent
@@ -159,18 +162,13 @@ class LLMService:
 
     async def call_goal_plan_llm(
         self,
+        db: Session,
         input_data: GoalPlanInput
-    ) -> str:
+    ) -> dict:
         """
-        LLM2: 주간 계획서 생성 API 호출
-
-        Args:
-            input_data: GoalPlanInput 스키마 객체
-
-        Returns:
-            LLM이 생성한 주간 계획서 텍스트
+        LLM2: 주간 계획서 생성 API 호출 및 초기 상호작용 저장
         """
-        # 1. 스레드 ID 생성 (필요 시)
+        # 1. 스레드 ID 생성
         thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
         config = {"configurable": {"thread_id": thread_id}}
 
@@ -179,9 +177,24 @@ class LLMService:
             {"plan_input": input_data},
             config=config
         )
+        plan_text = initial_state['messages'][-1].content
 
-        # 3. 결과 반환 (마지막 AI 메시지)
-        return initial_state['messages'][-1].content
+        # 3. 초기 LLM 상호작용 DB에 저장
+        interaction_schema = LLMInteractionCreate(
+            llm_stage="llm2",
+            source_type="weekly_plan_initial",
+            source_id=input_data.record_id,
+            output_text=plan_text,
+            model_version=self.model_version
+        )
+        new_interaction = LLMInteractionRepository.create(db, input_data.user_id, interaction_schema)
+
+        # 4. 결과 반환
+        return {
+            "plan_text": plan_text,
+            "thread_id": thread_id,
+            "llm_interaction_id": new_interaction.id
+        }
 
     async def chat_with_plan(
         self,
@@ -196,6 +209,25 @@ class LLMService:
         # LangGraph 실행 (이전 상태에서 이어서 실행)
         result = self.weekly_plan_agent.invoke(
             {"messages": [("human", user_message)]},
+            config=config
+        )
+        
+        # 마지막 AI 응답 반환
+        return result["messages"][-1].content
+
+    async def refine_plan(
+        self,
+        thread_id: str,
+        state_update: dict
+    ) -> str:
+        """
+        LLM2 휴먼 피드백: 구조화된 피드백으로 주간 계획 수정
+        """
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # LangGraph 실행 (전달받은 state_update로 상태 업데이트)
+        result = self.weekly_plan_agent.invoke(
+            state_update,
             config=config
         )
         

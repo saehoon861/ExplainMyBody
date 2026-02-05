@@ -176,6 +176,8 @@ class GoalPlanResponse(BaseModel):
     plan_id: int
     report_id: int
     weekly_plan: Dict[str, Any]
+    thread_id: str  # LangGraph 스레드 ID
+    initial_llm_interaction_id: int  # 첫 LLM 상호작용 ID
     message: Optional[str] = None
 
 
@@ -186,6 +188,8 @@ class GoalPlanResponse(BaseModel):
 
 class WeeklyPlanBase(BaseModel):
     """주간 계획 기본 스키마"""
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int = 1
     start_date: date
     # end_date: date    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
@@ -196,6 +200,8 @@ class WeeklyPlanBase(BaseModel):
 
 class WeeklyPlanCreate(BaseModel):
     """주간 계획 생성 요청"""
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int = 1
     start_date: date
     end_date: date
@@ -215,6 +221,8 @@ class WeeklyPlanResponse(BaseModel):
     """주간 계획 응답"""
     id: int
     user_id: int
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int
     start_date: date
     end_date: date
@@ -258,6 +266,13 @@ class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
 
+
+class WeeklyPlanFeedbackRequest(BaseModel):
+    """주간 계획 피드백 요청 스키마"""
+    thread_id: str
+    parent_interaction_id: int
+    feedback_category: str
+    feedback_text: str
 
 # ============================================================================
 # LLM Interaction Schemas
