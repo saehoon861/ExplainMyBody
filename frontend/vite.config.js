@@ -26,25 +26,15 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}'],
         runtimeCaching: [
-          // OCR 및 이미지 업로드 엔드포인트는 캐싱하지 않음
-          {
-            urlPattern: /\/api\/health-records\/ocr\/.*/i,
-            handler: 'NetworkOnly',
-            options: { cacheName: 'ocr-no-cache' }
-          },
-          {
-            urlPattern: /^https:\/\/api\.explainmybody\.com\/health-records\/ocr\/.*/i,
-            handler: 'NetworkOnly',
-            options: { cacheName: 'ocr-api-no-cache' }
-          },
-          // 나머지 API는 NetworkFirst 캐싱
+          // [주의] 아래 api.explainmybody.com 설정은 현재 터널링 주소와 다르므로 
+          // 실제 발표 시에는 터널 주소 패턴으로 수정하거나 주석 처리가 필요할 수 있습니다.
           {
             urlPattern: /^https:\/\/api\.explainmybody\.com\/.*/i,
             handler: 'NetworkFirst',
             options: { cacheName: 'api-cache' }
           },
           {
-            urlPattern: /\/api\/.*/i,
+            urlPattern: /\/api\/.*/i, // 로컬 및 터널 프록시용 캐시 설정
             handler: 'NetworkFirst',
             options: { cacheName: 'local-api-cache' }
           }
