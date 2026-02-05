@@ -238,7 +238,7 @@ class LLMService:
             # 여기서는 우선 매핑 없이 전달하거나, 간단한 변환 로직 추가 가능.
             
             # 임시 매핑 로직 (프론트 라벨 -> 그래프 내부 카테고리)
-            if "운동" in category_label and "플랜" in category_label: # 예: 운동 플랜 조정
+            if "운동" in category_label or "플랜" in category_label or "계획" in category_label: # 예: 운동 플랜 조정
                 category = "adjust_exercise_plan"
             elif "식단" in category_label:
                 category = "adjust_diet_plan"
