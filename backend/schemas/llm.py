@@ -3,9 +3,9 @@ LLM Schemas - LLM 팀원 전담
 InbodyAnalysisReport, UserDetail, WeeklyPlan, LLM 입출력 (상태 분석 + 주간 계획) 관련 모든 스키마
 """
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, RootModel
 from datetime import datetime, date
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, Literal
 
 
 # ============================================================================
@@ -262,6 +262,44 @@ class WeeklyPlanChatRequest(BaseModel):
     message: str
 
 
+class GenerateWeeklyPlanRequest(BaseModel):
+    """초기 계획 생성 요청"""
+    action: Literal["generate"]
+    record_id: int  # 필수
+    user_goal_type: Optional[str] = None
+    user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
+
+
+class ChatWeeklyPlanRequest(BaseModel):
+    """계획 채팅 요청"""
+    action: Literal["chat"]
+    plan_id: int  # 필수
+    thread_id: str  # 필수
+    message: str  # 필수
+    feedback_category: Optional[str] = None
+
+
+class WeeklyPlanUnifiedRequest(RootModel):
+    """통합 요청 래퍼 (FastAPI 본문 파싱용)"""
+    # Pydantic Union 직접 사용 시 FastAPI가 파싱에 어려움을 겪을 수 있어 RootModel 사용 권장되나
+    # 여기서는 간단히 Union을 사용하여 라우터에서 처리
+    root: Union[GenerateWeeklyPlanRequest, ChatWeeklyPlanRequest]
+
+
+class WeeklyPlanUnifiedResponse(BaseModel):
+    """통합 응답 스키마"""
+    plan_id: int
+    weekly_plan: Optional[Dict[str, Any]] = None # 생성 시 포함
+    response: Optional[str] = None # 채팅 시 포함
+    thread_id: str
+    initial_llm_interaction_id: Optional[int] = None # 생성 시 포함
+    report_id: Optional[int] = None # 호환성 유지용
+
+    class Config:
+        from_attributes = True
+
 class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
@@ -285,6 +323,10 @@ class LLMInteractionBase(BaseModel):
     category_type: Optional[str] = None
     output_text: str
     model_version: Optional[str] = None
+    
+    # 수정 이력 추적을 위한 필드 추가
+    parent_interaction_id: Optional[int] = None
+    triggering_feedback_id: Optional[int] = None
 
 class LLMInteractionCreate(LLMInteractionBase):
     pass

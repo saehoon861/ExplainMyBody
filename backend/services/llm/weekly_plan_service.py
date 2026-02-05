@@ -11,9 +11,14 @@ from services.llm.llm_service import LLMService
 from services.common.health_service import HealthService
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
 from repositories.common.health_record_repository import HealthRecordRepository
-from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput, WeeklyPlanFeedbackRequest
+from schemas.llm import (
+    WeeklyPlanCreate, 
+    GoalPlanRequest, 
+    GoalPlanInput, 
+    WeeklyPlanFeedbackRequest,
+    LLMInteractionCreate
+)
 from schemas.human_feedback import HumanFeedbackCreate
-from schemas.llm_interaction import LLMInteractionCreate
 from repositories.llm.llm_interaction_repository import LLMInteractionRepository
 from repositories.llm.human_feedback_repository import HumanFeedbackRepository
 
@@ -121,16 +126,31 @@ class WeeklyPlanService :
 
     async def chat_with_plan(
         self,
-        plan_id: int, # DB 조회용 (스레드 ID 매핑 필요 시)
+        db: Session,
+        user_id: int,
+        plan_id: int, 
         thread_id: str,
         message: str
     ) -> str:
         """
-        주간 계획에 대한 수정 요청/질의응답
+        주간 계획에 대한 수정 요청/질의응답 (DB 저장 포함)
         """
-        # LangGraph 상태 유지를 위해 thread_id 사용
-        response = await self.llm_service.chat_with_plan(thread_id, message)
-        return response
+        # 1. LLM Service 호출 (LangGraph 실행)
+        response_text = await self.llm_service.chat_with_plan(thread_id, message)
+        
+        # 2. 결과 DB 저장 (이력 추적)
+        # LLMInteraction 저장
+        interaction_schema = LLMInteractionCreate(
+            llm_stage="llm2",  # 주간 계획 단계
+            source_type="weekly_plan_chat",
+            source_id=plan_id,
+            output_text=response_text,
+            model_version=self.llm_service.model_version,
+            parent_interaction_id=None # 필요하다면 이전 interaction ID를 추적해야 하지만, 현재는 단순 채팅 저장이 목적
+        )
+        LLMInteractionRepository.create(db, user_id, interaction_schema)
+
+        return response_text
 
     async def refine_plan_with_feedback(
         self,

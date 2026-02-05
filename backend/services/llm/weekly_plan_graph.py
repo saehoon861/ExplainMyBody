@@ -50,10 +50,13 @@ def create_weekly_plan_agent(llm_client):
         history = []
         for msg in state["messages"]:
             role = "user" if msg.type == "human" else "assistant"
-            history.append((role, msg.content))
+            # OpenAI API는 content가 None인 것을 허용하지 않으므로, None일 경우 빈 문자열로 변환합니다.
+            content = msg.content if msg.content is not None else ""
+            history.append((role, content))
         
-        feedback_text = state.get("feedback_text", "피드백 내용이 없습니다.")
-        history.append(("user", feedback_text))
+        feedback_text = state.get("feedback_text")
+        if feedback_text:
+            history.append(("user", feedback_text))
         
         response = llm_client.generate_chat_with_history(
             system_prompt=system_prompt,
@@ -111,7 +114,9 @@ def create_weekly_plan_agent(llm_client):
 
     def route_feedback(state: PlanState) -> str:
         """사용자 피드백 카테고리에 따른 라우팅"""
+        print("--- [DEBUG] route_feedback function called ---")
         category = state.get("feedback_category")
+        print(f"--- [DEBUG] Current State 'feedback_category': {category}")
 
         if not category:
             # feedback_category가 없을 경우, 일반 Q&A 요청으로 간주
@@ -120,13 +125,13 @@ def create_weekly_plan_agent(llm_client):
             return "qa_general" # 기존 chat API 호환성을 위해 qa_general로 바로 라우팅
 
         print(f"--- 라우팅: {category} ---")
-        if category == "운동 플랜 조정":
+        if category == "운동 플랜 조정" or category == "adjust_exercise_plan":
             return "adjust_exercise_plan"
-        elif category == "식단 조정":
+        elif category == "식단 조정" or category == "adjust_diet_plan":
             return "adjust_diet_plan"
-        elif category == "강도 조정":
+        elif category == "강도 조정" or category == "adjust_intensity":
             return "adjust_intensity"
-        elif category == "최종 플랜으로 저장":
+        elif category == "최종 플랜으로 저장" or category == "finalize_plan":
             return "finalize_plan"
         else:
             # 정의되지 않은 카테고리의 경우에도 일반 Q&A로 처리
@@ -145,14 +150,14 @@ def create_weekly_plan_agent(llm_client):
 
     workflow.set_entry_point("router")
     
-    # 초기 계획 생성 후 라우터로 이동
-    workflow.add_edge("initial_plan", "router")
+    # 초기 계획 생성 후 종료 (사용자 피드백 대기)
+    workflow.add_edge("initial_plan", END)
     
-    # 각 피드백 조정 후 다시 라우터로 이동하여 루프 형성
-    workflow.add_edge("adjust_exercise_plan", "router")
-    workflow.add_edge("adjust_diet_plan", "router")
-    workflow.add_edge("adjust_intensity", "router")
-    workflow.add_edge("qa_general", "router")
+    # 각 피드백 조정 후 종료 (Request/Response 모델이므로 턴 종료)
+    workflow.add_edge("adjust_exercise_plan", END)
+    workflow.add_edge("adjust_diet_plan", END)
+    workflow.add_edge("adjust_intensity", END)
+    workflow.add_edge("qa_general", END)
 
     # 라우터에서 조건에 따라 분기
     feedback_routing_map = {
@@ -170,6 +175,5 @@ def create_weekly_plan_agent(llm_client):
     
     memory = MemorySaver()
     
-    # compile() 호출 시 checkpointer를 전달하면,
-    # 라우터가 END를 반환할 때 자동으로 대화가 중단되고 상태가 저장됩니다.
-    return workflow.compile(checkpointer=memory, interrupt_before=["router"])
+    # interrupt_before 제거 (라우터 진입 시 멈추지 않고 즉시 실행)
+    return workflow.compile(checkpointer=memory)

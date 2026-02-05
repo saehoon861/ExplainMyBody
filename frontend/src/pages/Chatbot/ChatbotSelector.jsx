@@ -144,6 +144,7 @@ const ChatbotSelector = () => {
                     return { mockData: true };
                 } else {
                     const payload = {
+                        action: "generate",
                         record_id: latestInbodyData?.id,
                         user_goal_type: data.goal || "다이어트",
                         user_goal_description: `${data.goal || '건강관리'}를 원하며, 선호하는 운동은 ${data.preferences?.join(', ') || '없음'}입니다. 특이사항: ${data.diseases || '없음'}`,
@@ -151,7 +152,7 @@ const ChatbotSelector = () => {
                         health_specifics: data.diseases || ""
                     };
 
-                    const res = await fetch(`/api/weekly-plans/generate?user_id=${userId}`, {
+                    const res = await fetch(`/api/weekly-plans/session?user_id=${userId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)

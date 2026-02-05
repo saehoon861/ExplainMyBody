@@ -289,8 +289,9 @@ const Chatbot = () => {
 
                     } else {
                         // 기존 로직: API 호출
-                        // POST /api/weekly-plans/generate?user_id={user_id}
+                        // POST /api/weekly-plans/session?user_id={user_id}
                         const payload = {
+                            action: "generate", // Unified API Action
                             record_id: inbodyData?.id, // 인바디 기록 ID
                             user_goal_type: planRequest?.goal || "다이어트", // 사용자 목표 연동
                             user_goal_description: planRequest ?
@@ -301,7 +302,7 @@ const Chatbot = () => {
                             health_specifics: planRequest?.diseases || ""
                         };
 
-                        const res = await fetch(`/api/weekly-plans/generate?user_id=${currentUserId}`, {
+                        const res = await fetch(`/api/weekly-plans/session?user_id=${currentUserId}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
@@ -509,13 +510,32 @@ const Chatbot = () => {
 
             // 실제 API 호출 (후속 대화)
             let endpoint = '';
+            let bodyPayload = {};
 
             if (botType === 'inbody-analyst') {
                 if (!reportId) throw new Error("분석 리포트 ID가 없습니다.");
                 endpoint = `/api/analysis/${reportId}/chat`;
+
+                // 기존 APIPayload Structure
+                bodyPayload = {
+                    message: text, // finalMessage construction logic below might need adjustment if we move it here, but let's keep it simple
+                    thread_id: threadId
+                };
             } else if (botType === 'workout-planner') {
                 if (!planId) throw new Error("운동 플랜 ID가 없습니다.");
-                endpoint = `/api/weekly-plans/${planId}/chat`;
+                endpoint = `/api/weekly-plans/session?user_id=${currentUserId}`;
+
+                console.log("--- [DEBUG Frontend] sendMessage check ---");
+                console.log("Current chatCategory State:", chatCategory);
+
+                // Unified API Payload Structure
+                bodyPayload = {
+                    action: "chat",
+                    plan_id: planId,
+                    thread_id: threadId,
+                    message: text,
+                    feedback_category: chatCategory
+                };
             }
 
             // 카테고리 정보가 있다면 메시지에 포함 (UI엔 표시 안 함, 백엔드 전송용)
@@ -527,15 +547,19 @@ const Chatbot = () => {
             if (categoryObj) {
                 // 사용자 요청대로 [Category: Label] 형식 추가
                 finalMessage = `[Category: ${categoryObj.label}] ${text}`;
+
+                // Payload update
+                if (botType === 'inbody-analyst') {
+                    bodyPayload.message = finalMessage;
+                } else {
+                    bodyPayload.message = finalMessage;
+                }
             }
 
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: finalMessage, // 카테고리 포함된 메시지 전송
-                    thread_id: threadId // 스레드 ID 유지
-                })
+                body: JSON.stringify(bodyPayload)
             });
 
             if (!res.ok) throw new Error("메시지 전송 실패");
