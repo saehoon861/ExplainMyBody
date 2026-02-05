@@ -1,7 +1,7 @@
 import os
 from typing import List, Tuple
 from abc import ABC, abstractmethod
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,12 +22,18 @@ class BaseLLMClient(ABC):
         """임베딩 생성"""
         pass
 
+    @abstractmethod
+    async def agenerate_chat(self, system_prompt: str, user_prompt: str, key: str) -> dict:
+        """비동기 단일 턴 채팅 생성, 키와 함께 딕셔너리 반환"""
+        pass
+
 
 class OpenAIClient(BaseLLMClient):
     """OpenAI API 클라이언트"""
 
     def __init__(self, model: str = "gpt-4o-mini"):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = model
 
     def generate_chat(self, system_prompt: str, user_prompt: str) -> str:
@@ -40,6 +46,18 @@ class OpenAIClient(BaseLLMClient):
             temperature=0.7,
         )
         return response.choices[0].message.content
+
+    async def agenerate_chat(self, system_prompt: str, user_prompt: str, key: str) -> dict:
+        """비동기 채팅 생성 및 결과 반환 (키 포함)"""
+        response = await self.async_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+        )
+        return {"key": key, "content": response.choices[0].message.content}
 
     def generate_chat_with_history(self, system_prompt: str, messages: List[Tuple[str, str]]) -> str:
         # LangGraph 메시지 튜플 (role, content)을 OpenAI 포맷으로 변환

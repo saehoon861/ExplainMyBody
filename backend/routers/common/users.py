@@ -92,18 +92,20 @@ def update_user_goal(
     }
     packed_description = json.dumps(combined_description, ensure_ascii=False)
 
+    goal_type_str = ", ".join(goal_data.goal_type) if goal_data.goal_type else None
+
     if active_detail:
         # Update existing
         UserDetailRepository.update(
-            db, 
-            active_detail.id, 
-            goal_type=goal_data.goal_type,
+            db,
+            active_detail.id,
+            goal_type=goal_type_str,
             goal_description=packed_description
         )
     else:
         # Create new if not exists
         new_detail = UserDetailCreate(
-            goal_type=goal_data.goal_type,
+            goal_type=goal_type_str,
             goal_description=packed_description,
             is_active=1
         )

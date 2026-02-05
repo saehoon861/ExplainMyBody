@@ -160,7 +160,8 @@ class LLMService:
     async def call_goal_plan_llm(
         self,
         input_data: GoalPlanInput
-    ) -> str:
+    # ) -> str:
+    ) -> Dict[str, Any]:
         """
         LLM2: 주간 계획서 생성 API 호출
 
@@ -168,20 +169,32 @@ class LLMService:
             input_data: GoalPlanInput 스키마 객체
 
         Returns:
-            LLM이 생성한 주간 계획서 텍스트
+            {
+                "plan_text": str,
+                "thread_id": str
+            }
         """
         # 1. 스레드 ID 생성 (필요 시)
         thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
         config = {"configurable": {"thread_id": thread_id}}
 
         # 2. LangGraph 에이전트 호출
-        initial_state = self.weekly_plan_agent.invoke(
+        # initial_state = self.weekly_plan_agent.invoke(
+        #     {"plan_input": input_data},
+        #     config=config
+        # )
+        initial_state = await self.weekly_plan_agent.ainvoke(
             {"plan_input": input_data},
             config=config
         )
 
+
         # 3. 결과 반환 (마지막 AI 메시지)
-        return initial_state['messages'][-1].content
+        # return initial_state['messages'][-1].content
+        return {
+            "plan_text": initial_state['messages'][-1].content,
+            "thread_id": thread_id
+        }
 
     async def chat_with_plan(
         self,

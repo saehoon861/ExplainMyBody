@@ -14,7 +14,9 @@ from typing import List, Optional
 from datetime import datetime
 
 router = APIRouter()
-health_service = HealthService()
+# health_service = HealthService()
+llm_service = LLMService()
+health_service = HealthService(llm_service=llm_service)
 
 # ============================================================================
 # Core / Create

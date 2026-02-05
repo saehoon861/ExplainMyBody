@@ -79,7 +79,7 @@ class UserGoalUpdateRequest(BaseModel):
     """목표 수정 요청 스키마 (UserDetail의 goal_description 팩킹용)"""
     start_weight: Optional[float] = None
     target_weight: Optional[float] = None
-    goal_type: Optional[str] = None
+    goal_type: Optional[list[str]] = None
     goal_description: Optional[str] = None
 
 

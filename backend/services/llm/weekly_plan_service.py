@@ -27,7 +27,8 @@ from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput
 class WeeklyPlanService:
     def __init__(self):
         self.llm_service = LLMService()
-        self.health_service = HealthService()
+        # self.health_service = HealthService()
+        self.health_service = HealthService(llm_service=self.llm_service)
 
     def _should_create_new_plan(
         self, 
@@ -86,8 +87,10 @@ class WeeklyPlanService:
         llm_input: GoalPlanInput = prepared_response.input_data
 
         # 2. LLM 호출 (주간 계획 생성)
-        # 현재 LLM은 텍스트(str)를 반환함. 추후 JSON 파싱 로직 고도화 필요.
-        plan_text = await self.llm_service.call_goal_plan_llm(llm_input)
+        # plan_text = await self.llm_service.call_goal_plan_llm(llm_input)
+        result = await self.llm_service.call_goal_plan_llm(llm_input)
+        plan_text = result["plan_text"]
+        thread_id = result["thread_id"]
         
         # 3. 데이터 저장
         # LLM이 준 텍스트를 plan_data의 'content' 필드에 저장 (임시)
@@ -101,7 +104,8 @@ class WeeklyPlanService:
             end_date=next_monday + timedelta(days=6),
             plan_data={
                 "content": plan_text,
-                "raw_response": plan_text
+                "raw_response": plan_text,
+                "thread_id": thread_id # thread_id를 plan_data에 추가
             },
             model_version=self.llm_service.model_version
         )

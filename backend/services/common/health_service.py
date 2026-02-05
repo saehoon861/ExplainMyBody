@@ -23,9 +23,12 @@ from typing import Optional, Dict, Any
 class HealthService:
     """건강 기록 관련 비즈니스 로직"""
 
-    def __init__(self):
+    # def __init__(self):
+
+    def __init__(self, llm_service: LLMService):
         self.body_type_service = BodyTypeService()
-        self.llm_service = LLMService()
+        # self.llm_service = LLMService()
+        self.llm_service = llm_service
 
     def create_health_record(
         self,

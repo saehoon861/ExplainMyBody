@@ -13,6 +13,7 @@ from schemas.llm import StatusAnalysisResponse
 from schemas.inbody import InBodyData
 from schemas.body_type import BodyTypeAnalysisInput
 from services.common.health_service import HealthService
+from services.llm.llm_service import LLMService
 from services.ocr.ocr_service import OCRService
 from services.ocr.body_type_service import BodyTypeService
 from repositories.common.health_record_repository import HealthRecordRepository
@@ -25,7 +26,9 @@ from exceptions import (
 )
 
 router = APIRouter()
-health_service = HealthService()
+# health_service = HealthService()
+llm_service = LLMService()
+health_service = HealthService(llm_service=llm_service)
 body_type_service = BodyTypeService()
 
 

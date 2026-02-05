@@ -17,8 +17,13 @@ from typing import List
 # from exceptions import HealthRecordNotFoundError, AnalysisReportNotFoundError
 
 router = APIRouter()
-health_service = HealthService()
-llm_service = LLMService()  # LLM 서비스 인스턴스 (메모리 공유를 위해 전역 사용)
+# health_service = HealthService()
+# llm_service = LLMService()  # LLM 서비스 인스턴스 (메모리 공유를 위해 전역 사용)
+
+# LLMService 인스턴스를 하나만 생성합니다.
+llm_service = LLMService()
+# 생성된 인스턴스를 HealthService 생성자에 전달합니다.
+health_service = HealthService(llm_service=llm_service)
 
 
 def _parse_analysis_report(report) -> AnalysisReportResponse:

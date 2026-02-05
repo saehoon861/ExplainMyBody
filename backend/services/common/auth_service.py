@@ -84,14 +84,15 @@ class AuthService:
             # 목표(상세)와 목표 체중을 하나의 JSON 문자열로 결합하여 저장
             # DB 스키마 변경 없이 goal_description 컬럼(Text) 활용
             import json
+            goal_type_str = ", ".join(signup_data.goalType)
             combined_description = {
                 "start_weight": signup_data.startWeight,
                 "target_weight": signup_data.targetWeight,
-                "description": signup_data.goal if signup_data.goal else signup_data.goalType
+                "description": signup_data.goal if signup_data.goal else goal_type_str
             }
-            
+
             detail_data = UserDetailCreate(
-                goal_type=signup_data.goalType,
+                goal_type=goal_type_str,
                 # target_weight=signup_data.targetWeight, # DB 컬럼 없음
                 goal_description=json.dumps(combined_description, ensure_ascii=False),
                 preferences=preferences_str,
