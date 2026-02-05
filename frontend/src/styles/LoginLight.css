@@ -120,12 +120,14 @@
 .login-container::before {
     top: -200px;
     right: -100px;
+    animation: moveBlob1 20s infinite alternate ease-in-out;
 }
 
 .login-container::after {
     bottom: -200px;
     left: -100px;
     background: radial-gradient(circle, rgba(132, 140, 194, 0.15) 0%, transparent 70%);
+    animation: moveBlob2 25s infinite alternate-reverse ease-in-out;
 }
 
 @keyframes moveBlob1 {
@@ -436,12 +438,6 @@
 .secondary-button:hover {
     background: rgba(0, 0, 0, 0.05);
     transform: translateY(-2px);
-}
-
-.secondary-button.active {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
 }
 
 .ghost-button {
@@ -2107,41 +2103,4 @@
 
 .animate-float {
     animation: iconFloat 3s infinite ease-in-out;
-}
-
-/* 부위별 분석 드롭다운 스타일 - input과 동일한 스타일 */
-.segmental-select {
-    width: 100%;
-    background: transparent;
-    border: none;
-    text-align: center;
-    text-align-last: center;
-    color: var(--primary);
-    font-weight: 700;
-    font-size: 1rem;
-    font-family: 'Outfit', sans-serif;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding: 0 20px 0 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23767fb8' d='M1.5 2.5L4 5.5l2.5-3'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right center;
-}
-
-.segmental-select:focus {
-    outline: none;
-}
-
-.segmental-select:disabled {
-    color: #64748b;
-    cursor: not-allowed;
-}
-
-.segmental-select option {
-    text-align: center;
-    font-weight: 600;
-    color: var(--text-main);
 }

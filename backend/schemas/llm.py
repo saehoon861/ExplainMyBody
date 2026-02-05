@@ -54,7 +54,7 @@ class UserDetailBase(BaseModel):
     goal_type: Optional[str] = None
     # target_weight: Optional[float] = None # DB 컬럼 아님, Response에만 존재
     # start_weight: Optional[float] = None # DB 컬럼 아님
-    goal_description: Optional[str] = None
+    goal_description: Optional[str] = None  # JSON 형식으로 저장(재활, 시작체중, 목표체중)
     preferences: Optional[str] = None
     health_specifics: Optional[str] = None
     is_active: Optional[int] = 1
@@ -73,6 +73,14 @@ class UserDetailUpdate(BaseModel):
     health_specifics: Optional[str] = None
     is_active: Optional[int] = None
     ended_at: Optional[datetime] = None
+
+
+class UserGoalUpdateRequest(BaseModel):
+    """목표 수정 요청 스키마 (UserDetail의 goal_description 팩킹용)"""
+    start_weight: Optional[float] = None
+    target_weight: Optional[float] = None
+    goal_type: Optional[str] = None
+    goal_description: Optional[str] = None
 
 
 class UserDetailResponse(UserDetailBase):
@@ -121,12 +129,15 @@ class StatusAnalysisInput(BaseModel):
     measurements: Dict[str, Any]
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    previous_analysis_result: Optional[str] = None
 
 
 class GoalPlanInput(BaseModel):
     """LLM2: 주간 계획 생성 입력 스키마"""
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
     record_id: int
     user_id: int
     measured_at: datetime
@@ -142,6 +153,8 @@ class GoalPlanRequest(BaseModel):
     record_id: int
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
 
 
 class GoalPlanPrepareResponse(BaseModel):
@@ -244,3 +257,47 @@ class WeeklyPlanChatRequest(BaseModel):
 class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
+
+
+# ============================================================================
+# LLM Interaction Schemas
+# ============================================================================
+
+class LLMInteractionBase(BaseModel):
+    llm_stage: str
+    source_type: Optional[str] = None
+    source_id: Optional[int] = None
+    category_type: Optional[str] = None
+    output_text: str
+    model_version: Optional[str] = None
+
+class LLMInteractionCreate(LLMInteractionBase):
+    pass
+
+class LLMInteractionResponse(LLMInteractionBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# ============================================================================
+# Human Feedback Schemas
+# ============================================================================
+
+class HumanFeedbackBase(BaseModel):
+    llm_interaction_id: int
+    feedback_category: Optional[str] = None
+    feedback_text: str
+
+class HumanFeedbackCreate(HumanFeedbackBase):
+    pass
+
+class HumanFeedbackResponse(HumanFeedbackBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

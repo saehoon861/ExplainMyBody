@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Dumbbell, Youtube, ChevronRight, Activity, Zap, Shield, X } from 'lucide-react';
-import '../../styles/LoginLight.css';
+import '../../styles/AppLight.css';
 
 const ExerciseGuide = () => {
     const [activeCategory, setActiveCategory] = useState('상체');

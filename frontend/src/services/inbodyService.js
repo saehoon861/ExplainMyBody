@@ -134,30 +134,3 @@ export const saveInbodyData = async (userId, inbodyData) => {
 export const getUserHealthRecords = async (userId, limit = 20) => {
     return await apiRequest(`/health-records/user/${userId}?limit=${limit}`);
 };
-
-/**
- * 인바디 이미지 업로드 및 저장 (원스텝)
- *
- * 📍 사용 위치: pages/Chatbot/ChatbotSelector.jsx (스캔 팝업에서 업로드 시)
- *
- * 기능:
- * - 인바디 검사지 이미지를 업로드하고 OCR 추출 후 바로 저장
- * - extractInbodyData + saveInbodyData를 한 번에 처리
- * - 챗봇 선택 화면에서 빠른 업로드용
- *
- * @param {number} userId - 사용자 ID
- * @param {File} imageFile - 인바디 이미지 파일 (JPG, PNG)
- *
- * @returns {Promise<Object>} 저장된 건강 기록
- *
- * @throws {Error} OCR 처리 또는 저장 실패
- */
-export const uploadInbodyImage = async (userId, imageFile) => {
-    // 1. OCR로 이미지에서 데이터 추출
-    const extractResult = await extractInbodyData(imageFile);
-
-    // 2. 추출된 데이터를 바로 저장
-    const savedRecord = await saveInbodyData(userId, extractResult.data || extractResult);
-
-    return savedRecord;
-};

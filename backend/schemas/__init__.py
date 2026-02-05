@@ -24,12 +24,13 @@ from .llm import (
     StatusAnalysisInput, StatusAnalysisResponse,
     GoalPlanInput, GoalPlanResponse, GoalPlanRequest,
     # Chat
-    AnalysisChatRequest, AnalysisChatResponse
+    AnalysisChatRequest, AnalysisChatResponse,
+    # Goal Update
+    UserGoalUpdateRequest
 )
 
 from .inbody import InBodyData
 from .body_type import BodyTypeAnalysisInput, BodyTypeAnalysisOutput
-from .temp_goal_update import UserGoalUpdateRequest
 
 __all__ = [
     # User
