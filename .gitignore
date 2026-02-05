@@ -53,3 +53,6 @@ backend/cloud-sql-proxy
 backend/*.json
 backend/Dockerfile
 backend/.dockerignore
+.firebase/
+.firebaserc
+firebase.json
