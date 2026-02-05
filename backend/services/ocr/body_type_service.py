@@ -3,16 +3,9 @@
 rule_based_bodytype 로직 통합
 """
 
-import sys
-import os
-
-# 기존 체형 분류 코드 경로 추가
-# 추후에 각 기능의 파일 코드들을 정리할 때 삭제나 수정 필요 #fixme
-# backend/services/ocr/ → backend/ → ExplainMyBody/ → src/rule_based_bodytype
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../src/rule_based_bodytype"))
-
 from typing import Dict, Any, Optional
 from schemas.body_type import BodyTypeAnalysisInput, BodyTypeAnalysisOutput
+from core.rule_based_bodytype.body_analysis.pipeline import BodyCompositionAnalyzer
 
 
 class BodyTypeService:
@@ -21,7 +14,6 @@ class BodyTypeService:
     def __init__(self):
         """체형 분석기 초기화"""
         try:
-            from body_analysis.pipeline import BodyCompositionAnalyzer
             self.analyzer = BodyCompositionAnalyzer(margin=0.10)
         except Exception as e:
             print(f"⚠️  체형 분석기 초기화 실패: {e}")
@@ -45,9 +37,11 @@ class BodyTypeService:
         try:
             # Pydantic 모델을 분석기 입력 형식으로 변환
             user_data = self._convert_to_analyzer_format(input_data)
+            print(f"🔍 [BodyTypeService] Analyzer input data: {user_data}")
             
             # 체형 분석 실행
             analysis_result = self.analyzer.analyze_full_pipeline(user_data)
+            print(f"🔍 [BodyTypeService] Analysis result: {analysis_result}")
             
             # 수정: stage2_근육보정체형 → stage2
             if analysis_result and "stage2" in analysis_result:
@@ -101,8 +95,12 @@ class BodyTypeService:
             return None
         
         try:
+            print(f"🔍 [BodyTypeService] get_full_analysis called with input: {input_data}")
             user_data = self._convert_to_analyzer_format(input_data)
+            print(f"🔍 [BodyTypeService] Converted input for analyzer: {user_data}")
+            
             result = self.analyzer.analyze_full_pipeline(user_data)
+            print(f"🔍 [BodyTypeService] Full analysis pipeline result: {result}")
             
             if result and "stage2" in result and "stage3" in result:
                 return BodyTypeAnalysisOutput(**result)

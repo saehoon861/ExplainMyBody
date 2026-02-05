@@ -43,7 +43,7 @@ const SignupSuccess = () => {
             setCountdown(prev => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    navigate('/dashboard');
+                    navigate('/login');
                     return 0;
                 }
                 return prev - 1;
@@ -90,12 +90,12 @@ const SignupSuccess = () => {
                     fontWeight: 500
                 }}>
                     <PartyPopper size={20} className="bounce-icon" color="#6366f1" />
-                    <span>{countdown}초 후에 홈 화면으로 이동합니다.</span>
+                    <span>{countdown}초 후에 로그인 페이지로 이동합니다.</span>
                 </div>
 
                 <button
                     className="primary-button"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/login')}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -105,7 +105,7 @@ const SignupSuccess = () => {
                         fontSize: '1.1rem'
                     }}
                 >
-                    홈으로 바로 가기
+                    지금 바로 로그인하기
                     <ArrowRight size={20} />
                 </button>
             </div>

@@ -4,7 +4,6 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 
 // Pages - Static Loading (Critical Path)
 import Login from './pages/Auth/Login';
-import ForgotPassword from './pages/Auth/ForgotPassword';
 import Signup from './pages/Auth/Signup';
 import SignupSuccess from './pages/Auth/SignupSuccess';
 import SplashScreen from './pages/Auth/SplashScreen';
@@ -51,7 +50,6 @@ function App() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup-success" element={<SignupSuccess />} />
 

@@ -61,10 +61,9 @@ def get_user_statistics(user_id: int, db: Session = Depends(get_db)):
         "total_reports": total_reports
     }
 
-from schemas.temp_goal_update import UserGoalUpdateRequest
 from repositories.llm.user_detail_repository import UserDetailRepository
 from repositories.common.health_record_repository import HealthRecordRepository
-from schemas.llm import UserDetailCreate
+from schemas.llm import UserDetailCreate, UserGoalUpdateRequest
 import json
 
 @router.put("/{user_id}/goal", response_model=UserResponse)

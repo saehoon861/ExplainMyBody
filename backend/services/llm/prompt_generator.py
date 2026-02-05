@@ -238,7 +238,7 @@ def create_inbody_analysis_prompt(
 
 def create_weekly_plan_prompt(
     goal_input: GoalPlanInput,
-    measurements: InBodyMeasurements
+    measurements: InBodyMeasurements,
 ) -> Tuple[str, str]:
     """
     주간 계획 생성용 프롬프트 생성
