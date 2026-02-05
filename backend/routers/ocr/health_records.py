@@ -166,7 +166,11 @@ async def validate_and_save_inbody(
     
     try:
         # InBodyData에서 체형 분석에 필요한 필드만 추출하여 입력 생성
-        body_type_input = BodyTypeAnalysisInput.from_inbody_data(validated_inbody_data)
+        body_type_input = BodyTypeAnalysisInput.from_inbody_data(
+            inbody=validated_inbody_data,
+            muscle_seg=validated_inbody_data.부위별근육분석.model_dump(),
+            fat_seg=validated_inbody_data.부위별체지방분석.model_dump()
+        )
         
         # 체형 분석 실행 (stage2, stage3 결과 반환)
         body_type_result = body_type_service.get_full_analysis(body_type_input)

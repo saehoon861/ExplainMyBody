@@ -88,7 +88,7 @@ const Chatbot = () => {
     const hasInitialized = useRef(false); // 초기화 중복 실행 방지
 
     // 이전 페이지에서 전달받은 데이터
-    const { inbodyData, userId } = location.state || {};
+    const { inbodyData, userId, planRequest } = location.state || {};
 
     // 사용자 ID 결정: location.state > localStorage > 기본값 1
     const getUserId = () => {
@@ -128,6 +128,41 @@ const Chatbot = () => {
     useEffect(() => {
         const initChat = async () => {
             if (USE_MOCK_DATA) {
+                if (botType === 'workout-planner' && planRequest) {
+                    setTimeout(() => {
+                        const mockPlanResponse = `🏋️ **맞춤형 주간 운동 플랜**이 완성되었습니다!\n\n**목표**: ${planRequest.goal}\n**선호 운동**: ${planRequest.preferences.join(', ')}\n**특이사항**: ${planRequest.diseases || '없음'}`;
+                        const mockPlanDetails = `
+### 📅 주간 루틴 가이드
+
+**월요일 (하체/코어)**
+- 스쿼트 4세트 x 12회
+- 런지 3세트 x 15회
+- 플랭크 3세트 x 40초
+
+**수요일 (상체/등)**
+- 푸쉬업 4세트 x 10회
+- 덤벨 로우 3세트 x 12회
+- 숄더 프레스 3세트 x 12회
+
+**금요일 (전신 유산소)**
+- 버피 테스트 10분
+- 인터벌 러닝 20분
+
+💡 **질병 주의사항**: ${planRequest.diseases ? planRequest.diseases + '에 무리가 가지 않도록 중량을 낮춰서 진행하세요.' : '컨디션에 따라 강도를 조절하세요.'}`;
+
+                        setMessages(prev => [
+                            ...prev,
+                            {
+                                id: Date.now(),
+                                text: mockPlanResponse,
+                                details: mockPlanDetails,
+                                sender: 'bot'
+                            }
+                        ]);
+                    }, 1500);
+                    return;
+                }
+
                 // 목업 모드: 1.5초 후 분석 결과 시뮬레이션
                 setTimeout(() => {
                     const mockSummary = `[인바디 분석 요약]
@@ -189,6 +224,7 @@ const Chatbot = () => {
                 return;
             }
 
+
             // 실제 API 모드
             setIsTyping(true);
             try {
@@ -196,20 +232,31 @@ const Chatbot = () => {
                 let responseData = null;  // API 응답 데이터 저장용
 
                 if (botType === 'inbody-analyst') {
-                    // 1. 인바디 분석 전문가: 분석 결과 조회
-                    // record_id가 필요함. inbodyData가 없으면 에러 처리
-                    const recordId = inbodyData?.id;
-                    if (!recordId) {
-                        throw new Error("분석할 인바디 기록이 없습니다.");
+                    // pre-fetched 데이터 확인
+                    const preFetchedData = location.state?.analysisResult;
+
+                    if (preFetchedData && !preFetchedData.mockData) {
+                        // ✅ 이전에 가져온 데이터 활용
+                        console.log("✅ Using Pre-fetched Analysis Data");
+                        responseData = preFetchedData;
+                    } else {
+                        // 기존 로직: API 호출
+                        // 1. 인바디 분석 전문가: 분석 결과 조회
+                        // record_id가 필요함. inbodyData가 없으면 에러 처리
+                        const recordId = inbodyData?.id;
+                        if (!recordId) {
+                            throw new Error("분석할 인바디 기록이 없습니다.");
+                        }
+
+                        // POST /api/analysis/{record_id}?user_id={user_id}
+                        const res = await fetch(`/api/analysis/${recordId}?user_id=${currentUserId}`, {
+                            method: 'POST'
+                        });
+                        if (!res.ok) throw new Error("분석 리포트 생성 실패");
+
+                        responseData = await res.json();
                     }
 
-                    // POST /api/analysis/{record_id}?user_id={user_id}
-                    const res = await fetch(`/api/analysis/${recordId}?user_id=${currentUserId}`, {
-                        method: 'POST'
-                    });
-                    if (!res.ok) throw new Error("분석 리포트 생성 실패");
-
-                    responseData = await res.json();
                     // responseData = AnalysisReportResponse: { id, summary, content, thread_id, ... }
 
                     setReportId(responseData.id);  // ✅ 'id' 필드 사용
@@ -220,16 +267,23 @@ const Chatbot = () => {
 
                 } else if (botType === 'workout-planner') {
                     // 2. 운동 플래너 전문가: 주간 계획 생성
+                    // planRequest가 있으면 그것을 사용, 없으면 기존 로직
 
                     // POST /api/weekly-plans/generate?user_id={user_id}
+                    const payload = {
+                        record_id: inbodyData?.id || null, // 인바디 기록 ID (선택)
+                        user_goal_type: planRequest?.goal || "다이어트", // 사용자 목표 연동
+                        user_goal_description: planRequest ?
+                            `${planRequest.goal}를 원하며, 선호하는 운동은 ${planRequest.preferences.join(', ')}입니다. 주의사항: ${planRequest.diseases}`
+                            : "체중 감량 및 근육 증가",
+                        preferences: planRequest?.preferences,
+                        diseases: planRequest?.diseases
+                    };
+
                     const res = await fetch(`/api/weekly-plans/generate?user_id=${currentUserId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            record_id: inbodyData?.id || null, // 인바디 기록 ID (선택)
-                            user_goal_type: "다이어트", // TODO: 사용자 목표 연동
-                            user_goal_description: "체중 감량 및 근육 증가" // TODO: 사용자 설명 연동
-                        })
+                        body: JSON.stringify(payload)
                     });
                     if (!res.ok) throw new Error("운동 계획 생성 실패");
 

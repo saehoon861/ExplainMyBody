@@ -277,6 +277,11 @@ body {
     border-color: var(--color-text-secondary);
 }
 
+.action-card.primary:hover .icon-box {
+    background: #c7d2fe;
+    color: #3730a3;
+}
+
 .action-card.primary .icon-box {
     background: #e0e7ff;
     color: #4f46e5;
