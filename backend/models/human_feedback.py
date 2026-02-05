@@ -20,7 +20,7 @@ class HumanFeedback(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # 관계 설정
-    llm_interaction = relationship("LLMInteraction", back_populates="human_feedbacks")
+    llm_interaction = relationship("LLMInteraction", back_populates="human_feedbacks", foreign_keys=[llm_interaction_id])
     user = relationship("User", back_populates="human_feedback_received")
 
     def __repr__(self):

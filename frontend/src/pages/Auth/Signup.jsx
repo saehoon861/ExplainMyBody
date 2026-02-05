@@ -8,7 +8,7 @@ const Signup = () => {
 
     const preferredExercisesList = [
         '유산소', '무산소', '러닝', '걷기', '고강도운동',
-        '에이트', '요가', '필라테스',
+        '웨이트', '요가', '필라테스',
         '맨몸운동', '실내운동', '실외운동', '기타'
     ];
 
@@ -186,7 +186,25 @@ const Signup = () => {
         }
     };
 
+    // 부위별 분석 카테고리 (드롭다운으로 표시할 카테고리)
+    const segmentalCategories = ['부위별근육분석', '부위별체지방분석'];
+
     const handleInbodyFieldChange = (category, field, value) => {
+        // 부위별 분석 카테고리는 드롭다운으로 선택하므로 검증 없이 바로 저장
+        if (segmentalCategories.includes(category)) {
+            setFormData(prev => ({
+                ...prev,
+                inbodyData: {
+                    ...prev.inbodyData,
+                    [category]: {
+                        ...prev.inbodyData[category],
+                        [field]: value
+                    }
+                }
+            }));
+            return;
+        }
+
         // Validation Logic
         let isValid = true;
 
@@ -194,9 +212,9 @@ const Signup = () => {
             // 성별은 텍스트 허용 (최대 10자)
             if (value.length > 10) isValid = false;
         } else {
-            // 그 외 수치 데이터는 숫자와 소수점만 허용
-            // 정규식: 숫자만 혹은 소수점 포함 숫자
-            if (!/^\d*\.?\d*$/.test(value)) {
+            // 그 외 수치 데이터는 숫자와 소수점만 허용 (음수 허용)
+            // 정규식: 숫자만 혹은 소수점 포함 숫자, 음수 가능
+            if (!/^-?\d*\.?\d*$/.test(value)) {
                 isValid = false;
             } else {
                 // 범위 제한 (터무니 없는 값 방지)
@@ -497,6 +515,16 @@ const Signup = () => {
                 // 성공 시 대시보드에 사용자 정보 전달 및 로컬 스토리지 저장
                 localStorage.setItem('user', JSON.stringify(result));
 
+                // 운동 설정 정보를 별도 저장 (운동 플래너에서 사용)
+                localStorage.setItem('exerciseSettings', JSON.stringify({
+                    goal: formData.goalType || '',
+                    preferences: formData.preferredExercises || [],
+                    diseases: [
+                        ...(formData.medicalConditions || []),
+                        formData.medicalConditionsDetail || ''
+                    ].filter(Boolean).join(', ')
+                }));
+
                 // alert('회원가입이 완료되었습니다!');
                 navigate('/signup-success');
             } catch (err) {
@@ -508,12 +536,15 @@ const Signup = () => {
     };
 
     const medicalConditionsList = [
-        '고혈압', '당뇨', '심장 질환', '호흡기 질환', '관절염', '허리 디스크', '기타 근골격계 질환', '기타', '없음'
+        '고혈압', '당뇨', '심장 질환', '호흡기 질환', '관절염', '허리 디스크', '근골격계 질환', '기타'
     ];
+
+    const segmentalOptions = ['표준', '표준이상', '표준이하'];
 
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = formData.inbodyData?.[categoryKey];
         if (!categoryData) return null;
+        const isSegmental = segmentalCategories.includes(categoryKey);
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -525,18 +556,31 @@ const Signup = () => {
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
-                        <div className="header-cell">단위</div>
+                        <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
                     {Object.entries(categoryData).map(([field, value]) => (
                         <div className="table-row" key={field}>
                             <div className="row-label">{field}</div>
                             <div className="row-value">
-                                <input
-                                    type="text"
-                                    value={value || ''}
-                                    placeholder="-"
-                                    onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                />
+                                {isSegmental ? (
+                                    <select
+                                        value={value || ''}
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className="segmental-select"
+                                    >
+                                        <option value="">선택</option>
+                                        {segmentalOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={value || ''}
+                                        placeholder="-"
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                    />
+                                )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
@@ -1197,13 +1241,13 @@ const Signup = () => {
                                 </div>
                             </div>
                             <div className="profile-field-row">
-                                <span className="field-label">시작 체중</span>
+                                <span className="field-label">시작 체중 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '400' }}>(인바디 기준)</span></span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
                                         type="number"
                                         value={formData.startWeight}
-                                        onChange={(e) => handleInputChange('startWeight', e.target.value)}
-                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}
+                                        disabled
+                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center', background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
                                     />
                                     <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>

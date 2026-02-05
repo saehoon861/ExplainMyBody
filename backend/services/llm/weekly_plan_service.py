@@ -128,50 +128,49 @@ class WeeklyPlanService :
         """
         주간 계획에 대한 수정 요청/질의응답
         """
-                # LangGraph 상태 유지를 위해 thread_id 사용
-                response = await self.llm_service.chat_with_plan(thread_id, message)
-                return response
-        
-            async def refine_plan_with_feedback(
-                self,
-                db: Session,
-                user_id: int,
-                request: WeeklyPlanFeedbackRequest
-            ) -> str:
-                """
-                구조화된 피드백을 받아 주간 계획을 수정하고, 모든 과정을 DB에 기록합니다.
-                """
-                # 1. 사용자 피드백을 DB에 저장
-                feedback_schema = HumanFeedbackCreate(
-                    llm_interaction_id=request.parent_interaction_id,
-                    feedback_category=request.feedback_category,
-                    feedback_text=request.feedback_text
-                )
-                saved_feedback = HumanFeedbackRepository.create(db, user_id, feedback_schema)
-        
-                # 2. LangGraph 에이전트 호출을 위한 상태 준비
-                state_update = {
-                    "feedback_category": request.feedback_category,
-                    "feedback_text": request.feedback_text,
-                }
-        
-                # 3. LLMService를 통해 LangGraph 에이전트 호출
-                new_plan_text = await self.llm_service.refine_plan(
-                    thread_id=request.thread_id,
-                    state_update=state_update
-                )
-        
-                # 4. 새로운 LLM 상호작용 결과를 DB에 저장 (이력 추적)
-                interaction_schema = LLMInteractionCreate(
-                    llm_stage="llm2",  # 주간 계획 단계
-                    source_type="weekly_plan_feedback",
-                    output_text=new_plan_text,
-                    model_version=self.llm_service.model_version,
-                    parent_interaction_id=request.parent_interaction_id,
-                    triggering_feedback_id=saved_feedback.id
-                )
-                LLMInteractionRepository.create(db, user_id, interaction_schema)
-        
-                # 5. 최종적으로 생성된 텍스트 응답 반환
-                return new_plan_text
-        
+        # LangGraph 상태 유지를 위해 thread_id 사용
+        response = await self.llm_service.chat_with_plan(thread_id, message)
+        return response
+
+    async def refine_plan_with_feedback(
+        self,
+        db: Session,
+        user_id: int,
+        request: WeeklyPlanFeedbackRequest
+    ) -> str:
+        """
+        구조화된 피드백을 받아 주간 계획을 수정하고, 모든 과정을 DB에 기록합니다.
+        """
+        # 1. 사용자 피드백을 DB에 저장
+        feedback_schema = HumanFeedbackCreate(
+            llm_interaction_id=request.parent_interaction_id,
+            feedback_category=request.feedback_category,
+            feedback_text=request.feedback_text
+        )
+        saved_feedback = HumanFeedbackRepository.create(db, user_id, feedback_schema)
+
+        # 2. LangGraph 에이전트 호출을 위한 상태 준비
+        state_update = {
+            "feedback_category": request.feedback_category,
+            "feedback_text": request.feedback_text,
+        }
+
+        # 3. LLMService를 통해 LangGraph 에이전트 호출
+        new_plan_text = await self.llm_service.refine_plan(
+            thread_id=request.thread_id,
+            state_update=state_update
+        )
+
+        # 4. 새로운 LLM 상호작용 결과를 DB에 저장 (이력 추적)
+        interaction_schema = LLMInteractionCreate(
+            llm_stage="llm2",  # 주간 계획 단계
+            source_type="weekly_plan_feedback",
+            output_text=new_plan_text,
+            model_version=self.llm_service.model_version,
+            parent_interaction_id=request.parent_interaction_id,
+            triggering_feedback_id=saved_feedback.id
+        )
+        LLMInteractionRepository.create(db, user_id, interaction_schema)
+
+        # 5. 최종적으로 생성된 텍스트 응답 반환
+        return new_plan_text

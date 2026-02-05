@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, Loader2, User, Clock, Ruler, Info, Home, RefreshCw, Camera, Save, History } from 'lucide-react';
 import '../../styles/LoginLight.css';
 
+// ============================================
+// 목업 설정
+// 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+
 const InBodyAnalysis = () => {
     const [inbodyImage, setInbodyImage] = useState(null);
     const [inbodyData, setInbodyData] = useState(null);
@@ -174,44 +179,119 @@ const InBodyAnalysis = () => {
     };
 
     const handleInbodyFieldChange = (category, field, value) => {
-        setInbodyData(prev => ({
-            ...prev,
-            [category]: {
-                ...prev[category],
-                [field]: value
-            }
-        }));
+        // 빈 문자열은 null로 변환 (백엔드 Optional 필드 호환)
+        const parsed = value === '' ? null : value;
+        console.log(`[수정] ${category}.${field}: "${value}" → ${JSON.stringify(parsed)}`);
+        setInbodyData(prev => {
+            const next = {
+                ...prev,
+                [category]: {
+                    ...prev[category],
+                    [field]: parsed
+                }
+            };
+            console.log(`[상태] ${category}.${field} =`, next[category][field]);
+            return next;
+        });
     };
 
+    /**
+     * 인바디 데이터 저장
+     * - USE_MOCK_DATA가 true면 저장 시뮬레이션 (로그인 불필요)
+     * - USE_MOCK_DATA가 false면 실제 API 호출 (로그인 필요)
+     */
     const handleSaveInbodyData = async () => {
         if (!inbodyData) return;
-
-        const userData = JSON.parse(localStorage.getItem('user'));
-        if (!userData || !userData.id) {
-            alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-            navigate('/login');
-            return;
-        }
 
         setIsSaving(true);
         setErrors({});
 
-        try {
-            const response = await fetch(`/api/health-records/ocr/validate?user_id=${userData.id}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(inbodyData),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail?.message || '저장 중 오류가 발생했습니다.');
+        // 문자열로 저장된 숫자 값을 숫자 타입으로 변환
+        const numericCategories = ['체성분', '체중관리', '비만분석', '연구항목'];
+        const intFields = ['연령', '내장지방레벨', '비만도', '기초대사량', '권장섭취열량'];
+        const cleanedData = JSON.parse(JSON.stringify(inbodyData)); // deep copy
+        // 기본정보 처리 (연령은 int, 신장은 float, 성별은 string)
+        if (cleanedData['기본정보']) {
+            if (cleanedData['기본정보']['신장'] != null) cleanedData['기본정보']['신장'] = parseFloat(cleanedData['기본정보']['신장']);
+            if (cleanedData['기본정보']['연령'] != null) cleanedData['기본정보']['연령'] = parseInt(cleanedData['기본정보']['연령'], 10);
+        }
+        numericCategories.forEach(cat => {
+            if (cleanedData[cat]) {
+                Object.keys(cleanedData[cat]).forEach(key => {
+                    const v = cleanedData[cat][key];
+                    if (v === null || v === undefined) return;
+                    if (typeof v === 'string') {
+                        const num = intFields.includes(key) ? parseInt(v, 10) : parseFloat(v);
+                        cleanedData[cat][key] = isNaN(num) ? null : num;
+                    }
+                });
             }
+        });
 
-            const savedRecord = await response.json();
-            alert('인바디 데이터가 성공적으로 저장되었습니다!');
+        // 저장 전 미입력 필드 검사
+        const nullFields = [];
+        const sections = ['기본정보', '체성분', '체중관리', '비만분석', '연구항목', '부위별근육분석', '부위별체지방분석'];
+        sections.forEach(section => {
+            if (cleanedData[section]) {
+                Object.entries(cleanedData[section]).forEach(([field, value]) => {
+                    if (value === null || value === undefined) {
+                        nullFields.push(`${section} → ${field}`);
+                    }
+                });
+            }
+        });
+        if (nullFields.length > 0) {
+            setIsSaving(false);
+            alert(`다음 항목을 입력해주세요:\n\n${nullFields.map(f => `• ${f}`).join('\n')}`);
+            return;
+        }
+
+        try {
+            if (USE_MOCK_DATA) {
+                // 목업 모드: 저장 시뮬레이션
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 딜레이
+                alert('인바디 데이터가 성공적으로 저장되었습니다! (목업)');
+            } else {
+                // API 모드: 실제 저장 (로그인 필요)
+                const userData = JSON.parse(localStorage.getItem('user'));
+                if (!userData || !userData.id) {
+                    alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+                    navigate('/login');
+                    return;
+                }
+
+                console.log('[저장] 전송 데이터:', cleanedData);
+
+                const response = await fetch(`/api/health-records/ocr/validate?user_id=${userData.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(cleanedData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('[저장 실패] 서버 응답:', JSON.stringify(errorData, null, 2));
+                    const detail = errorData.detail || errorData;
+                    let msg = (typeof detail === 'string') ? detail : (detail.message || '저장 중 오류가 발생했습니다.');
+                    if (detail.errors && Array.isArray(detail.errors)) {
+                        const fields = detail.errors.map(e => {
+                            const loc = Array.isArray(e.loc) ? e.loc.join(' → ') : '';
+                            return `[${loc}] ${e.msg}`;
+                        }).join('\n');
+                        msg += '\n\n검증 실패 필드:\n' + fields;
+                    }
+                    if (detail.null_fields) {
+                        const nullInfo = Object.entries(detail.null_fields).map(([k, v]) => `${k}: ${v.join(', ')}`).join('\n');
+                        msg += '\n\n미입력 필드:\n' + nullInfo;
+                    }
+                    throw new Error(msg);
+                }
+
+                await response.json();
+                alert('인바디 데이터가 성공적으로 저장되었습니다!');
+            }
 
             // 저장 후 초기화
             setInbodyData(null);
@@ -227,22 +307,53 @@ const InBodyAnalysis = () => {
         }
     };
 
+    /**
+     * 이전 기록 로드
+     * - USE_MOCK_DATA가 true면 목업 데이터 사용 (로그인 불필요)
+     * - USE_MOCK_DATA가 false면 실제 API 호출 (로그인 필요)
+     */
     const loadHistoryRecords = async () => {
-        const userData = JSON.parse(localStorage.getItem('user'));
-        if (!userData || !userData.id) {
-            alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-            navigate('/login');
-            return;
-        }
-
         setIsLoadingHistory(true);
         try {
-            const response = await fetch(`/api/health-records/user/${userData.id}?limit=20`);
-            if (!response.ok) {
-                throw new Error('기록을 불러오는데 실패했습니다.');
+            if (USE_MOCK_DATA) {
+                // 목업 모드: 테스트용 이전 기록 데이터
+                const mockRecords = [
+                    {
+                        id: 1,
+                        created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                        body_type1: '표준 체형',
+                        measurements: {
+                            "체중관리": { "체중": 72.5, "골격근량": 32.8 },
+                            "비만분석": { "체지방률": 18.5, "BMI": 23.2 }
+                        }
+                    },
+                    {
+                        id: 2,
+                        created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                        body_type1: '근육형',
+                        measurements: {
+                            "체중관리": { "체중": 71.0, "골격근량": 33.5 },
+                            "비만분석": { "체지방률": 16.2, "BMI": 22.8 }
+                        }
+                    }
+                ];
+                setHistoryRecords(mockRecords);
+            } else {
+                // API 모드: 실제 기록 로드 (로그인 필요)
+                const userData = JSON.parse(localStorage.getItem('user'));
+                if (!userData || !userData.id) {
+                    alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+                    navigate('/login');
+                    return;
+                }
+
+                const response = await fetch(`/api/health-records/user/${userData.id}?limit=20`);
+                if (!response.ok) {
+                    throw new Error('기록을 불러오는데 실패했습니다.');
+                }
+                const records = await response.json();
+                setHistoryRecords(records);
             }
-            const records = await response.json();
-            setHistoryRecords(records);
         } catch (error) {
             console.error('Load History Error:', error);
             alert(`기록 불러오기 실패: ${error.message}`);
@@ -258,10 +369,15 @@ const InBodyAnalysis = () => {
         }
     }, []);
 
+    // 부위별 분석 카테고리 (드롭다운으로 표시할 카테고리)
+    const segmentalCategories = ['부위별근육분석', '부위별체지방분석'];
+    const segmentalOptions = ['표준', '표준이상', '표준이하'];
+
     const renderInbodyTable = (title, categoryKey, unitMap = {}) => {
         const categoryData = inbodyData?.[categoryKey];
         if (!categoryData) return null;
         const isReadOnly = !!selectedRecord; // 이전 기록 조회 시 읽기 전용
+        const isSegmental = segmentalCategories.includes(categoryKey);
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -273,20 +389,35 @@ const InBodyAnalysis = () => {
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
-                        <div className="header-cell">단위</div>
+                        <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
                     {Object.entries(categoryData).map(([field, value]) => (
                         <div className="table-row" key={field}>
                             <div className="row-label">{field}</div>
                             <div className="row-value">
-                                <input
-                                    type="text"
-                                    value={value || ''}
-                                    placeholder="-"
-                                    disabled={isReadOnly}
-                                    style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
-                                    onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                />
+                                {isSegmental ? (
+                                    <select
+                                        value={value ?? ''}
+                                        disabled={isReadOnly}
+                                        style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className="segmental-select"
+                                    >
+                                        <option value="">선택</option>
+                                        {segmentalOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={value ?? ''}
+                                        placeholder="-"
+                                        disabled={isReadOnly}
+                                        style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
+                                        onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                    />
+                                )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
@@ -306,15 +437,15 @@ const InBodyAnalysis = () => {
                     </div>
                     <div className="inbody-buttons-section">
                         <button
-                            className={`secondary-button compact ${viewMode === 'history' ? '' : 'active'}`}
-                            onClick={() => setViewMode('new')}
+                            className={`secondary-button compact ${viewMode === 'history' || selectedRecord ? '' : 'active'}`}
+                            onClick={() => { setViewMode('new'); setSelectedRecord(null); setInbodyData(null); }}
                             style={{ width: 'auto', padding: '8px 16px' }}
                         >
                             <Camera size={18} />
                             새 분석
                         </button>
                         <button
-                            className={`secondary-button compact ${viewMode === 'history' ? 'active' : ''}`}
+                            className={`secondary-button compact ${viewMode === 'history' || selectedRecord ? 'active' : ''}`}
                             onClick={() => setViewMode('history')}
                             style={{ width: 'auto', padding: '8px 16px' }}
                         >
@@ -656,7 +787,7 @@ const InBodyAnalysis = () => {
                                                                 <div className="row-value">
                                                                     <input
                                                                         type="text"
-                                                                        value={value || ''}
+                                                                        value={value ?? ''}
                                                                         placeholder="-"
                                                                         disabled={!!selectedRecord}
                                                                         style={selectedRecord ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}

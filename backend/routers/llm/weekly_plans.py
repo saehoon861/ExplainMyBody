@@ -11,6 +11,7 @@ from schemas.llm import (
     WeeklyPlanResponse, 
     WeeklyPlanUpdate,
     GoalPlanRequest,
+    GoalPlanResponse,
     WeeklyPlanChatRequest,
     WeeklyPlanChatResponse,
     WeeklyPlanFeedbackRequest
@@ -48,10 +49,11 @@ async def generate_weekly_plan(
             plan_id=result["weekly_plan"].id,
             # report_id: WeeklyPlanResponse does not directly have report_id, keeping the old value temporarily
             report_id=1, # This is a placeholder, as GoalPlanResponse requires it.
-            weekly_plan=result["weekly_plan"].__dict__, # Convert ORM object to dict for response
+            weekly_plan=WeeklyPlanResponse.model_validate(result["weekly_plan"]).model_dump(), # Convert ORM object to dict for response
             thread_id=result["thread_id"],
             initial_llm_interaction_id=result["initial_llm_interaction_id"]
         )
+        
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -87,8 +89,8 @@ async def chat_with_plan(
         return WeeklyPlanChatResponse(response=response)
     except HTTPException:
         raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"채팅 중 오류가 발생했습니다: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"채팅 중 오류가 발생했습니다: {str(e)}")
     
     
     @router.post("/feedback", response_model=WeeklyPlanChatResponse)
@@ -119,16 +121,16 @@ async def chat_with_plan(
     def create_weekly_plan(
         user_id: int,
         plan_data: WeeklyPlanCreate,
-    db: Session = Depends(get_db)
-):
-    """
-    주간 계획 생성
-    
-    - **user_id**: 사용자 ID
-    - **plan_data**: 주간 계획 데이터
-    """
-    new_plan = WeeklyPlanRepository.create(db, user_id, plan_data)
-    return new_plan
+        db: Session = Depends(get_db)
+    ):
+        """ 
+        주간 계획 생성
+        
+        - **user_id**: 사용자 ID
+        - **plan_data**: 주간 계획 데이터
+        """
+        new_plan = WeeklyPlanRepository.create(db, user_id, plan_data)
+        return new_plan
 
 
 @router.get("/{plan_id}", response_model=WeeklyPlanResponse)

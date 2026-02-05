@@ -172,11 +172,20 @@ class LLMService:
         thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
         config = {"configurable": {"thread_id": thread_id}}
 
+
+
         # 2. LangGraph 에이전트 호출
         initial_state = self.weekly_plan_agent.invoke(
             {"plan_input": input_data},
-            config=config
+            config=config,
+            start_at="initial_plan"
         )
+        
+        # (
+        #     {"plan_input": input_data},
+        #     config=config
+        # )
+        
         plan_text = initial_state['messages'][-1].content
 
         # 3. 초기 LLM 상호작용 DB에 저장

@@ -143,7 +143,7 @@ def create_weekly_plan_agent(llm_client):
     workflow.add_node("qa_general", qa_general)
     workflow.add_node("finalize_plan", finalize_plan)
 
-    workflow.set_entry_point("initial_plan")
+    workflow.set_entry_point("router")
     
     # 초기 계획 생성 후 라우터로 이동
     workflow.add_edge("initial_plan", "router")
@@ -172,4 +172,4 @@ def create_weekly_plan_agent(llm_client):
     
     # compile() 호출 시 checkpointer를 전달하면,
     # 라우터가 END를 반환할 때 자동으로 대화가 중단되고 상태가 저장됩니다.
-    return workflow.compile(checkpointer=memory)
+    return workflow.compile(checkpointer=memory, interrupt_before=["router"])
