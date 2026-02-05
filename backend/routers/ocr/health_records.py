@@ -18,6 +18,11 @@ from services.ocr.body_type_service import BodyTypeService
 from repositories.common.health_record_repository import HealthRecordRepository
 from typing import List
 from pydantic import ValidationError
+from exceptions import (
+    OCREngineNotInitializedError,
+    OCRExtractionFailedError,
+    OCRProcessingError
+)
 
 router = APIRouter()
 health_service = HealthService()
@@ -69,12 +74,23 @@ async def extract_inbody_from_image(
     Raises:
         HTTPException 503: OCR 엔진이 아직 로딩 중
     """
-    raw_data = await ocr_service.extract_inbody_data(image)
+    try:
+        # ⚠️ 중요: image.file (BinaryIO)와 image.filename을 서비스에 전달
+        raw_data = await ocr_service.extract_inbody_data(image.file, image.filename)
     
-    return {
-        "data": raw_data,
-        "message": "OCR 추출 완료. 데이터를 확인하고 수정해주세요."
-    }
+        return {
+            "data": raw_data,
+            "message": "OCR 추출 완료. 데이터를 확인하고 수정해주세요."
+        }
+    
+    except OCREngineNotInitializedError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    except OCRExtractionFailedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    except OCRProcessingError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -115,7 +131,7 @@ async def validate_and_save_inbody(
     Raises:
         HTTPException 422: Pydantic 검증 실패 (필드 누락, 타입 오류, 이상치 등)
     """
-    # Step 1: Pydantic 검증
+    # Step 1: Pydantic 검증 (타입, 범위 체크)
     try:
         validated_inbody_data = InBodyData(**inbody_data)
     except ValidationError as e:
@@ -127,6 +143,19 @@ async def validate_and_save_inbody(
                 "errors": e.errors()  # 어떤 필드가 문제인지 상세 정보
             }
         )
+    
+    # Step 1.5: null 값 체크 (OCR 사용 시 모든 필드 필수)
+    null_fields = validated_inbody_data.get_null_fields()
+    if null_fields:
+        # 빈 필드가 있으면 저장 불가
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "OCR로 추출한 데이터는 모든 필드를 입력해야 합니다.",
+                "null_fields": null_fields
+            }
+        )
+
     
     # Step 2: 체형 분석 수행 (저장 전에 먼저 분석)
     body_type1 = None

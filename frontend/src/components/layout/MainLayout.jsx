@@ -1,18 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Home, MessageCircle, ClipboardList, User, Dumbbell, Moon, Sun } from 'lucide-react';
+import { Home, MessageCircle, ClipboardList, User, Dumbbell } from 'lucide-react';
 
 const MainLayout = ({ children }) => {
     const location = useLocation();
-    const [theme, setTheme] = useState('light');
 
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-    }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
+    // Set the theme to 'light' by default and remove theme-switching logic.
+    React.useEffect(() => {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }, []);
 
     const navItems = [
         { path: '/dashboard', icon: Home, label: '홈' },
@@ -43,11 +39,6 @@ const MainLayout = ({ children }) => {
                         </Link>
                     );
                 })}
-                {/* Theme Toggle Button */}
-                <div className="nav-item" onClick={toggleTheme} style={{ cursor: 'pointer' }}>
-                    {theme === 'light' ? <Moon size={24} /> : <Sun size={24} />}
-                    <span>{theme === 'light' ? '다크 모드' : '라이트 모드'}</span>
-                </div>
             </nav>
         </div>
     );

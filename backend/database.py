@@ -64,7 +64,7 @@ def init_db():
         print(f"   PostgreSQL에 pgvector가 설치되어 있는지 확인하세요.")
     
     # 모든 모델 임포트 (테이블 생성을 위해 필요)
-    from models import user, health_record, analysis_report, user_detail, weekly_plan
+    from models import user, health_record, analysis_report, user_detail, weekly_plan, human_feedback, llm_interaction
     
     # 테이블 생성
     Base.metadata.create_all(bind=engine)

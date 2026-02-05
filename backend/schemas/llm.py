@@ -75,6 +75,14 @@ class UserDetailUpdate(BaseModel):
     ended_at: Optional[datetime] = None
 
 
+class UserGoalUpdateRequest(BaseModel):
+    """목표 수정 요청 스키마 (UserDetail의 goal_description 팩킹용)"""
+    start_weight: Optional[float] = None
+    target_weight: Optional[float] = None
+    goal_type: Optional[str] = None
+    goal_description: Optional[str] = None
+
+
 class UserDetailResponse(UserDetailBase):
     """사용자 상세정보 응답 스키마"""
     id: int
@@ -244,3 +252,47 @@ class WeeklyPlanChatRequest(BaseModel):
 class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
+
+
+# ============================================================================
+# LLM Interaction Schemas
+# ============================================================================
+
+class LLMInteractionBase(BaseModel):
+    llm_stage: str
+    source_type: Optional[str] = None
+    source_id: Optional[int] = None
+    category_type: Optional[str] = None
+    output_text: str
+    model_version: Optional[str] = None
+
+class LLMInteractionCreate(LLMInteractionBase):
+    pass
+
+class LLMInteractionResponse(LLMInteractionBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# ============================================================================
+# Human Feedback Schemas
+# ============================================================================
+
+class HumanFeedbackBase(BaseModel):
+    llm_interaction_id: int
+    feedback_category: Optional[str] = None
+    feedback_text: str
+
+class HumanFeedbackCreate(HumanFeedbackBase):
+    pass
+
+class HumanFeedbackResponse(HumanFeedbackBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

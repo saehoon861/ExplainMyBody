@@ -177,7 +177,15 @@ class HealthService:
         )
         
         if existing_report:
-            return AnalysisReportResponse.model_validate(existing_report)
+            # 기존 리포트도 summary와 content로 분리하여 반환
+            from services.llm.parse_utils import split_analysis_response
+            
+            response = AnalysisReportResponse.model_validate(existing_report)
+            parsed = split_analysis_response(existing_report.llm_output)
+            response.summary = parsed["summary"]
+            response.content = parsed["content"]
+            
+            return response
             
         # 3. LLM 서비스 호출을 위한 입력 데이터 준비
         # body_type1, body_type2는 measurements JSONB 안에 저장됨

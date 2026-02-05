@@ -43,3 +43,6 @@ htmlcov/
 
 # Alembic
 alembic/versions/*.pyc
+
+# explainmybody_llm
+src/explainmybody_llm.egg-info/

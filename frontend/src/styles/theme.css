@@ -8,11 +8,3 @@
   --color-border-default: #e2e8f0;
 }
 
-html[data-theme='dark'] {
-  --color-background-primary: #0f172a; /* Dark Blue */
-  --color-background-secondary: #1e293b; /* Darker Blue */
-  --color-text-primary: #f8fafc; /* Almost White */
-  --color-text-secondary: #cbd5e1; /* Light Gray */
-  --color-accent: #818cf8; /* Lighter Purple */
-  --color-border-default: #334155; /* Grayish Blue */
-}

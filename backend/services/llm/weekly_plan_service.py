@@ -10,12 +10,48 @@ from typing import Dict, Any
 from services.llm.llm_service import LLMService
 from services.common.health_service import HealthService
 from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
+from repositories.common.health_record_repository import HealthRecordRepository
 from schemas.llm import WeeklyPlanCreate, GoalPlanRequest, GoalPlanInput
+
+# 가장 최신 주간 계획이 있는지 없는지 확인
+
+# 있다면 가장 최신 주간 계획 가져오기
+
+# 주간 계획이 현재 진행중인지 확인 (start_date <= today <= end_date)
+# 새로운 inbody 측정값이 있는지 확인 (start_date <= measured_at)
+
+# 하나라도 True면 새로운 주간 계획서 작성
+# 둘 다 False면 새로운 주간 계획서 작성하지 않음 & 기존 주간 계획서 반환
+
 
 class WeeklyPlanService:
     def __init__(self):
         self.llm_service = LLMService()
         self.health_service = HealthService()
+
+    def _should_create_new_plan(
+        self, 
+        db: Session, 
+        user_id: int, 
+        latest_plan # 타입 힌트 없음.
+    ) -> bool:
+        """새 주간 계획 생성이 필요한지 판단"""
+        if not latest_plan:
+            return True
+        
+        today = date.today()
+        
+        # 트리거 1: 계획 기간 만료
+        if today > latest_plan.end_date:
+            return True
+        
+        # 트리거 2: 새로운 인바디 측정
+        latest_inbody = HealthRecordRepository.get_latest(db, user_id)
+        if latest_inbody and latest_inbody.measured_at > latest_plan.created_at:
+            return True
+    
+        return False
+
 
     async def generate_plan(
         self,
@@ -26,6 +62,14 @@ class WeeklyPlanService:
         """
         주간 계획 생성 (LLM 호출)
         """
+        
+        # Early return: 기존 계획 재사용
+        latest_plan = WeeklyPlanRepository.get_latest(db, user_id)
+        if not self._should_create_new_plan(db, user_id, latest_plan):
+            return latest_plan
+
+
+
         # 1. LLM 입력 데이터 준비 (HealthService 활용)
         # prepare_goal_plan은 Response 객체를 반환하므로 input_data만 추출
         prepared_response = self.health_service.prepare_goal_plan(
