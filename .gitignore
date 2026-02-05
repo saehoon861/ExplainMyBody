@@ -57,14 +57,5 @@ backend/.dockerignore
 .firebaserc
 firebase.json
 
-# Deployment & Cloud SQL Proxy
-backend/cloud-sql-proxy
-backend/*.json
-backend/Dockerfile
-backend/.dockerignore
-.firebase/
-.firebaserc
-firebase.json
-
 # explainmybody_llm
 src/explainmybody_llm.egg-info/
