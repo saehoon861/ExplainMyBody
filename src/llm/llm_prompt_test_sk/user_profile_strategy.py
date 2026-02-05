@@ -81,68 +81,30 @@ def build_strategy_text_from_dict(user_data: Dict[str, Any]) -> str:
     return strategy_text.strip()
 
 
-def get_strategy_summary(user_data: Dict[str, Any]) -> Dict[str, str]:
-    """
-    전략의 핵심 요약만 추출 (프롬프트에서 선택적으로 사용)
+# def get_strategy_summary(user_data: Dict[str, Any]) -> Dict[str, str]:
+#     """
+#     전략의 핵심 요약만 추출 (프롬프트에서 선택적으로 사용)
 
-    Returns:
-        {
-            "goal": "목표",
-            "focus": "포커스",
-            "environment": "운동 환경",
-            "coach_tip": "코치 조언"
-        }
-    """
-    body_type1 = user_data.get("body_type1", "알 수 없음")
-    body_type2 = user_data.get("body_type2", "표준형")
-    workout_place = user_data.get("workout_place", "홈트")
+#     Returns:
+#         {
+#             "goal": "목표",
+#             "focus": "포커스",
+#             "environment": "운동 환경",
+#             "coach_tip": "코치 조언"
+#         }
+#     """
+#     body_type1 = user_data.get("body_type1", "알 수 없음")
+#     body_type2 = user_data.get("body_type2", "표준형")
+#     workout_place = user_data.get("workout_place", "홈트")
 
-    t1 = BODY_TYPE1_RULES.get(body_type1, BODY_TYPE1_RULES["알 수 없음"])  # type: ignore
-    t2 = BODY_TYPE2_RULES.get(body_type2, BODY_TYPE2_RULES["표준형"])  # type: ignore
-    tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["홈트"])  # type: ignore
+#     t1 = BODY_TYPE1_RULES.get(body_type1, BODY_TYPE1_RULES["알 수 없음"])  # type: ignore
+#     t2 = BODY_TYPE2_RULES.get(body_type2, BODY_TYPE2_RULES["표준형"])  # type: ignore
+#     tp = WORKOUT_PLACE_RULES.get(workout_place, WORKOUT_PLACE_RULES["홈트"])  # type: ignore
 
-    return {
-        "goal": t1["goal"],
-        "focus": t2["focus"],
-        "environment": tp["environment"],
-        "coach_tip": t1["coach"]
-    }
+#     return {
+#         "goal": t1["goal"],
+#         "focus": t2["focus"],
+#         "environment": tp["environment"],
+#         "coach_tip": t1["coach"]
+#     }
 
-
-# =============================================================================
-# 테스트용 함수
-# =============================================================================
-
-def test_strategy_generation():
-    """샘플 데이터로 전략 텍스트 생성 테스트"""
-    from sample_data import SAMPLE_USER, SAMPLE_PROFILES
-
-    print("=" * 60)
-    print("📋 SAMPLE_USER 전략 텍스트")
-    print("=" * 60)
-    print(build_strategy_text_from_dict(SAMPLE_USER))
-
-    print("\n" + "=" * 60)
-    print("📋 SAMPLE_PROFILES 테스트")
-    print("=" * 60)
-
-    for name, profile in SAMPLE_PROFILES.items():
-        print(f"\n[{name}]")
-        print("-" * 40)
-        strategy = build_strategy_text_from_dict(profile)
-        # 간략히 출력
-        lines = strategy.split('\n')
-        for line in lines[:3]:  # 처음 3줄만
-            print(line)
-        print("...")
-
-    print("\n" + "=" * 60)
-    print("📊 전략 요약 테스트")
-    print("=" * 60)
-    summary = get_strategy_summary(SAMPLE_USER)
-    for key, value in summary.items():
-        print(f"{key}: {value}")
-
-
-if __name__ == "__main__":
-    test_strategy_generation()
