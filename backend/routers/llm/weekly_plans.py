@@ -27,7 +27,7 @@ router = APIRouter()
 weekly_plan_service = WeeklyPlanService()
 
 
-@router.post("/generate", response_model=WeeklyPlanResponse, status_code=201)
+@router.post("/generate", response_model=GoalPlanResponse, status_code=201)
 async def generate_weekly_plan(
     user_id: int,
     request: GoalPlanRequest,
@@ -40,11 +40,18 @@ async def generate_weekly_plan(
     - **request**: 목표 계획 요청 데이터 (record_id, user_goal_type, user_goal_description)
     
     Returns:
-        생성된 주간 계획 (마크다운 형식의 content 포함)
+        생성된 주간 계획 (마크다운 형식의 content 포함), thread_id, initial_llm_interaction_id
     """
     try:
-        new_plan = await weekly_plan_service.generate_plan(db, user_id, request)
-        return new_plan
+        result = await weekly_plan_service.generate_plan(db, user_id, request)
+        return GoalPlanResponse(
+            plan_id=result["weekly_plan"].id,
+            # report_id: WeeklyPlanResponse does not directly have report_id, keeping the old value temporarily
+            report_id=1, # This is a placeholder, as GoalPlanResponse requires it.
+            weekly_plan=result["weekly_plan"].__dict__, # Convert ORM object to dict for response
+            thread_id=result["thread_id"],
+            initial_llm_interaction_id=result["initial_llm_interaction_id"]
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

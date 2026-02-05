@@ -71,12 +71,13 @@ class WeeklyPlanService :
         # Early return: 기존 계획 재사용
         latest_plan = WeeklyPlanRepository.get_latest(db, user_id)
         if not self._should_create_new_plan(db, user_id, latest_plan):
-            return latest_plan
-
-
+            return {
+                "weekly_plan": latest_plan,
+                "thread_id": latest_plan.thread_id,
+                "initial_llm_interaction_id": latest_plan.initial_llm_interaction_id
+            }
 
         # 1. LLM 입력 데이터 준비 (HealthService 활용)
-        # prepare_goal_plan은 Response 객체를 반환하므로 input_data만 추출
         prepared_response = self.health_service.prepare_goal_plan(
             db=db,
             user_id=user_id,
@@ -90,29 +91,33 @@ class WeeklyPlanService :
             
         llm_input: GoalPlanInput = prepared_response.input_data
 
-        # 2. LLM 호출 (주간 계획 생성)
-        # 현재 LLM은 텍스트(str)를 반환함. 추후 JSON 파싱 로직 고도화 필요.
-        plan_text = await self.llm_service.call_goal_plan_llm(llm_input)
+        # 2. LLM 호출 (주간 계획 생성) 및 초기 LLM 상호작용 저장
+        llm_response = await self.llm_service.call_goal_plan_llm(db, llm_input)
         
         # 3. 데이터 저장
-        # LLM이 준 텍스트를 plan_data의 'content' 필드에 저장 (임시)
-        # 프론트엔드에서는 이 content를 마크다운으로 렌더링
         today = date.today()
         next_monday = today + timedelta(days=(7 - today.weekday()))
         
         plan_create = WeeklyPlanCreate(
+            thread_id=llm_response["thread_id"],
+            initial_llm_interaction_id=llm_response["llm_interaction_id"],
             week_number=1, # 로직에 따라 계산 필요
             start_date=next_monday,
             end_date=next_monday + timedelta(days=6),
             plan_data={
-                "content": plan_text,
-                "raw_response": plan_text
+                "content": llm_response["plan_text"],
+                "raw_response": llm_response["plan_text"]
             },
             model_version=self.llm_service.model_version
         )
         
         new_plan = WeeklyPlanRepository.create(db, user_id, plan_create)
-        return new_plan
+        
+        return {
+            "weekly_plan": new_plan,
+            "thread_id": llm_response["thread_id"],
+            "initial_llm_interaction_id": llm_response["llm_interaction_id"]
+        }
 
     async def chat_with_plan(
         self,
