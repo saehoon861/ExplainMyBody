@@ -54,7 +54,7 @@ class UserDetailBase(BaseModel):
     goal_type: Optional[str] = None
     # target_weight: Optional[float] = None # DB 컬럼 아님, Response에만 존재
     # start_weight: Optional[float] = None # DB 컬럼 아님
-    goal_description: Optional[str] = None
+    goal_description: Optional[str] = None  # JSON 형식으로 저장(재활, 시작체중, 목표체중)
     preferences: Optional[str] = None
     health_specifics: Optional[str] = None
     is_active: Optional[int] = 1
@@ -129,12 +129,15 @@ class StatusAnalysisInput(BaseModel):
     measurements: Dict[str, Any]
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    previous_analysis_result: Optional[str] = None
 
 
 class GoalPlanInput(BaseModel):
     """LLM2: 주간 계획 생성 입력 스키마"""
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
     record_id: int
     user_id: int
     measured_at: datetime
@@ -150,6 +153,8 @@ class GoalPlanRequest(BaseModel):
     record_id: int
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
 
 
 class GoalPlanPrepareResponse(BaseModel):
