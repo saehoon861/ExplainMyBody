@@ -212,9 +212,9 @@ const Signup = () => {
             // 성별은 텍스트 허용 (최대 10자)
             if (value.length > 10) isValid = false;
         } else {
-            // 그 외 수치 데이터는 숫자와 소수점만 허용
-            // 정규식: 숫자만 혹은 소수점 포함 숫자
-            if (!/^\d*\.?\d*$/.test(value)) {
+            // 그 외 수치 데이터는 숫자와 소수점만 허용 (음수 허용)
+            // 정규식: 숫자만 혹은 소수점 포함 숫자, 음수 가능
+            if (!/^-?\d*\.?\d*$/.test(value)) {
                 isValid = false;
             } else {
                 // 범위 제한 (터무니 없는 값 방지)
@@ -514,6 +514,16 @@ const Signup = () => {
 
                 // 성공 시 대시보드에 사용자 정보 전달 및 로컬 스토리지 저장
                 localStorage.setItem('user', JSON.stringify(result));
+
+                // 운동 설정 정보를 별도 저장 (운동 플래너에서 사용)
+                localStorage.setItem('exerciseSettings', JSON.stringify({
+                    goal: formData.goalType || '',
+                    preferences: formData.preferredExercises || [],
+                    diseases: [
+                        ...(formData.medicalConditions || []),
+                        formData.medicalConditionsDetail || ''
+                    ].filter(Boolean).join(', ')
+                }));
 
                 // alert('회원가입이 완료되었습니다!');
                 navigate('/signup-success');

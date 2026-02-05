@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, X, TrendingUp, Activity, Zap, FileText, AlertCircle, Loader2, Lock } from 'lucide-react';
 import '../../styles/LoginLight.css';
 import { getUserHealthRecords } from '../../services/inbodyService';
+import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
 
 // ============================================
 // 목업 설정
@@ -20,9 +21,17 @@ const MOCK_INBODY_DATA = {
     }
 };
 
+// 목업 사용자 설정 데이터 (이미 선택된 값 시뮬레이션)
+const MOCK_USER_SETTINGS = {
+    goal: '다이어트',
+    preferences: ['헬스장(웨이트)', '러닝/유산소'],
+    diseases: '허리 디스크 약간 있음'
+};
+
 const ChatbotSelector = () => {
     const navigate = useNavigate();
     const [showInbodyPopup, setShowInbodyPopup] = useState(false);
+    const [showExercisePopup, setShowExercisePopup] = useState(false);  // 운동 설정 팝업 상태
     // OCR 검사 안내 팝업 (OCR 데이터가 없을 때)
     const [showNoDataPopup, setShowNoDataPopup] = useState(false);
     const [latestInbodyData, setLatestInbodyData] = useState(null);
@@ -37,21 +46,22 @@ const ChatbotSelector = () => {
     // 인바디 데이터 로드
     useEffect(() => {
         const loadInbodyData = async () => {
+            if (USE_MOCK_DATA) {
+                // 테스트: 데이터 있음 (잠금 해제)
+                setLatestInbodyData(MOCK_INBODY_DATA);
+
+                // 테스트: 데이터 없음 (잠금 확인용)
+                // setLatestInbodyData(null);
+
+                setIsLoading(false);
+                return;
+            }
+
             const userData = JSON.parse(localStorage.getItem('user'));
             if (!userData || !userData.id) return;
 
             setIsLoading(true);
             try {
-                if (USE_MOCK_DATA) {
-                    // 테스트: 데이터 있음 (잠금 해제)
-                    setLatestInbodyData(MOCK_INBODY_DATA);
-
-                    // 테스트: 데이터 없음 (잠금 확인용)
-                    // setLatestInbodyData(null);
-
-                    setIsLoading(false);
-                    return;
-                }
 
                 const records = await getUserHealthRecords(userData.id, 1);
                 if (records && records.length > 0) {
@@ -68,8 +78,8 @@ const ChatbotSelector = () => {
     }, []);
 
     const handleBotClick = (botId) => {
-        // 데이터가 없는 경우 처리
-        if (!latestInbodyData) {
+        // 데이터가 없는 경우 처리 (목업 모드 제외)
+        if (!latestInbodyData && !USE_MOCK_DATA) {
             if (botId === 'workout-planner') {
                 // 운동 플래너 클릭 시 -> "인바디 분석 전문가 먼저 이용하세요" 안내
                 setPopupType('guide');
@@ -86,55 +96,117 @@ const ChatbotSelector = () => {
         if (botId === 'inbody-analyst') {
             // 데이터가 있으면 인바디 정보 팝업 표시
             setShowInbodyPopup(true);
+        } else if (botId === 'workout-planner') {
+            // 운동 플래너: 팝업 무조건 표시 (저장된 정보 있으면 read-only로 보여줌)
+            setShowExercisePopup(true);
         } else {
-            // 그 외 (운동 플래너 등) -> 데이터가 있으면 바로 이동
-            // localStorage에서 사용자 정보 가져오기
+            // 그 외 (예비용)
             const userData = JSON.parse(localStorage.getItem('user'));
-            const userId = userData?.id || 1; // 로그인된 사용자 ID
+            const userId = userData?.id || 1;
 
             navigate(`/chatbot/${botId}`, {
                 state: {
                     inbodyData: latestInbodyData,
-                    userId: userId  // ✅ userId 전달 추가
+                    userId: userId
                 }
             });
         }
     };
 
-    /**
-     * AI 정밀분석 버튼 클릭 핸들러
-     */
-    const handleStartAnalysis = async () => {
-        setIsAnalyzing(true);
-        setAnalyzeProgress(0);
-        setAnalyzeMessage('분석 중');
+    const handleExercisePlanSubmit = (data) => {
+        setShowExercisePopup(false);
 
-        const messages = ['분석 중', '체성분 분석', '지표 계산', 'AI 분석', '결과 생성'];
-
-        for (let i = 0; i <= 100; i += 2) {
-            await new Promise(resolve => setTimeout(resolve, 40));
-            setAnalyzeProgress(i);
-            const messageIndex = Math.floor(i / 25);
-            if (messageIndex < messages.length) {
-                setAnalyzeMessage(messages[messageIndex]);
-            }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        setShowInbodyPopup(false);
-        setIsAnalyzing(false);
+        // 운동 설정 정보를 localStorage에 저장 (다음번에 바로 사용)
+        localStorage.setItem('exerciseSettings', JSON.stringify(data));
 
         // localStorage에서 사용자 정보 가져오기
         const userData = JSON.parse(localStorage.getItem('user'));
         const userId = userData?.id || 1; // 로그인된 사용자 ID
 
-        navigate('/chatbot/inbody-analyst', {
+        navigate('/chatbot/workout-plan', {
             state: {
-                inbodyData: latestInbodyData,
-                userId: userId  // ✅ userId 전달 추가
+                planRequest: data,
+                userId: userId,
+                inbodyData: latestInbodyData
             }
         });
+    };
+
+    /**
+     * AI 정밀분석 버튼 클릭 핸들러
+     */
+    /**
+     * AI 정밀분석 버튼 클릭 핸들러
+     * - 버튼 클릭 시 즉시 API 요청 시작
+     * - 로딩 중 실제 데이터 대기
+     * - 데이터 수신 후 채팅 페이지로 이동
+     */
+    const handleStartAnalysis = async () => {
+        setIsAnalyzing(true);
+        setAnalyzeProgress(0);
+        setAnalyzeMessage('분석 요청 중...');
+
+        // 사용자 정보
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const userId = userData?.id || 1;
+
+        try {
+            // 1. 프로그레스 바 시작 (90%까지 천천히 증가)
+            const progressInterval = setInterval(() => {
+                setAnalyzeProgress(prev => {
+                    if (prev >= 90) return prev;
+                    return prev + 10; // 10%씩 증가
+                });
+            }, 500); // 0.5초마다 증가
+
+            let responseData = null;
+
+            if (USE_MOCK_DATA) {
+                // 목업 데이터 시뮬레이션 (2초 대기)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // 목업 응답 데이터 구성 (Chatbot.jsx에서 사용하는 구조와 동일하게)
+                responseData = {
+                    mockData: true // 목업임을 표시
+                };
+            } else {
+                // 실제 API 호출
+                const recordId = latestInbodyData?.id;
+                if (!recordId) throw new Error("분석할 인바디 기록이 없습니다.");
+
+                const res = await fetch(`/api/analysis/${recordId}?user_id=${userId}`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) throw new Error("분석 리포트 생성 실패");
+                responseData = await res.json();
+            }
+
+            // 완료 처리
+            clearInterval(progressInterval);
+            setAnalyzeProgress(100);
+            setAnalyzeMessage('분석 완료!');
+
+            await new Promise(resolve => setTimeout(resolve, 500)); // 100% 보여주기 위한 짧은 대기
+
+            setShowInbodyPopup(false);
+            setIsAnalyzing(false);
+
+            // 데이터와 함께 이동
+            navigate('/chatbot/inbody-analyst', {
+                state: {
+                    inbodyData: latestInbodyData,
+                    userId: userId,
+                    analysisResult: responseData // ✅ 미리 가져온 분석 결과 전달
+                }
+            });
+
+        } catch (error) {
+            console.error('분석 요청 실패:', error);
+            setAnalyzeMessage('오류 발생');
+            setIsAnalyzing(false);
+            alert('분석 요청 중 오류가 발생했습니다. 다시 시도해주세요.');
+        }
     };
 
     const bots = [
@@ -162,12 +234,13 @@ const ChatbotSelector = () => {
                 <div style={{
                     display: 'inline-flex',
                     padding: '16px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)', // 부드러운 파스텔 그라디언트
                     borderRadius: '24px',
                     marginBottom: '20px',
-                    boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
+                    boxShadow: '0 8px 32px rgba(99, 102, 241, 0.15)',
+                    border: '1px solid rgba(255,255,255,0.5)'
                 }}>
-                    <Sparkles size={36} color="white" />
+                    <Sparkles size={32} color="#6366f1" />
                 </div>
                 <h1 style={{
                     fontSize: '2rem',
@@ -187,8 +260,8 @@ const ChatbotSelector = () => {
                 margin: '0 auto'
             }}>
                 {bots.map((bot, index) => {
-                    // workout-planner인 경우 데이터 없으면 잠김 처리
-                    const isLocked = bot.id === 'workout-planner' && !latestInbodyData;
+                    // workout-planner인 경우 데이터 없으면 잠김 처리 (목업 모드 제외)
+                    const isLocked = bot.id === 'workout-planner' && !latestInbodyData && !USE_MOCK_DATA;
 
                     return (
                         <div
@@ -268,12 +341,14 @@ const ChatbotSelector = () => {
                                     width: '64px',
                                     height: '64px',
                                     borderRadius: '20px',
-                                    background: bot.gradient,
+                                    background: index === 0
+                                        ? 'linear-gradient(135deg, #e0e7ff 0%, #eef2ff 100%)'
+                                        : 'linear-gradient(135deg, #fce7f3 0%, #fdf2f8 100%)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     fontSize: '32px',
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                                     flexShrink: 0
                                 }}>
                                     {bot.icon}
@@ -383,27 +458,27 @@ const ChatbotSelector = () => {
                                 position: 'absolute',
                                 top: '16px',
                                 right: '16px',
-                                background: '#f1f5f9',
-                                border: 'none',
-                                borderRadius: '12px',
+                                background: '#1e293b', // 완전 불투명한 진한 색상 (가장 잘 보임)
+                                border: '2px solid white', // 흰색 테두리 추가로 대비 극대화
+                                borderRadius: '50%',
                                 width: '36px',
                                 height: '36px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                zIndex: 9999, // 최상위 보장
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)' // 그림자 강조
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#e2e8f0';
-                                e.currentTarget.style.transform = 'rotate(90deg)';
+                                e.currentTarget.style.transform = 'scale(1.1)';
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#f1f5f9';
-                                e.currentTarget.style.transform = 'rotate(0deg)';
+                                e.currentTarget.style.transform = 'scale(1)';
                             }}
                         >
-                            <X size={20} color="#64748b" />
+                            <X size={20} color="white" strokeWidth={3} />
                         </button>
 
                         {/* 헤더 */}
@@ -435,72 +510,76 @@ const ChatbotSelector = () => {
                         }}>
                             {latestInbodyData.measurements?.["체중관리"]?.["체중"] && (
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', // 파스텔 블루
                                     padding: '16px',
                                     borderRadius: '16px',
-                                    color: 'white'
+                                    color: '#1e40af',
+                                    border: '1px solid rgba(255,255,255,0.6)'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <Activity size={18} />
-                                        <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>체중</span>
+                                        <Activity size={18} color="#2563eb" />
+                                        <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600 }}>체중</span>
                                     </div>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+                                    <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#172554' }}>
                                         {latestInbodyData.measurements["체중관리"]["체중"]}
-                                        <span style={{ fontSize: '1rem', marginLeft: '4px' }}>kg</span>
+                                        <span style={{ fontSize: '1rem', marginLeft: '4px', fontWeight: 600, opacity: 0.7 }}>kg</span>
                                     </div>
                                 </div>
                             )}
 
                             {latestInbodyData.measurements?.["체중관리"]?.["골격근량"] && (
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                    background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)', // 파스텔 핑크
                                     padding: '16px',
                                     borderRadius: '16px',
-                                    color: 'white'
+                                    color: '#9d174d',
+                                    border: '1px solid rgba(255,255,255,0.6)'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <Zap size={18} />
-                                        <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>골격근량</span>
+                                        <Zap size={18} color="#db2777" />
+                                        <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600 }}>골격근량</span>
                                     </div>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+                                    <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#831843' }}>
                                         {latestInbodyData.measurements["체중관리"]["골격근량"]}
-                                        <span style={{ fontSize: '1rem', marginLeft: '4px' }}>kg</span>
+                                        <span style={{ fontSize: '1rem', marginLeft: '4px', fontWeight: 600, opacity: 0.7 }}>kg</span>
                                     </div>
                                 </div>
                             )}
 
                             {latestInbodyData.measurements?.["비만분석"]?.["체지방률"] && (
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+                                    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', // 파스텔 옐로우
                                     padding: '16px',
                                     borderRadius: '16px',
-                                    color: '#2d3436'
+                                    color: '#92400e',
+                                    border: '1px solid rgba(255,255,255,0.6)'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <TrendingUp size={18} />
-                                        <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>체지방률</span>
+                                        <TrendingUp size={18} color="#d97706" />
+                                        <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600 }}>체지방률</span>
                                     </div>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+                                    <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#78350f' }}>
                                         {latestInbodyData.measurements["비만분석"]["체지방률"]}
-                                        <span style={{ fontSize: '1rem', marginLeft: '4px' }}>%</span>
+                                        <span style={{ fontSize: '1rem', marginLeft: '4px', fontWeight: 600, opacity: 0.7 }}>%</span>
                                     </div>
                                 </div>
                             )}
 
                             {latestInbodyData.measurements?.["비만분석"]?.["BMI"] && (
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
+                                    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', // 파스텔 스카이
                                     padding: '16px',
                                     borderRadius: '16px',
-                                    color: 'white'
+                                    color: '#075985',
+                                    border: '1px solid rgba(255,255,255,0.6)'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <Activity size={18} />
-                                        <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>BMI</span>
+                                        <Activity size={18} color="#0284c7" />
+                                        <span style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600 }}>BMI</span>
                                     </div>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+                                    <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#0c4a6e' }}>
                                         {latestInbodyData.measurements["비만분석"]["BMI"]}
-                                        <span style={{ fontSize: '0.8rem', marginLeft: '4px' }}>kg/m²</span>
+                                        <span style={{ fontSize: '0.8rem', marginLeft: '4px', fontWeight: 600, opacity: 0.7 }}>kg/m²</span>
                                     </div>
                                 </div>
                             )}
@@ -539,7 +618,7 @@ const ChatbotSelector = () => {
                                 overflow: 'hidden',
                                 background: isAnalyzing
                                     ? 'rgba(100, 116, 139, 0.2)'
-                                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    : '#1e293b', // 단색 (검정/남색 계열)
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '16px',
@@ -552,8 +631,8 @@ const ChatbotSelector = () => {
                                 gap: '8px',
                                 transition: 'all 0.3s',
                                 boxShadow: isAnalyzing
-                                    ? '0 4px 16px rgba(102, 126, 234, 0.2)'
-                                    : '0 4px 16px rgba(102, 126, 234, 0.3)'
+                                    ? 'none'
+                                    : '0 4px 12px rgba(15, 23, 42, 0.2)'
                             }}
                             onMouseEnter={(e) => {
                                 if (!isAnalyzing) {
@@ -638,19 +717,21 @@ const ChatbotSelector = () => {
                                 position: 'absolute',
                                 top: '16px',
                                 right: '16px',
-                                background: '#f1f5f9',
+                                background: 'rgba(0, 0, 0, 0.6)',
                                 border: 'none',
-                                borderRadius: '12px',
-                                width: '36px',
-                                height: '36px',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                zIndex: 100,
+                                backdropFilter: 'blur(4px)'
                             }}
                         >
-                            <X size={20} color="#64748b" />
+                            <X size={18} color="white" />
                         </button>
 
                         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -748,6 +829,18 @@ const ChatbotSelector = () => {
                     </div>
                 </div>
             )}
+
+            {/* 운동 플랜 설정 팝업 */}
+            <ExercisePlanPopup
+                isOpen={showExercisePopup}
+                onClose={() => setShowExercisePopup(false)}
+                onSubmit={handleExercisePlanSubmit}
+                initialData={
+                    USE_MOCK_DATA
+                        ? MOCK_USER_SETTINGS
+                        : JSON.parse(localStorage.getItem('exerciseSettings') || 'null')
+                }
+            />
 
             <style>{`
                 @keyframes fadeIn {
