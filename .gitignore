@@ -47,3 +47,9 @@ htmlcov/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Deployment & Cloud SQL Proxy
+backend/cloud-sql-proxy
+backend/*.json
+backend/Dockerfile
+backend/.dockerignore
