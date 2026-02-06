@@ -72,6 +72,18 @@ class HealthService:
         if not health_record or health_record.user_id != user_id:
             return None
 
+        print(f"\n[DEBUG][HealthService] prepare_status_analysis 시작")
+        print(f"[DEBUG][HealthService] record_id={record_id}, user_id={user_id}")
+
+        # 이전 인바디 데이터 조회 (같은 사용자의 이전 측정 기록)
+        prev_health_record = HealthRecordRepository.get_previous_record(db, user_id, health_record)
+        
+        print(f"[DEBUG][HealthService] prev_health_record 존재: {prev_health_record is not None}")
+        if prev_health_record:
+            print(f"[DEBUG][HealthService] prev_health_record.id={prev_health_record.id}")
+            print(f"[DEBUG][HealthService] prev_health_record.created_at={prev_health_record.created_at}")
+            print(f"[DEBUG][HealthService] prev measurements 존재: {prev_health_record.measurements is not None}")
+
         # LLM input 데이터 준비
         # body_type1, body_type2는 measurements JSONB 안에 저장됨
         input_data = self.llm_service.prepare_status_analysis_input(
@@ -80,8 +92,13 @@ class HealthService:
             measured_at=health_record.measured_at,
             measurements=health_record.measurements,
             body_type1=health_record.measurements.get('body_type1'),
-            body_type2=health_record.measurements.get('body_type2')
+            body_type2=health_record.measurements.get('body_type2'),
+            prev_inbody_data=prev_health_record.measurements if prev_health_record else None,
+            prev_inbody_date=prev_health_record.created_at if prev_health_record else None
         )
+        
+        print(f"[DEBUG][HealthService] input_data에 prev_inbody_data 포함: {'prev_inbody_data' in input_data}")
+        print(f"[DEBUG][HealthService] input_data['prev_inbody_data'] is None: {input_data.get('prev_inbody_data') is None}")
 
         return StatusAnalysisResponse(
             success=True,
@@ -188,6 +205,9 @@ class HealthService:
             return response
             
         # 3. LLM 서비스 호출을 위한 입력 데이터 준비
+        # 이전 인바디 데이터 조회 (같은 사용자의 이전 측정 기록)
+        prev_health_record = HealthRecordRepository.get_previous_record(db, user_id, health_record)
+
         # body_type1, body_type2는 measurements JSONB 안에 저장됨
         input_data = self.llm_service.prepare_status_analysis_input(
             record_id=health_record.id,
@@ -195,7 +215,9 @@ class HealthService:
             measured_at=health_record.measured_at,
             measurements=health_record.measurements,
             body_type1=health_record.measurements.get('body_type1'),
-            body_type2=health_record.measurements.get('body_type2')
+            body_type2=health_record.measurements.get('body_type2'),
+            prev_inbody_data=prev_health_record.measurements if prev_health_record else None,
+            prev_inbody_date=prev_health_record.created_at if prev_health_record else None
         )
         
         # 4. LLM 호출

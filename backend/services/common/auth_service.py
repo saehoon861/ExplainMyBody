@@ -61,6 +61,10 @@ class AuthService:
             measurements["기본정보"]["성별"] = signup_data.gender
             measurements["체중관리"]["체중"] = signup_data.startWeight
             
+
+            # fixme
+            # measurements에 체형 분석 결과 추가하기
+            
             health_record_data = HealthRecordCreate(
                 measurements=measurements,
                 source="signup",
@@ -92,7 +96,6 @@ class AuthService:
             
             detail_data = UserDetailCreate(
                 goal_type=signup_data.goalType,
-                # target_weight=signup_data.targetWeight, # DB 컬럼 없음
                 goal_description=json.dumps(combined_description, ensure_ascii=False),
                 preferences=preferences_str,
                 health_specifics=medical_str,
