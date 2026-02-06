@@ -197,8 +197,33 @@ const ChatbotSelector = () => {
         }
     };
 
+    const handleExercisePlanSubmit = (data) => {
+        setShowExercisePopup(false);
+
+        // 운동 설정 정보를 localStorage에 저장 (다음번에 바로 사용)
+        localStorage.setItem('exerciseSettings', JSON.stringify(data));
+
+        // localStorage에서 사용자 정보 가져오기
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const userId = userData?.id || 1; // 로그인된 사용자 ID
+
+        navigate('/chatbot/workout-plan', {
+            state: {
+                planRequest: data,
+                userId: userId,
+                inbodyData: latestInbodyData
+            }
+        });
+    };
+
     /**
      * AI 정밀분석 버튼 클릭 핸들러
+     */
+    /**
+     * AI 정밀분석 버튼 클릭 핸들러
+     * - 버튼 클릭 시 즉시 API 요청 시작
+     * - 로딩 중 실제 데이터 대기
+     * - 데이터 수신 후 채팅 페이지로 이동
      */
     /**
      * AI 정밀분석 버튼 클릭 핸들러

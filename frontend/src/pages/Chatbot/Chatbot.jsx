@@ -275,6 +275,7 @@ const Chatbot = () => {
 
                 } else if (botType === 'workout-planner') {
                     // 2. 운동 플래너 전문가: 주간 계획 생성
+                    // planRequest가 있으면 그것을 사용, 없으면 기존 로직
 
                     const preFetchedData = location.state?.planResult;
 
