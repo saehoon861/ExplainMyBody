@@ -1,6 +1,40 @@
 # LangGraph LLM1 수정 파일 및 세부 내용입니다
 
 
+추가 수정된 파일:
+
+
+1. backend/services/llm/agent_graph.py
+    - Line 106: initial_analysis에서 analysis_input return 추가
+    - Line 64-67: initial_analysis에 디버그 로그 추가 (analysis_input 상태 확인)
+    - Line 140-143: _generate_qa_response에 디버그 로그 추가 (messages[0] 확인)
+
+
+2. backend/routers/llm/analysis.py
+    - Line 119-124: chat_about_report에서 report_id, db를
+  llm_service.chat_with_analysis()에 전달
+
+
+3. backend/services/llm/llm_service.py
+    - Line 126-130: call_status_analysis_llm에 디버그 로그 추가
+    - Line 133-137: call_status_analysis_llm 결과 확인 로그
+    - Line 152-215: chat_with_analysis 메서드 전면 수정
+        - report_id, db 파라미터 추가
+      - checkpoint 확인 로그
+      - DB Fallback 로직 추가 (checkpoint 없으면 DB에서 InBody 데이터 복원)
+      - import 경로 수정
+      - body_type1, body_type2를 getattr로 안전하게 가져오기
+
+
+
+핵심 변경사항:
+  - checkpoint 없을 때 DB에서 health_record 조회 → InBody 프롬프트 재생성 → messages에
+  추가
+
+
+===============================================================
+
+
 수정파일 목록 :
  backend/services/llm/agent_graph.py
  backend/models/analysis_report.py
@@ -30,7 +64,8 @@
 
   위치: /home/user/projects/ExplainMyBody/backend/models/analysis_report.py
   수정 내용:
-  # Line 22 (새로 추가)
+  
+  Line 22 (새로 추가)
 
 
   thread_id = Column(String(255), nullable=True)  # LangGraph 대화 스레드 ID
@@ -47,7 +82,8 @@
   위치: /home/user/projects/ExplainMyBody/backend/repositories/llm/analysis_report_repo
   sitory.py
   수정 내용:
-  # create() 메서드 내부 (Line 18-27)
+  
+  create() 메서드 내부 (Line 18-27)
 
 
   db_report = InbodyAnalysisReport(
@@ -70,8 +106,8 @@
   위치: /home/user/projects/ExplainMyBody/backend/database.py
   수정 내용:
 
-  # init_db() 함수 끝부분 (Line 73-89)
-  # thread_id 컬럼 추가 (기존 DB에 컬럼이 없는 경우)
+  init_db() 함수 끝부분 (Line 73-89)
+  thread_id 컬럼 추가 (기존 DB에 컬럼이 없는 경우)
 
 
   try:
@@ -106,11 +142,11 @@
   embedding = initial_state.get("embedding")
 
   변경 후:
-  # 3. 결과 추출
-  # 🔧 수정: initial_analysis 결과만 추출 (qa_general로 넘어간 경우 방지)
-  # - messages[0]: human (InBody 데이터)
-  # - messages[1]: ai (initial_analysis 결과) ← 이것만 필요
-  # - messages[2]: ai (qa_general 응답) ← 있으면 안 됨
+  3. 결과 추출
+  🔧 수정: initial_analysis 결과만 추출 (qa_general로 넘어간 경우 방지)
+  - messages[0]: human (InBody 데이터)
+  - messages[1]: ai (initial_analysis 결과) ← 이것만 필요
+  - messages[2]: ai (qa_general 응답) ← 있으면 안 됨
   messages = initial_state['messages']
   if len(messages) >= 2:
       # 항상 두 번째 메시지(initial_analysis 결과)를 사용

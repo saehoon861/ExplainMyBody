@@ -62,6 +62,8 @@ def create_analysis_agent(llm_client: BaseLLMClient):
 
         analysis_input = state.get("analysis_input")
         print(f"[DEBUG][initial_analysis] analysis_input present: {analysis_input is not None}")
+        print(f"[DEBUG][initial_analysis] analysis_input value: {analysis_input}")
+        print(f"[DEBUG][initial_analysis] state.keys() = {list(state.keys())}")
         if not analysis_input:
             # 체크포인트 소실 후 재실행된 경우 — route_qa로 패스스루
             print("[DEBUG][initial_analysis] !! PASSTHROUGH — analysis_input 없음, route_qa로 진행")
@@ -102,7 +104,8 @@ def create_analysis_agent(llm_client: BaseLLMClient):
         print("[DEBUG][initial_analysis] ===== NODE COMPLETE (interrupt_after 대기) =====")
         return {
             "messages": [("human", user_prompt), ("ai", response)],
-            "embedding": final_embedding
+            "embedding": final_embedding,
+            "analysis_input": state["analysis_input"]  # checkpoint에 저장하여 chat 시 재사용
         }
 
     def format_measurements(data: dict, indent: int = 0) -> list:
@@ -131,13 +134,42 @@ def create_analysis_agent(llm_client: BaseLLMClient):
         """공통 Q&A 답변 생성 로직"""
         print(f"\n[DEBUG][qa:{category_name}] ===== NODE ENTER =====")
         print(f"[DEBUG][qa:{category_name}] messages count: {len(state.get('messages', []))}")
+        print(f"[DEBUG][qa:{category_name}] state.keys() = {list(state.keys())}")
+
+        # 🔍 첫 번째 메시지 확인
+        if state.get("messages"):
+            first_msg = state["messages"][0]
+            print(f"[DEBUG][qa:{category_name}] messages[0]: type={first_msg.type}, len={len(first_msg.content)}, preview={first_msg.content[:100]}")
 
         # 🔧 InBody 측정 데이터를 System Prompt에 추가 (모든 필드 자동 포함)
+        measurements = None
         analysis_input = state.get("analysis_input")
-        if analysis_input and analysis_input.measurements:
-            measurements = analysis_input.measurements
+        print(f"[DEBUG][qa:{category_name}] analysis_input present: {analysis_input is not None}")
+        if analysis_input:
+            print(f"[DEBUG][qa:{category_name}] analysis_input type: {type(analysis_input)}")
+            print(f"[DEBUG][qa:{category_name}] analysis_input.record_id: {getattr(analysis_input, 'record_id', 'N/A')}")
 
-            # 모든 측정 데이터를 재귀적으로 포맷팅 (30개+ 필드 전부 포함)
+        if analysis_input and analysis_input.measurements:
+            # 1순위: analysis_input에서 직접 가져오기
+            measurements = analysis_input.measurements
+            print(f"[DEBUG][qa:{category_name}] InBody 데이터: analysis_input에서 추출")
+        elif state.get("messages"):
+            # 2순위: 메시지 히스토리의 첫 번째 human 메시지(InBody 데이터)에서 추출
+            first_human_msg = next((msg for msg in state["messages"] if msg.type == "human"), None)
+            if first_human_msg and len(first_human_msg.content) > 1000:
+                # 첫 번째 human 메시지가 InBody 데이터 (긴 텍스트)인 경우
+                # 해당 메시지를 그대로 사용 (이미 포맷팅되어 있음)
+                print(f"[DEBUG][qa:{category_name}] InBody 데이터: 메시지 히스토리에서 추출")
+                enhanced_prompt = f"""{system_prompt}
+
+{first_human_msg.content}
+
+⚠️ 위 측정값을 반드시 참고하여, 사용자의 구체적인 수치를 들어 답변해주세요.
+일반적인 설명이 아닌, 위 데이터 기반의 개인화된 답변을 제공하세요."""
+                measurements = "from_history"  # 플래그
+
+        if measurements and measurements != "from_history":
+            # measurements 객체를 포맷팅
             key_metrics_lines = ["**[사용자의 현재 InBody 측정 데이터]**"]
             key_metrics_lines.extend(format_measurements(measurements))
             key_metrics = "\n".join(key_metrics_lines)
@@ -149,9 +181,10 @@ def create_analysis_agent(llm_client: BaseLLMClient):
 
 ⚠️ 위 측정값을 반드시 참고하여, 사용자의 구체적인 수치를 들어 답변해주세요.
 일반적인 설명이 아닌, 위 데이터 기반의 개인화된 답변을 제공하세요."""
-        else:
+        elif not measurements:
+            # InBody 데이터를 찾을 수 없는 경우
             enhanced_prompt = system_prompt
-            print(f"[DEBUG][qa:{category_name}] ⚠️ analysis_input 없음, 기본 프롬프트 사용")
+            print(f"[DEBUG][qa:{category_name}] ⚠️ InBody 데이터 없음, 기본 프롬프트 사용")
 
         # LangGraph 메시지 객체를 LLM 클라이언트가 이해하는 튜플 리스트로 변환
         history = []
