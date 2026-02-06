@@ -232,7 +232,7 @@ class WeeklyPlanResponse(BaseModel):
 
 class AnalysisChatRequest(BaseModel):
     """분석/계획에 대한 대화 요청 (Human Feedback)"""
-    report_id: int
+    report_id: Optional[int] = None  # path param으로 받아서 body에서는 불필요
     message: str
     thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
 

@@ -37,8 +37,21 @@ def create_analysis_agent(llm_client: BaseLLMClient):
     # --- 2. 노드(그래프의 각 단계) 정의 ---
     def generate_initial_analysis(state: AnalysisState) -> dict:
         """Node 1: 최초 분석 결과 생성 및 임베딩"""
-        print("--- LLM1: 최초 분석 생성 ---")
-        analysis_input = state["analysis_input"]
+        print("[DEBUG][initial_analysis] ===== NODE ENTER =====")
+        print(f"[DEBUG][initial_analysis] state keys: {list(state.keys())}")
+        print(f"[DEBUG][initial_analysis] messages count: {len(state.get('messages', []))}")
+        if state.get("messages"):
+            last_msg = state["messages"][-1]
+            print(f"[DEBUG][initial_analysis] last message: type={last_msg.type}, content[:80]='{str(last_msg.content)[:80]}'")
+
+        analysis_input = state.get("analysis_input")
+        print(f"[DEBUG][initial_analysis] analysis_input present: {analysis_input is not None}")
+        if not analysis_input:
+            # 체크포인트 소실 후 재실행된 경우 — route_qa로 패스스루
+            print("[DEBUG][initial_analysis] !! PASSTHROUGH — analysis_input 없음, route_qa로 진행")
+            return {}
+
+        print(f"[DEBUG][initial_analysis] user_id={analysis_input.user_id}, record_id={analysis_input.record_id}")
 
         # 1. InBodyMeasurements 모델로 변환 (prompt_generator가 요구하는 타입)
         measurements = InBodyMeasurements(**analysis_input.measurements)
@@ -49,31 +62,28 @@ def create_analysis_agent(llm_client: BaseLLMClient):
             body_type1=analysis_input.body_type1,
             body_type2=analysis_input.body_type2
         )
+        print(f"[DEBUG][initial_analysis] prompt ready, calling LLM...")
         response = llm_client.generate_chat(system_prompt, user_prompt)
-        
+        print(f"[DEBUG][initial_analysis] LLM response length: {len(response)}, preview: '{response[:100]}'")
+
         # --- 3. 임베딩 생성 (embedder.py 로직 반영) ---
-        # 이 단계에서는 벡터만 생성합니다.
-        # 실제 DB 저장은 서비스 계층에서 이 노드의 결과(response, embedding)를 받아 처리합니다.
-        print("\n임베딩 생성 중...")
+        print("[DEBUG][initial_analysis] 임베딩 생성 중...")
         embedding_1536 = None
         embedding_1024 = None
 
-        # 3-1. OpenAI 임베딩 생성 (1536차원)
+        # 3-1. OpenAI 임BE딩 생성 (1536차원)
         try:
-            # 에이전트 생성 시 주입받은 llm_client를 사용합니다.
             embedding_1536 = llm_client.create_embedding(text=response)
-            print(f"OpenAI 임베딩 생성 완료 (차원: {len(embedding_1536)})")
+            print(f"[DEBUG][initial_analysis] OpenAI 임베딩 완료 (차원: {len(embedding_1536)})")
         except Exception as e:
-            print(f"OpenAI 임베딩 생성 실패: {e}")
+            print(f"[DEBUG][initial_analysis] OpenAI 임베딩 실패: {e}")
 
         final_embedding = {
             "embedding_1536": embedding_1536,
             "embedding_1024": embedding_1024,
         }
 
-        # AI의 첫 답변과 생성된 임베딩을 상태에 추가
-        # 서비스 계층에서는 이 응답(response)에 덧붙여 사용자에게 선택지를 보여줍니다.
-        # 중요: Q&A 때 AI가 데이터를 알 수 있도록 'user_prompt(인바디 데이터)'도 대화 기록에 추가합니다.
+        print("[DEBUG][initial_analysis] ===== NODE COMPLETE (interrupt_after 대기) =====")
         return {
             "messages": [("human", user_prompt), ("ai", response)],
             "embedding": final_embedding
@@ -81,7 +91,8 @@ def create_analysis_agent(llm_client: BaseLLMClient):
 
     def _generate_qa_response(state: AnalysisState, category_name: str, system_prompt: str) -> dict:
         """공통 Q&A 답변 생성 로직"""
-        print(f"--- LLM1: Q&A 답변 생성 ({category_name}) ---")
+        print(f"\n[DEBUG][qa:{category_name}] ===== NODE ENTER =====")
+        print(f"[DEBUG][qa:{category_name}] messages count: {len(state.get('messages', []))}")
 
         # LangGraph 메시지 객체를 LLM 클라이언트가 이해하는 튜플 리스트로 변환
         history = []
@@ -89,12 +100,20 @@ def create_analysis_agent(llm_client: BaseLLMClient):
             role = "user" if msg.type == "human" else "assistant"
             history.append((role, msg.content))
 
+        # 마지막 human 메시지 (사용자 질문) 출력
+        last_human = next((c for r, c in reversed(history) if r == "user"), None)
+        print(f"[DEBUG][qa:{category_name}] last human message: '{str(last_human)[:100]}'")
+        print(f"[DEBUG][qa:{category_name}] history tuples: {len(history)} (roles: {[r for r, _ in history]})")
+
         # 실제 LLM 호출 (대화 기록 포함)
+        print(f"[DEBUG][qa:{category_name}] calling LLM with history...")
         response = llm_client.generate_chat_with_history(
-            system_prompt=system_prompt, 
+            system_prompt=system_prompt,
             messages=history
         )
 
+        print(f"[DEBUG][qa:{category_name}] LLM response length: {len(response)}, preview: '{response[:100]}'")
+        print(f"[DEBUG][qa:{category_name}] ===== NODE COMPLETE (interrupt_after 대기) =====\n")
         return {"messages": [("ai", response)]}
 
     def qa_strength_weakness(state: AnalysisState) -> dict:
@@ -145,25 +164,47 @@ def create_analysis_agent(llm_client: BaseLLMClient):
 
     def finalize_analysis(state: AnalysisState) -> dict:
         """Node 3: 분석 확정 및 저장"""
-        print("--- LLM1: 분석 확정 ---")
+        print(f"\n[DEBUG][finalize] ===== NODE ENTER =====")
+        print(f"[DEBUG][finalize] messages count: {len(state.get('messages', []))}")
+        print(f"[DEBUG][finalize] → END로 종료\n")
         return {"messages": [("ai", "네, 분석 결과를 확정하고 저장하겠습니다. 추가적인 질문이 있다면 언제든 다시 찾아주세요.")]}
 
     def route_qa(state: AnalysisState) -> str:
         """사용자 질문에 따라 적절한 Q&A 노드로 라우팅"""
-        user_question = state["messages"][-1].content.strip()
+        print(f"\n[DEBUG][route_qa] ===== ROUTING =====")
+        print(f"[DEBUG][route_qa] total messages: {len(state.get('messages', []))}")
+        last_msg = state["messages"][-1]
+        print(f"[DEBUG][route_qa] last message type: {last_msg.type}")
+        user_question = last_msg.content.strip()
+        print(f"[DEBUG][route_qa] user_question: '{user_question[:120]}'")
 
-        if user_question.startswith("1"):
-            return "qa_strength_weakness"
+        # 프론트엔드 카테고리 버튼 키워드 매칭
+        if "근육" in user_question:
+            destination = "qa_strength_weakness"
+        elif "체지방" in user_question:
+            destination = "qa_health_status"
+        elif "균형" in user_question or "불균형" in user_question:
+            destination = "qa_impact"
+        elif "우선순위" in user_question or "개선" in user_question:
+            destination = "qa_priority"
+        elif "확정" in user_question:
+            destination = "finalize_analysis"
+        # 숫자 기반 라우팅 (하위 호환)
+        elif user_question.startswith("1"):
+            destination = "qa_strength_weakness"
         elif user_question.startswith("2"):
-            return "qa_health_status"
+            destination = "qa_health_status"
         elif user_question.startswith("3"):
-            return "qa_impact"
+            destination = "qa_impact"
         elif user_question.startswith("4"):
-            return "qa_priority"
+            destination = "qa_priority"
         elif user_question.startswith("6"):
-            return "finalize_analysis"
+            destination = "finalize_analysis"
         else:
-            return "qa_general"
+            destination = "qa_general"
+
+        print(f"[DEBUG][route_qa] → routing to: {destination}\n")
+        return destination
 
     # 라우팅 맵 정의
     routing_map = {

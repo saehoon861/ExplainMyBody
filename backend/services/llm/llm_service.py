@@ -136,26 +136,59 @@ class LLMService:
 
         return {"analysis_text": analysis_text, "embedding": embedding, "thread_id": thread_id}
 
+    # 체크포인트 소실 시 폴백용 시스템 프롬프트
+    _ANALYSIS_QA_FALLBACK_PROMPT = """당신은 데이터 기반의 체성분 분석 및 피트니스 전문가입니다.
+위에서 제공된 인바디 분석 결과를 참고하여 사용자의 질문에 답변합니다.
+
+답변 가이드:
+- 근육 관련: 부위별 근육 수준, 골격근량과 강점/약점을 구체적인 수치로 설명
+- 체지방 관련: 체지방률, 복부지방률, 내장지방 레벨과 건강 위험도를 설명
+- 균형/불균형 관련: 상체·하체, 좌·우 근육·체지방 불균형과 그 영향을 설명
+- 기타: 분석 결과를 맥락으로 활용하여 답변
+
+수치와 근거를 들어 구체적이고 실용적인 답변을 제시하세요."""
+
     async def chat_with_analysis(
         self,
         thread_id: str,
-        user_message: str
+        user_message: str,
+        report_context: str = None
     ) -> str:
         """
-        LLM1 에 대한
-        휴먼 피드백 (Q&A) 처리: 기존 스레드에 이어서 대화 수행
+        LLM1 휴먼 피드백 (Q&A) 처리
+
+        - 체크포인트가 있으면: LangGraph resume (중단 지점 이후 재개)
+        - 체크포인트가 없으면: report_context를 대화 맥락으로 직접 LLM 호출 (폴백)
         """
-        config = {"configurable": {"thread_id": thread_id}}
-        
-        # LangGraph 실행 (이전 상태에서 이어서 실행)
-        # messages 키에 새로운 사용자 메시지 추가
-        result = self.analysis_agent.invoke(
-            {"messages": [("human", user_message)]},
-            config=config
+        print(f"[DEBUG][chat_with_analysis] thread_id={thread_id!r}, user_message='{user_message[:80]}'")
+        print(f"[DEBUG][chat_with_analysis] report_context present: {report_context is not None}")
+
+        if thread_id:
+            config = {"configurable": {"thread_id": thread_id}}
+            print(f"[DEBUG][chat_with_analysis] → agent.invoke() 시작 (thread_id={thread_id})")
+            try:
+                result = self.analysis_agent.invoke(
+                    {"messages": [("human", user_message)]},
+                    config=config
+                )
+                print(f"[DEBUG][chat_with_analysis] → agent.invoke() 완료")
+                return result["messages"][-1].content
+            except KeyError as e:
+                # 체크포인트 소실 (서버 재시작 등) → 폴백으로 진행
+                print(f"[DEBUG][chat_with_analysis] !! KeyError: {e} — 체크포인트 소실, 폴백으로 진행")
+            except Exception as e:
+                print(f"[DEBUG][chat_with_analysis] !! Exception: {type(e).__name__}: {e} — 폴백으로 진행")
+        else:
+            print("[DEBUG][chat_with_analysis] !! thread_id 없음 → 폴백으로 진행")
+
+        # 폴백: report_context를 대화 맥락으로 직접 LLM 호출
+        print("[DEBUG][chat_with_analysis] → 폴백 LLM 호출 시작")
+        messages = [("assistant", report_context)] if report_context else []
+        messages.append(("user", user_message))
+        return self.llm_client.generate_chat_with_history(
+            system_prompt=self._ANALYSIS_QA_FALLBACK_PROMPT,
+            messages=messages
         )
-        
-        # 마지막 AI 응답 반환
-        return result["messages"][-1].content
 
     async def call_goal_plan_llm(
         self,
@@ -205,12 +238,11 @@ class LLMService:
         LLM2 휴먼 피드백 (Q&A) 처리: 주간 계획 수정 및 질의응답
         """
         config = {"configurable": {"thread_id": thread_id}}
-        
-        # LangGraph 실행 (이전 상태에서 이어서 실행)
+
         result = self.weekly_plan_agent.invoke(
             {"messages": [("human", user_message)]},
             config=config
         )
-        
+
         # 마지막 AI 응답 반환
         return result["messages"][-1].content

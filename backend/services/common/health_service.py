@@ -182,12 +182,13 @@ class HealthService:
         if existing_report:
             # 기존 리포트도 summary와 content로 분리하여 반환
             from services.llm.parse_utils import split_analysis_response
-            
+
             response = AnalysisReportResponse.model_validate(existing_report)
+            response.thread_id = existing_report.thread_id  # DB에 저장된 thread_id 복원
             parsed = split_analysis_response(existing_report.llm_output)
             response.summary = parsed["summary"]
             response.content = parsed["content"]
-            
+
             return response
             
         # 3. LLM 서비스 호출을 위한 입력 데이터 준비
@@ -241,9 +242,7 @@ class HealthService:
         analysis_report = AnalysisReportRepository.create(db, user_id, report_data)
         
         # 6. Pydantic 모델로 변환하여 반환
-        # DB에는 thread_id가 저장되지 않았으므로, 응답 객체에 수동으로 주입하여 프론트엔드에 전달
         response = AnalysisReportResponse.model_validate(analysis_report)
-        response.thread_id = thread_id
         
         # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
         # 프론트엔드에서 요약만 먼저 보여주고, 전문은 접었다가 펼칠 수 있도록 함

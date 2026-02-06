@@ -68,3 +68,14 @@ def init_db():
     
     # 테이블 생성
     Base.metadata.create_all(bind=engine)
+
+    # 기존 테이블에 새로운 컬럼 추가 (create_all은 기존 테이블 ALTER 안함)
+    from sqlalchemy import inspect as sa_inspect
+    inspector = sa_inspect(engine)
+    if inspector.has_table("inbody_analysis_reports"):
+        existing_cols = {col["name"] for col in inspector.get_columns("inbody_analysis_reports")}
+        if "thread_id" not in existing_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE inbody_analysis_reports ADD COLUMN thread_id VARCHAR(255)"))
+                conn.commit()
+                print("✅ inbody_analysis_reports.thread_id 컬럼 추가 완료")

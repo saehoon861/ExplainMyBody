@@ -8,6 +8,7 @@ import { sendChatbotMessage } from '../../services/chatService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+
 // 환경 변수로 목업 모드 관리 (.env 파일에서 설정)
 const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 

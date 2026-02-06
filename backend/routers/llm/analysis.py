@@ -114,14 +114,22 @@ async def chat_about_report(
 ):
     """
     분석 결과에 대해 AI와 대화 (휴먼 피드백)
-    
+
     - **report_id**: 분석 리포트 ID
     - **message**: 사용자 질문
     """
-    # DB에서 thread_id를 조회하지 않고, 클라이언트가 보낸 thread_id를 사용합니다.
-    # (팀원이 DB 설계를 완료할 때까지 임시로 메모리 기반 대화 유지)
-    
-    # 2. LLM 서비스 호출 (대화 진행)
-    response_text = await llm_service.chat_with_analysis(chat_request.thread_id, chat_request.message)
-    
-    return {"response": response_text}
+    print(f"[DEBUG][chat_router] report_id={report_id}, request body: message='{chat_request.message[:80]}', thread_id={chat_request.thread_id!r}")
+
+    # 폴백용: DB에서 원본 보고서 텍스트 조회 (체크포인트 소실 시 대화 맥락으로 사용)
+    report = AnalysisReportRepository.get_by_id(db, report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="분석 리포트를 찾을 수 없습니다.")
+    print(f"[DEBUG][chat_router] DB report found, thread_id in DB report: {getattr(report, 'thread_id', 'ATTR_NOT_EXIST')!r}")
+
+    response_text = await llm_service.chat_with_analysis(
+        thread_id=chat_request.thread_id,
+        user_message=chat_request.message,
+        report_context=report.llm_output
+    )
+
+    return {"reply": response_text, "thread_id": chat_request.thread_id or ""}
