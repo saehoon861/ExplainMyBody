@@ -118,5 +118,5 @@ async def chat_about_report(
     
     # 2. LLM 서비스 호출 (대화 진행)
     response_text = await llm_service.chat_with_analysis(chat_request.thread_id, chat_request.message)
-    
-    return {"response": response_text}
+
+    return {"reply": response_text, "thread_id": chat_request.thread_id}

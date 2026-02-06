@@ -133,7 +133,18 @@ class LLMService:
         )
 
         # 3. 결과 추출
-        analysis_text = initial_state['messages'][-1].content
+        # 🔧 수정: initial_analysis 결과만 추출 (qa_general로 넘어간 경우 방지)
+        # - messages[0]: human (InBody 데이터)
+        # - messages[1]: ai (initial_analysis 결과) ← 이것만 필요
+        # - messages[2]: ai (qa_general 응답) ← 있으면 안 됨
+        messages = initial_state['messages']
+        if len(messages) >= 2:
+            # 항상 두 번째 메시지(initial_analysis 결과)를 사용
+            analysis_text = messages[1].content
+        else:
+            # 예외 상황: 메시지가 부족하면 마지막 메시지 사용
+            analysis_text = messages[-1].content
+
         embedding = initial_state.get("embedding")
 
         return {"analysis_text": analysis_text, "embedding": embedding, "thread_id": thread_id}

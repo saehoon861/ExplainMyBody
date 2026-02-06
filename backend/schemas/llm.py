@@ -240,7 +240,7 @@ class WeeklyPlanResponse(BaseModel):
 
 class AnalysisChatRequest(BaseModel):
     """분석/계획에 대한 대화 요청 (Human Feedback)"""
-    report_id: int
+    report_id: Optional[int] = None  # URL path에 이미 있으므로 Optional
     message: str
     thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
 
