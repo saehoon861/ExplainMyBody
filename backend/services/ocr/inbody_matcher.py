@@ -628,7 +628,7 @@ class InBodyMatcher:
             print(f"⚠️ 결과 저장 중 오류 발생 ({output_path}): {e}")
     
     def get_structured_results(self, results: Dict) -> Dict:
-        """결과를 구조화된 딕셔너리로 반환"""
+        """결과를 구조화된 딕셔너리로 반환 (품질 검증 포함)"""
         structured = {
             "기본정보": {
                 "신장": results.get("신장"),
@@ -677,6 +677,19 @@ class InBodyMatcher:
                 "오른쪽하체": results.get("오른쪽하체 체지방"),
             }
         }
+        
+        # 데이터 품질 검증
+        total_fields = sum(len(category) for category in structured.values())
+        detected_fields = sum(
+            1 for category in structured.values() 
+            for value in category.values() 
+            if value is not None
+        )
+        
+        # 절반 이상 누락 시 예외 발생
+        if detected_fields < total_fields / 2:
+            from exceptions import OCRInsufficientDataError
+            raise OCRInsufficientDataError(detected_fields, total_fields)
         
         return structured
 

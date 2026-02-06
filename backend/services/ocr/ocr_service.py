@@ -23,7 +23,9 @@ from schemas.inbody import InBodyData
 from exceptions import (
     OCREngineNotInitializedError,
     OCRExtractionFailedError,
-    OCRProcessingError
+    OCRProcessingError,
+    OCRInsufficientDataError,
+    OCRInvalidFileFormatError
 )
 
 
@@ -101,11 +103,10 @@ class OCRService:
             )
         
         # Step 1: 임시 파일로 저장
-        # 팀원 코드(InBodyMatcher)가 파일 경로를 받으므로 임시 파일 생성 필요
         tmp_path = None
         try:
             # 파일 확장자 추출 (없으면 .jpg 사용)
-            file_ext = os.path.splitext(filename)[1] or ".jpg"
+            file_ext = os.path.splitext(filename)[1].lower() or ".jpg"
             with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
                 shutil.copyfileobj(image_file, tmp_file)
                 tmp_path = tmp_file.name
@@ -113,12 +114,12 @@ class OCRService:
             print(f"📁 임시 파일 저장: {tmp_path}")
             
             # Step 2: OCR 수행
-            # 팀원 함수: InBodyMatcher.extract_and_match(image_path: str) -> Dict[str, Optional[str]]
             raw_result = self.matcher.extract_and_match(tmp_path)
             
-            if not raw_result:
+            # 딕셔너리가 비어있거나 모든 값이 None인 경우 (인바디가 아닌 사진 등)
+            if not raw_result or all(v is None for v in raw_result.values()):
                 raise OCRExtractionFailedError(
-                    "OCR 결과를 추출할 수 없습니다. 이미지를 확인해주세요."
+                    "인바디 결과지를 인식할 수 없습니다. 선명한 인바디 사진을 업로드해주세요."
                 )
             
             # Step 3: 구조화
@@ -138,7 +139,8 @@ class OCRService:
             # Step 5: 검증 없이 dict 그대로 반환
             return structured_result
         
-        except (OCREngineNotInitializedError, OCRExtractionFailedError):
+        except (OCREngineNotInitializedError, OCRExtractionFailedError, 
+                OCRInsufficientDataError, OCRInvalidFileFormatError):
             # 커스텀 예외는 그대로 전달
             raise
         

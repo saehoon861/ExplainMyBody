@@ -306,7 +306,7 @@ const Signup = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'OCR 처리 중 오류가 발생했습니다.');
+                throw new Error(errorData.detail || 'OCR 처리 중 오류가 발생했습니다.');
             }
 
             const result = await response.json();
@@ -347,14 +347,14 @@ const Signup = () => {
         } catch (err) {
             clearTimeout(timeoutId);
             console.error('OCR Error:', err);
+            setIsProcessingOCR(false);  // 에러 발생 시 즉시 로딩 종료
+            setOcrProgress(0);  // 진행률 초기화
+
             if (err.name === 'AbortError') {
                 setErrors({ ocr: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
             } else {
                 setErrors({ ocr: err.message || 'OCR 처리 중 오류가 발생했습니다.' });
             }
-        } finally {
-            // setIsProcessingOCR(false)는 결과 데이터를 보여줄 때 지연 호출됨
-            if (errors.ocr) setIsProcessingOCR(false);
         }
     };
 
