@@ -206,7 +206,8 @@ class LLMService:
     async def chat_with_plan(
         self,
         thread_id: str,
-        user_message: str
+        user_message: str,
+        existing_plan: Optional[str] = None
     ) -> str:
         """
         LLM2 휴먼 피드백 (Q&A) 처리: 주간 계획 수정 및 질의응답
@@ -258,9 +259,13 @@ class LLMService:
         input_payload = {
             "messages": [("human", clean_message)],
             # feedback_category를 업데이트하여 라우터가 올바른 경로를 타도록 함
-            "feedback_category": category 
+            "feedback_category": category,
+            "existing_plan": existing_plan
         }
         
+        print(f"--- [DEBUG] llm_service: existing_plan 전달 여부: {bool(existing_plan)} ---")
+        if existing_plan:
+            print(f"--- [DEBUG] llm_service: existing_plan preview: {existing_plan[:100]}... ---")
         print(f"--- [DEBUG] Invoking weekly_plan_agent with payload: {input_payload}")
 
         # LangGraph 실행 (이전 상태에서 이어서 실행)

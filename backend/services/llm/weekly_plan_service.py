@@ -138,8 +138,17 @@ class WeeklyPlanService :
         """
         주간 계획에 대한 수정 요청/질의응답 (DB 저장 포함)
         """
+        # 0. 기존 계획 내용 가져오기 (새 세션 맥락 제공용)
+        plan = WeeklyPlanRepository.get_by_id(db, plan_id)
+        existing_plan_content = None
+        if plan and plan.plan_data:
+            existing_plan_content = plan.plan_data.get("content")
+            print(f"--- [DEBUG] weekly_plan_service: 기존 계획 가져오기 성공 (length: {len(existing_plan_content) if existing_plan_content else 0}) ---")
+        else:
+            print(f"--- [DEBUG] weekly_plan_service: 기존 계획 없음 (plan={plan}, plan_data={plan.plan_data if plan else None}) ---")
+        
         # 1. LLM Service 호출 (LangGraph 실행)
-        response_text = await self.llm_service.chat_with_plan(thread_id, message)
+        response_text = await self.llm_service.chat_with_plan(thread_id, message, existing_plan_content)
         
         # 2. 결과 DB 저장 (이력 추적)
         # LLMInteraction 저장
