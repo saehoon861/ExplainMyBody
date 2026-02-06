@@ -22,10 +22,10 @@ const Signup = () => {
         medicalConditions: [],
         medicalConditionsDetail: '',
         preferredExercises: [],
-        gender: 'male',
+        gender: '남성',
         age: '31',
         height: '170',
-        startWeight: '30',
+        startWeight: '60',
         targetWeight: '58',
         goalType: '감량',
         activityLevel: '보통',
@@ -323,9 +323,13 @@ const Signup = () => {
                     // 성별 자동 입력
                     if (basicInfo['성별']) {
                         if (basicInfo['성별'].includes('남') || basicInfo['성별'].toLowerCase().includes('m')) {
-                            autoFill.gender = 'male';
+                            autoFill.gender = '남성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '남성';
                         } else if (basicInfo['성별'].includes('여') || basicInfo['성별'].toLowerCase().includes('f')) {
-                            autoFill.gender = 'female';
+                            autoFill.gender = '여성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '여성';
                         }
                     }
 
