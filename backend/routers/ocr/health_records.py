@@ -21,7 +21,9 @@ from pydantic import ValidationError
 from exceptions import (
     OCREngineNotInitializedError,
     OCRExtractionFailedError,
-    OCRProcessingError
+    OCRProcessingError,
+    OCRInsufficientDataError,
+    OCRInvalidFileFormatError
 )
 
 router = APIRouter()
@@ -88,6 +90,18 @@ async def extract_inbody_from_image(
     
     except OCRExtractionFailedError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+    except OCRInsufficientDataError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"정확한 인바디 결과지를 업로드해주세요. {str(e)}"
+        )
+    
+    except OCRInvalidFileFormatError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     
     except OCRProcessingError as e:
         raise HTTPException(status_code=500, detail=str(e))

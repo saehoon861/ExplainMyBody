@@ -22,10 +22,10 @@ const Signup = () => {
         medicalConditions: [],
         medicalConditionsDetail: '',
         preferredExercises: [],
-        gender: 'male',
+        gender: '남성',
         age: '31',
         height: '170',
-        startWeight: '30',
+        startWeight: '60',
         targetWeight: '58',
         goalType: '감량',
         activityLevel: '보통',
@@ -306,7 +306,7 @@ const Signup = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'OCR 처리 중 오류가 발생했습니다.');
+                throw new Error(errorData.detail || 'OCR 처리 중 오류가 발생했습니다.');
             }
 
             const result = await response.json();
@@ -323,9 +323,13 @@ const Signup = () => {
                     // 성별 자동 입력
                     if (basicInfo['성별']) {
                         if (basicInfo['성별'].includes('남') || basicInfo['성별'].toLowerCase().includes('m')) {
-                            autoFill.gender = 'male';
+                            autoFill.gender = '남성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '남성';
                         } else if (basicInfo['성별'].includes('여') || basicInfo['성별'].toLowerCase().includes('f')) {
-                            autoFill.gender = 'female';
+                            autoFill.gender = '여성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '여성';
                         }
                     }
 
@@ -347,14 +351,14 @@ const Signup = () => {
         } catch (err) {
             clearTimeout(timeoutId);
             console.error('OCR Error:', err);
+            setIsProcessingOCR(false);  // 에러 발생 시 즉시 로딩 종료
+            setOcrProgress(0);  // 진행률 초기화
+
             if (err.name === 'AbortError') {
                 setErrors({ ocr: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
             } else {
                 setErrors({ ocr: err.message || 'OCR 처리 중 오류가 발생했습니다.' });
             }
-        } finally {
-            // setIsProcessingOCR(false)는 결과 데이터를 보여줄 때 지연 호출됨
-            if (errors.ocr) setIsProcessingOCR(false);
         }
     };
 
