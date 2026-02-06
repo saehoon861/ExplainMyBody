@@ -65,6 +65,24 @@ def init_db():
     
     # 모든 모델 임포트 (테이블 생성을 위해 필요)
     from models import user, health_record, analysis_report, user_detail, weekly_plan, human_feedback, llm_interaction
-    
+
     # 테이블 생성
     Base.metadata.create_all(bind=engine)
+
+    # thread_id 컬럼 추가 (기존 DB에 컬럼이 없는 경우)
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            # 컬럼 존재 여부 확인
+            result = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name='inbody_analysis_reports' AND column_name='thread_id'
+            """))
+            if result.fetchone() is None:
+                # thread_id 컬럼 추가
+                conn.execute(text("ALTER TABLE inbody_analysis_reports ADD COLUMN thread_id VARCHAR(255)"))
+                conn.commit()
+                print("✅ thread_id 컬럼 추가 완료")
+    except Exception as e:
+        print(f"⚠️  thread_id 컬럼 추가 실패 (이미 존재하거나 오류): {e}")

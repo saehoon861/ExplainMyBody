@@ -125,6 +125,8 @@ class LLMService:
         # 1. 각 분석 세션을 위한 고유 스레드 ID 생성
         thread_id = f"analysis_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
         config = {"configurable": {"thread_id": thread_id}}
+        print(f"\n[DEBUG][call_status_analysis_llm] 생성된 thread_id: {thread_id}")
+        print(f"[DEBUG][call_status_analysis_llm] user_id: {input_data.user_id}, record_id: {input_data.record_id}")
 
         # 2. LangGraph 에이전트 호출 (최초 분석)
         initial_state = self.analysis_agent.invoke(
@@ -132,8 +134,24 @@ class LLMService:
             config=config
         )
 
+        print(f"[DEBUG][call_status_analysis_llm] initial_state keys: {list(initial_state.keys())}")
+        print(f"[DEBUG][call_status_analysis_llm] has analysis_input: {'analysis_input' in initial_state}")
+        if 'analysis_input' in initial_state:
+            print(f"[DEBUG][call_status_analysis_llm] analysis_input is None: {initial_state['analysis_input'] is None}")
+
         # 3. 결과 추출
-        analysis_text = initial_state['messages'][-1].content
+        # 🔧 수정: initial_analysis 결과만 추출 (qa_general로 넘어간 경우 방지)
+        # - messages[0]: human (InBody 데이터)
+        # - messages[1]: ai (initial_analysis 결과) ← 이것만 필요
+        # - messages[2]: ai (qa_general 응답) ← 있으면 안 됨
+        messages = initial_state['messages']
+        if len(messages) >= 2:
+            # 항상 두 번째 메시지(initial_analysis 결과)를 사용
+            analysis_text = messages[1].content
+        else:
+            # 예외 상황: 메시지가 부족하면 마지막 메시지 사용
+            analysis_text = messages[-1].content
+
         embedding = initial_state.get("embedding")
 
         return {"analysis_text": analysis_text, "embedding": embedding, "thread_id": thread_id}
@@ -141,21 +159,71 @@ class LLMService:
     async def chat_with_analysis(
         self,
         thread_id: str,
-        user_message: str
+        user_message: str,
+        report_id: int = None,
+        db: Session = None
     ) -> str:
         """
         LLM1 에 대한
         휴먼 피드백 (Q&A) 처리: 기존 스레드에 이어서 대화 수행
+        checkpoint 없으면 DB에서 InBody 데이터 복원
         """
         config = {"configurable": {"thread_id": thread_id}}
-        
-        # LangGraph 실행 (이전 상태에서 이어서 실행)
-        # messages 키에 새로운 사용자 메시지 추가
+
+        # 🔍 checkpoint 상태 확인
+        print(f"\n[DEBUG][chat_with_analysis] thread_id: {thread_id}")
+        checkpoint_exists = False
+        try:
+            checkpointer = self.analysis_agent.checkpointer
+            if checkpointer:
+                checkpoint = checkpointer.get(config)
+                if checkpoint:
+                    checkpoint_exists = True
+                    print(f"[DEBUG][chat_with_analysis] ✅ checkpoint found")
+                else:
+                    print(f"[DEBUG][chat_with_analysis] ⚠️ checkpoint NOT FOUND")
+        except Exception as e:
+            print(f"[DEBUG][chat_with_analysis] checkpoint 조회 실패: {e}")
+
+        # 📦 DB Fallback: checkpoint 없으면 InBody 데이터 복원
+        initial_messages = []
+        if not checkpoint_exists and report_id and db:
+            print(f"[DEBUG][chat_with_analysis] 🔄 DB Fallback 시작 (report_id={report_id})")
+            try:
+                from repositories.llm.analysis_report_repository import AnalysisReportRepository
+                from models.health_record import HealthRecord
+                from services.llm.prompt_generator import create_inbody_analysis_prompt
+                from schemas.inbody import InBodyData as InBodyMeasurements
+
+                # 1. analysis_report에서 record_id 조회
+                analysis_report = AnalysisReportRepository.get_by_id(db, report_id)
+                if analysis_report and analysis_report.record_id:
+                    # 2. health_record에서 measurements 조회
+                    health_record = db.query(HealthRecord).filter(HealthRecord.id == analysis_report.record_id).first()
+                    if health_record and health_record.measurements:
+                        # 3. InBody 프롬프트 재생성
+                        measurements = InBodyMeasurements(**health_record.measurements)
+                        system_prompt, user_prompt = create_inbody_analysis_prompt(
+                            measurements,
+                            body_type1=getattr(health_record, 'body_type1', None),
+                            body_type2=getattr(health_record, 'body_type2', None)
+                        )
+                        initial_messages.append(("human", user_prompt))
+                        print(f"[DEBUG][chat_with_analysis] ✅ InBody 데이터 복원 완료 (record_id={analysis_report.record_id})")
+            except Exception as e:
+                print(f"[DEBUG][chat_with_analysis] ⚠️ DB Fallback 실패: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # LangGraph 실행
+        messages_to_send = initial_messages + [("human", user_message)]
         result = self.analysis_agent.invoke(
-            {"messages": [("human", user_message)]},
+            {"messages": messages_to_send},
             config=config
         )
-        
+
+        print(f"[DEBUG][chat_with_analysis] result has analysis_input: {'analysis_input' in result}")
+
         # 마지막 AI 응답 반환
         return result["messages"][-1].content
 

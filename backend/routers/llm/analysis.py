@@ -115,8 +115,13 @@ async def chat_about_report(
     """
     # DB에서 thread_id를 조회하지 않고, 클라이언트가 보낸 thread_id를 사용합니다.
     # (팀원이 DB 설계를 완료할 때까지 임시로 메모리 기반 대화 유지)
-    
-    # 2. LLM 서비스 호출 (대화 진행)
-    response_text = await llm_service.chat_with_analysis(chat_request.thread_id, chat_request.message)
-    
-    return {"response": response_text}
+
+    # 2. LLM 서비스 호출 (대화 진행, checkpoint 없으면 DB에서 복원)
+    response_text = await llm_service.chat_with_analysis(
+        thread_id=chat_request.thread_id,
+        user_message=chat_request.message,
+        report_id=report_id,
+        db=db
+    )
+
+    return {"reply": response_text, "thread_id": chat_request.thread_id}
