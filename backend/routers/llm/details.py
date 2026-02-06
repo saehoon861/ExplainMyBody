@@ -14,9 +14,18 @@ from typing import List, Optional
 from datetime import datetime
 
 router = APIRouter()
-# health_service = HealthService()
-llm_service = LLMService()
-health_service = HealthService(llm_service=llm_service)
+
+# ⚠️ LLMService를 여기서 생성하지 않음 - AppState에서 전역 인스턴스 사용 (MemorySaver 공유)
+def get_llm_service():
+    """Dependency to get shared LLM service from app state"""
+    from app_state import AppState
+    if AppState.llm_service is None:
+        raise HTTPException(status_code=503, detail="LLM 서비스가 초기화되지 않았습니다.")
+    return AppState.llm_service
+
+def get_health_service(llm_service: LLMService = Depends(get_llm_service)):
+    """Dependency to get health service with shared LLM service"""
+    return HealthService(llm_service=llm_service)
 
 # ============================================================================
 # Core / Create
@@ -41,7 +50,8 @@ def create_detail(
 def prepare_goal_plan(
     user_id: int,
     request: GoalPlanRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    health_service: HealthService = Depends(get_health_service)
 ):
     """
     LLM2: 주간 계획서 생성용 input 데이터 준비

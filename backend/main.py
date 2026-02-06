@@ -28,22 +28,28 @@ async def lifespan(app: FastAPI):
     print("🚀 ExplainMyBody 백엔드 서버 시작 중...")
     init_db()
     print("✅ 데이터베이스 초기화 완료")
-    
+
+    # LLM 서비스 초기화 (MemorySaver 공유를 위해 전역 인스턴스 생성)
+    print("🔄 LLM 서비스 초기화 중...")
+    from services.llm.llm_service import LLMService
+    from app_state import AppState
+    AppState.llm_service = LLMService()
+    print("✅ LLM 서비스 초기화 완료")
+
     # OCR 엔진 백그라운드 로딩 시작 (비동기)
     print("🔄 OCR 엔진 로딩 중... (백그라운드)")
-    
+
     async def load_ocr_engine():
         """OCR 엔진을 백그라운드에서 로드"""
         from services.ocr.ocr_service import OCRService
-        from app_state import AppState
-        
+
         AppState.ocr_service = OCRService()
         print("✅ OCR 엔진 로딩 완료")
-    
+
     # 백그라운드 태스크로 OCR 로딩 (서버 시작 차단 안 함)
     import asyncio
     asyncio.create_task(load_ocr_engine())
-    
+
     print("✅ 서버 시작 완료 (OCR은 백그라운드에서 로딩 중)")
 
     yield

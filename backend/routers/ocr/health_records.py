@@ -26,9 +26,19 @@ from exceptions import (
 )
 
 router = APIRouter()
-# health_service = HealthService()
-llm_service = LLMService()
-health_service = HealthService(llm_service=llm_service)
+
+# ⚠️ LLMService를 여기서 생성하지 않음 - AppState에서 전역 인스턴스 사용 (MemorySaver 공유)
+def get_llm_service():
+    """Dependency to get shared LLM service from app state"""
+    from app_state import AppState
+    if AppState.llm_service is None:
+        raise HTTPException(status_code=503, detail="LLM 서비스가 초기화되지 않았습니다.")
+    return AppState.llm_service
+
+def get_health_service(llm_service: LLMService = Depends(get_llm_service)):
+    """Dependency to get health service with shared LLM service"""
+    return HealthService(llm_service=llm_service)
+
 body_type_service = BodyTypeService()
 
 
@@ -101,7 +111,8 @@ async def extract_inbody_from_image(
 async def validate_and_save_inbody(
     user_id: int,
     inbody_data: dict,  # 프론트엔드에서 사용자가 검증/수정한 데이터 (dict로 받음)
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    health_service: HealthService = Depends(get_health_service)
 ):
     """
     Step 2: 사용자 검증 완료 후 Pydantic 검증 → DB 저장 및 체형 분석
@@ -219,11 +230,12 @@ async def validate_and_save_inbody(
 def create_health_record(
     user_id: int,
     record_data: HealthRecordCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    health_service: HealthService = Depends(get_health_service)
 ):
     """
     건강 기록 생성 (수동 입력)
-    
+
     - **user_id**: 사용자 ID
     - **record_data**: 건강 기록 데이터
     """
@@ -277,7 +289,8 @@ def get_latest_health_record(user_id: int, db: Session = Depends(get_db)):
 def prepare_status_analysis(
     user_id: int,
     record_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    health_service: HealthService = Depends(get_health_service)
 ):
     """
     LLM1: 건강 기록 분석용 input 데이터 준비 (status_analysis)

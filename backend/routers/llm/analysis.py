@@ -17,13 +17,18 @@ from typing import List
 # from exceptions import HealthRecordNotFoundError, AnalysisReportNotFoundError
 
 router = APIRouter()
-# health_service = HealthService()
-# llm_service = LLMService()  # LLM 서비스 인스턴스 (메모리 공유를 위해 전역 사용)
 
-# LLMService 인스턴스를 하나만 생성합니다.
-llm_service = LLMService()
-# 생성된 인스턴스를 HealthService 생성자에 전달합니다.
-health_service = HealthService(llm_service=llm_service)
+# ⚠️ LLMService를 여기서 생성하지 않음 - AppState에서 전역 인스턴스 사용 (MemorySaver 공유)
+def get_llm_service():
+    """Dependency to get shared LLM service from app state"""
+    from app_state import AppState
+    if AppState.llm_service is None:
+        raise HTTPException(status_code=503, detail="LLM 서비스가 초기화되지 않았습니다.")
+    return AppState.llm_service
+
+def get_health_service(llm_service: LLMService = Depends(get_llm_service)):
+    """Dependency to get health service with shared LLM service"""
+    return HealthService(llm_service=llm_service)
 
 
 def _parse_analysis_report(report) -> AnalysisReportResponse:
@@ -50,11 +55,12 @@ def _parse_analysis_report(report) -> AnalysisReportResponse:
 async def analyze_health_record(
     user_id: int,
     record_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    health_service: HealthService = Depends(get_health_service)
 ):
     """
     건강 기록 분석 (LLM 사용)
-    
+
     - **user_id**: 사용자 ID
     - **record_id**: 건강 기록 ID
     """
@@ -110,7 +116,8 @@ def get_user_analysis_reports(
 async def chat_about_report(
     report_id: int,
     chat_request: AnalysisChatRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    llm_service: LLMService = Depends(get_llm_service)
 ):
     """
     분석 결과에 대해 AI와 대화 (휴먼 피드백)
