@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
@@ -17,11 +17,14 @@ class PlanState(TypedDict):
     """LLM2 (주간 계획 / Q&A) 에이전트의 상태"""
     plan_input: GoalPlanInput
     messages: Annotated[list, add_messages]
+    # 사용자 피드백을 명시적으로 관리하기 위한 필드 추가
+    feedback_category: Optional[str]
+    feedback_text: Optional[str]
 
 
 # --- 3. 그래프 생성 ---
 def create_weekly_plan_agent(llm_client):
-    """주간 계획 생성 에이전트 그래프 생성"""
+    """주간 계획 생성 및 수정을 위한 에이전트 그래프 생성"""
     
     # --- 2. 노드 정의 ---
     def generate_initial_plan(state: PlanState) -> dict:
@@ -29,153 +32,168 @@ def create_weekly_plan_agent(llm_client):
         print("--- LLM2: 주간 계획 생성 ---")
         plan_input = state["plan_input"]
         
-        # InBody 데이터 모델 변환
         measurements = InBodyMeasurements(**plan_input.measurements)
 
-        # 프롬프트 생성
         system_prompt, user_prompt = create_weekly_plan_prompt(
             goal_input=plan_input,
             measurements=measurements
         )
 
-        # LLM 호출
         response = llm_client.generate_chat(system_prompt, user_prompt)
-
-        # 결과 반환 (대화 기록에 추가)
+        
         return {"messages": [("human", user_prompt), ("ai", response)]}
 
-    def _generate_qa_response(state: PlanState, category_name: str, system_prompt: str) -> dict:
-        """공통 Q&A 답변 생성 로직"""
-        print(f"--- LLM2: 주간 계획 Q&A ({category_name}) ---")
+    def _generate_feedback_response(state: PlanState, category_name: str, system_prompt: str) -> dict:
+        """공통 피드백 기반 답변 생성 로직"""
+        print(f"--- LLM2: 주간 계획 피드백 반영 ({category_name}) ---")
 
-        # 대화 기록 변환
         history = []
         for msg in state["messages"]:
             role = "user" if msg.type == "human" else "assistant"
-            history.append((role, msg.content))
-
-        # LLM 호출 (히스토리 포함)
+            # OpenAI API는 content가 None인 것을 허용하지 않으므로, None일 경우 빈 문자열로 변환합니다.
+            content = msg.content if msg.content is not None else ""
+            history.append((role, content))
+        
+        feedback_text = state.get("feedback_text")
+        if feedback_text:
+            history.append(("user", feedback_text))
+        
         response = llm_client.generate_chat_with_history(
             system_prompt=system_prompt,
             messages=history
         )
+        
+        # 피드백 처리 후 상태 초기화
+        return {"messages": [("ai", response)], "feedback_category": None, "feedback_text": None}
 
-        return {"messages": [("ai", response)]}
-
-    def qa_exercise_guide(state: PlanState) -> dict:
-        """Node 2-1: 운동 방법 가이드"""
+    def adjust_exercise_plan(state: PlanState) -> dict:
+        """Node 2-1: 운동 플랜 조정"""
         system_prompt = """당신은 전문 트레이너입니다. 
-        사용자가 특정 운동 동작에 대해 질문했습니다. 
-        해당 운동의 올바른 자세, 자극 부위, 호흡법, 그리고 주의사항을 초보자도 이해하기 쉽게 구체적으로 설명해주세요."""
-        return _generate_qa_response(state, "운동 가이드", system_prompt)
-
-    def qa_plan_adjustment(state: PlanState) -> dict:
-        """Node 2-2: 운동 플랜 조정"""
-        system_prompt = """당신은 전문 트레이너입니다. 
-        사용자가 운동 플랜(일정, 종목, 분할 방식 등)의 조정을 요청했습니다. 
-        사용자가 요청 사항을 반영하여 수정된 구체적인 운동 계획을 제시해주세요. 
+        사용자가 운동 플랜(일정, 종목, 분할 방식 등)의 조정을 요청했습니다.
+        기존 계획과 사용자의 피드백을 바탕으로 수정된 **구체적인 전체 주간 운동 계획표**를 다시 제시해주세요.
         수정된 이유도 함께 설명하면 좋습니다."""
-        return _generate_qa_response(state, "플랜 조정", system_prompt)
+        return _generate_feedback_response(state, "운동 플랜 조정", system_prompt)
 
-    def qa_diet_adjustment(state: PlanState) -> dict:
-        """Node 2-3: 식단 조정"""
+    def adjust_diet_plan(state: PlanState) -> dict:
+        """Node 2-2: 식단 조정"""
         system_prompt = """당신은 영양 전문가입니다. 
-        사용자가 식단 계획의 조정을 요청했습니다. 
-        사용자의 기호, 알레르기, 또는 상황(외식, 편의점 등)을 고려하여 대체 식단이나 수정된 메뉴를 제안해주세요. 
+        사용자가 식단 계획의 조정을 요청했습니다.
+        기존 계획과 사용자의 피드백(기호, 알레르기, 상황 등)을 바탕으로 수정된 **구체적인 전체 주간 식단 계획표**를 다시 제시해주세요.
         칼로리와 영양 밸런스를 고려하여 조언해주세요."""
-        return _generate_qa_response(state, "식단 조정", system_prompt)
+        return _generate_feedback_response(state, "식단 조정", system_prompt)
 
-    def qa_intensity_adjustment(state: PlanState) -> dict:
-        """Node 2-4: 강도 조정"""
+    def adjust_intensity(state: PlanState) -> dict:
+        """Node 2-3: 강도 조정"""
         system_prompt = """당신은 전문 트레이너입니다. 
-        사용자가 운동 강도(무게, 횟수, 세트, 휴식 시간 등)의 조정을 요청했습니다. 
-        사용자가 느끼는 난이도에 맞춰 강도를 높이거나 낮추는 구체적인 가이드를 제공해주세요. 
+        사용자가 운동 강도(무게, 횟수, 세트, 휴식 시간 등)의 조정을 요청했습니다.
+        기존 계획과 사용자의 피드백을 바탕으로 강도를 높이거나 낮춘 **구체적인 전체 주간 운동 계획표**를 다시 제시해주세요.
         부상 방지를 위한 조언도 포함해주세요."""
-        return _generate_qa_response(state, "강도 조정", system_prompt)
+        return _generate_feedback_response(state, "강도 조정", system_prompt)
 
     def qa_general(state: PlanState) -> dict:
-        """Node 2-5: 일반 Q&A"""
+        """Node 2-4: 일반 Q&A"""
         system_prompt = """당신은 사용자의 주간 운동 및 식단 계획을 담당하는 퍼스널 트레이너입니다.
-        사용자가 생성된 계획에 대해 질문하거나 수정을 요청하면, 전문적이고 친절하게 답변해주세요.
+        사용자가 생성된 계획에 대해 질문하면, 전문적이고 친절하게 답변해주세요.
         이전 대화 맥락(사용자의 신체 정보, 목표, 생성된 계획)을 모두 고려해야 합니다."""
-        return _generate_qa_response(state, "일반", system_prompt)
+        return _generate_feedback_response(state, "일반 Q&A", system_prompt)
+    
+    def router(state: PlanState) -> dict:
+        """라우팅을 위한 빈 노드. 상태 변경 없음."""
+        print("--- 라우터 진입 ---")
+        return {}
 
     def finalize_plan(state: PlanState) -> dict:
         """Node 3: 계획 확정 및 저장"""
         print("--- LLM2: 계획 확정 ---")
-        return {"messages": [("ai", "네, 현재 계획으로 확정하여 저장하겠습니다. 일주일 동안 화이팅하세요!")]}
+        final_plan_message = state["messages"][-1].content
+        return {
+            "messages": [
+                ("ai", f"네, 알겠습니다. 현재 계획을 최종 플랜으로 저장하겠습니다.\n\n{final_plan_message}")
+            ]
+        }
 
-    def route_qa(state: PlanState) -> str:
-        """사용자 질문 카테고리에 따른 라우팅"""
-        user_question = state["messages"][-1].content.strip()
+    def route_feedback(state: PlanState) -> str:
+        """사용자 피드백 카테고리에 따른 라우팅"""
+        print("--- [DEBUG] route_feedback function called ---")
+        category = state.get("feedback_category")
+        print(f"--- [DEBUG] Current State 'feedback_category': {category}")
 
-        if user_question.startswith("1"):
-            return "qa_exercise_guide"
-        elif user_question.startswith("2"):
-            return "qa_plan_adjustment"
-        elif user_question.startswith("3"):
-            return "qa_diet_adjustment"
-        elif user_question.startswith("4"):
-            return "qa_intensity_adjustment"
-        elif user_question.startswith("5"):
+        if not category:
+            # feedback_category가 없을 경우, 일반 Q&A 요청으로 간주
+            # 기존 chat API 호출은 여기에 해당하며 qa_general 노드로 라우팅
+            print("--- 라우팅: 피드백 카테고리 없음, 일반 Q&A (폴백) ---")
+            return "qa_general" # 기존 chat API 호환성을 위해 qa_general로 바로 라우팅
+
+        print(f"--- 라우팅: {category} ---")
+        if category == "운동 플랜 조정" or category == "adjust_exercise_plan":
+            return "adjust_exercise_plan"
+        elif category == "식단 조정" or category == "adjust_diet_plan":
+            return "adjust_diet_plan"
+        elif category == "강도 조정" or category == "adjust_intensity":
+            return "adjust_intensity"
+        elif category == "최종 플랜으로 저장" or category == "finalize_plan":
             return "finalize_plan"
         else:
+            # 정의되지 않은 카테고리의 경우에도 일반 Q&A로 처리
+            print(f"--- 라우팅: 알 수 없는 카테고리 '{category}', 일반 Q&A로 처리 ---")
             return "qa_general"
 
     workflow = StateGraph(PlanState)
 
     workflow.add_node("initial_plan", generate_initial_plan)
-    
-    # Q&A 노드 추가
-    workflow.add_node("qa_exercise_guide", qa_exercise_guide)
-    workflow.add_node("qa_plan_adjustment", qa_plan_adjustment)
-    workflow.add_node("qa_diet_adjustment", qa_diet_adjustment)
-    workflow.add_node("qa_intensity_adjustment", qa_intensity_adjustment)
+    workflow.add_node("router", router)
+    workflow.add_node("adjust_exercise_plan", adjust_exercise_plan)
+    workflow.add_node("adjust_diet_plan", adjust_diet_plan)
+    workflow.add_node("adjust_intensity", adjust_intensity)
     workflow.add_node("qa_general", qa_general)
     workflow.add_node("finalize_plan", finalize_plan)
 
-    workflow.set_entry_point("initial_plan")
+    def decide_entry_point(state: PlanState) -> str:
+        """진입점 결정 로직: 첫 실행(메시지 없음)이면 initial_plan, 아니면 router"""
+        messages = state.get("messages", [])
+        category = state.get("feedback_category")
+        
+        # 메시지가 있거나 피드백 카테고리가 있으면 이미 진행 중인 대화 -> 라우터
+        if (messages and len(messages) > 0) or category:
+            print(f"--- [DEBUG] 진입점 결정: Router (msgs={len(messages)}, cat={category}) ---")
+            return "router"
+            
+        # 아무 기록도 없으면 초기 계획 생성
+        print("--- [DEBUG] 진입점 결정: Initial Plan (첫 실행) ---")
+        return "initial_plan"
 
-    # 라우팅 맵 정의
-    qa_routing_map = {
-        "qa_exercise_guide": "qa_exercise_guide",
-        "qa_plan_adjustment": "qa_plan_adjustment",
-        "qa_diet_adjustment": "qa_diet_adjustment",
-        "qa_intensity_adjustment": "qa_intensity_adjustment",
+    workflow.set_conditional_entry_point(
+        decide_entry_point,
+        {
+            "router": "router",
+            "initial_plan": "initial_plan"
+        }
+    )
+    
+    # 초기 계획 생성 후 종료 (사용자 피드백 대기)
+    workflow.add_edge("initial_plan", END)
+    
+    # 각 피드백 조정 후 종료 (Request/Response 모델이므로 턴 종료)
+    workflow.add_edge("adjust_exercise_plan", END)
+    workflow.add_edge("adjust_diet_plan", END)
+    workflow.add_edge("adjust_intensity", END)
+    workflow.add_edge("qa_general", END)
+
+    # 라우터에서 조건에 따라 분기
+    feedback_routing_map = {
+        "adjust_exercise_plan": "adjust_exercise_plan",
+        "adjust_diet_plan": "adjust_diet_plan",
+        "adjust_intensity": "adjust_intensity",
         "qa_general": "qa_general",
         "finalize_plan": "finalize_plan",
         END: END
     }
+    workflow.add_conditional_edges("router", route_feedback, feedback_routing_map)
 
-    # 1. 초기 계획 생성 후 라우팅
-    workflow.add_conditional_edges(
-        "initial_plan",
-        route_qa,
-        qa_routing_map
-    )
-
-    # 2. 각 Q&A 노드 실행 후 다시 라우팅 (대화 루프)
-    for node_name in ["qa_exercise_guide", "qa_plan_adjustment", "qa_diet_adjustment", "qa_intensity_adjustment", "qa_general"]:
-        workflow.add_conditional_edges(
-            node_name,
-            route_qa,
-            qa_routing_map
-        )
-
-    # 확정 후 종료
+    # 최종 노드에서 그래프 종료
     workflow.add_edge("finalize_plan", END)
-
+    
     memory = MemorySaver()
     
-    # 각 단계 후 중단하여 사용자 피드백 대기
-    return workflow.compile(
-        checkpointer=memory, 
-        interrupt_after=[
-            "initial_plan", 
-            "qa_exercise_guide", 
-            "qa_plan_adjustment", 
-            "qa_diet_adjustment", 
-            "qa_intensity_adjustment", 
-            "qa_general"
-        ]
-    )
+    # interrupt_before 제거 (라우터 진입 시 멈추지 않고 즉시 실행)
+    return workflow.compile(checkpointer=memory)

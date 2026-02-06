@@ -4,6 +4,7 @@ import { Sparkles, ArrowRight, X, TrendingUp, Activity, Zap, FileText, AlertCirc
 import '../../styles/LoginLight.css';
 import { getUserHealthRecords } from '../../services/inbodyService';
 import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
+import LoadingAnimation from '../../components/common/LoadingAnimation';
 
 // ============================================
 // 목업 설정
@@ -113,6 +114,89 @@ const ChatbotSelector = () => {
         }
     };
 
+    const handleExercisePlanSubmit = async (data) => {
+        // 팝업 닫기 및 분석 모드 시작
+        setShowExercisePopup(false);
+        setIsAnalyzing(true);
+        setAnalyzeMessage('맞춤 플랜 생성 중...');
+        setAnalyzeProgress(0);
+
+        // 운동 설정 정보를 localStorage에 저장
+        localStorage.setItem('exerciseSettings', JSON.stringify(data));
+
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const userId = userData?.id || 1;
+
+        try {
+            // 1. 프로그레스 바 시뮬레이션 (최소 2초 동안 95%까지)
+            let currentProgress = 0;
+            const progressInterval = setInterval(() => {
+                setAnalyzeProgress(prev => {
+                    const next = prev + Math.floor(Math.random() * 5) + 2;
+                    return next >= 95 ? 95 : next;
+                });
+            }, 200);
+
+            // 2. API 호출을 즉시 시작
+            const apiCall = (async () => {
+                if (USE_MOCK_DATA) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return { mockData: true };
+                } else {
+                    const payload = {
+                        action: "generate",
+                        record_id: latestInbodyData?.id,
+                        user_goal_type: data.goal || "다이어트",
+                        user_goal_description: `${data.goal || '건강관리'}를 원하며, 선호하는 운동은 ${data.preferences?.join(', ') || '없음'}입니다. 특이사항: ${data.diseases || '없음'}`,
+                        preferences: data.preferences?.join(', ') || "",
+                        health_specifics: data.diseases || ""
+                    };
+
+                    const res = await fetch(`/api/weekly-plans/session?user_id=${userId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) {
+                        const errorMsg = await res.text();
+                        throw new Error(`운동 계획 생성 실패: ${errorMsg}`);
+                    }
+                    return await res.json();
+                }
+            })();
+
+            // 3. API 응답 대기
+            const responseData = await apiCall;
+
+            // 4. 완료 처리 (100% 채우기)
+            clearInterval(progressInterval);
+            setAnalyzeProgress(100);
+            setAnalyzeMessage('생성 완료!');
+
+            // 100%를 보여주기 위한 짧은 대기 후 네비게이션
+            await new Promise(r => setTimeout(r, 600));
+
+            // 네비게이션 직전에 분석 상태 해제 (필요시)
+            // setIsAnalyzing(false); // 페이지 이동 중에는 로딩 상태를 유지하는 것이 좋습니다
+
+            navigate('/chatbot/workout-planner', {
+                state: {
+                    planRequest: data,
+                    userId: userId,
+                    inbodyData: latestInbodyData,
+                    planResult: responseData
+                },
+                replace: true // 뒤로가기 방지 및 스택 관리
+            });
+
+        } catch (error) {
+            console.error('운동 계획 생성 실패:', error);
+            setIsAnalyzing(false);
+            alert('운동 계획 생성 중 문제가 발생했습니다. 다시 시도해주세요.');
+        }
+    };
+
     const handleExercisePlanSubmit = (data) => {
         setShowExercisePopup(false);
 
@@ -134,6 +218,12 @@ const ChatbotSelector = () => {
 
     /**
      * AI 정밀분석 버튼 클릭 핸들러
+     */
+    /**
+     * AI 정밀분석 버튼 클릭 핸들러
+     * - 버튼 클릭 시 즉시 API 요청 시작
+     * - 로딩 중 실제 데이터 대기
+     * - 데이터 수신 후 채팅 페이지로 이동
      */
     /**
      * AI 정밀분석 버튼 클릭 핸들러
@@ -826,6 +916,31 @@ const ChatbotSelector = () => {
                                 검사지를 촬영하면 OCR로 자동 분석됩니다.
                             </p>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* 글로벌 로딩 오버레이 */}
+            {isAnalyzing && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    animation: 'fadeIn 0.3s ease-out'
+                }}>
+                    <div style={{ width: '100%', maxWidth: '400px', padding: '20px' }}>
+                        <LoadingAnimation
+                            message={analyzeMessage}
+                            progress={analyzeProgress}
+                        />
                     </div>
                 </div>
             )}

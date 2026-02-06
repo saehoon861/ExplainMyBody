@@ -3,12 +3,14 @@ LLM 서비스
 AI 분석 및 계획 생성 (LangGraph 에이전트 사용)
 """
 
+from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-from schemas.llm import StatusAnalysisInput, GoalPlanInput
+from schemas.llm import StatusAnalysisInput, GoalPlanInput, LLMInteractionCreate
+from repositories.llm.llm_interaction_repository import LLMInteractionRepository
 from services.llm.llm_clients import create_llm_client
 from .agent_graph import create_analysis_agent
 from .weekly_plan_graph import create_weekly_plan_agent
@@ -159,29 +161,47 @@ class LLMService:
 
     async def call_goal_plan_llm(
         self,
+        db: Session,
         input_data: GoalPlanInput
-    ) -> str:
+    ) -> dict:
         """
-        LLM2: 주간 계획서 생성 API 호출
-
-        Args:
-            input_data: GoalPlanInput 스키마 객체
-
-        Returns:
-            LLM이 생성한 주간 계획서 텍스트
+        LLM2: 주간 계획서 생성 API 호출 및 초기 상호작용 저장
         """
-        # 1. 스레드 ID 생성 (필요 시)
+        # 1. 스레드 ID 생성
         thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
         config = {"configurable": {"thread_id": thread_id}}
+
+
 
         # 2. LangGraph 에이전트 호출
         initial_state = self.weekly_plan_agent.invoke(
             {"plan_input": input_data},
             config=config
         )
+        
+        # (
+        #     {"plan_input": input_data},
+        #     config=config
+        # )
+        
+        plan_text = initial_state['messages'][-1].content
 
-        # 3. 결과 반환 (마지막 AI 메시지)
-        return initial_state['messages'][-1].content
+        # 3. 초기 LLM 상호작용 DB에 저장
+        interaction_schema = LLMInteractionCreate(
+            llm_stage="llm2",
+            source_type="weekly_plan_initial",
+            source_id=input_data.record_id,
+            output_text=plan_text,
+            model_version=self.model_version
+        )
+        new_interaction = LLMInteractionRepository.create(db, input_data.user_id, interaction_schema)
+
+        # 4. 결과 반환
+        return {
+            "plan_text": plan_text,
+            "thread_id": thread_id,
+            "llm_interaction_id": new_interaction.id
+        }
 
     async def chat_with_plan(
         self,
@@ -191,13 +211,106 @@ class LLMService:
         """
         LLM2 휴먼 피드백 (Q&A) 처리: 주간 계획 수정 및 질의응답
         """
+        import re
+        print(f"--- [DEBUG] chat_with_plan 진입 ---")
+        print(f"--- [DEBUG] thread_id: {thread_id}")
+        print(f"--- [DEBUG] raw user_message: {user_message}")
+
         config = {"configurable": {"thread_id": thread_id}}
         
-        # LangGraph 실행 (이전 상태에서 이어서 실행)
-        result = self.weekly_plan_agent.invoke(
-            {"messages": [("human", user_message)]},
-            config=config
-        )
+        # 메시지 파싱 ([Category: ...] 분리)
+        category = None
+        clean_message = user_message
         
-        # 마지막 AI 응답 반환
-        return result["messages"][-1].content
+        # Regex로 [Category: ...] 패턴 추출
+        match = re.match(r"^\[Category:\s*(.*?)\]\s*(.*)$", user_message, re.DOTALL)
+        if match:
+            category_label = match.group(1).strip()
+            clean_message = match.group(2).strip()
+            print(f"--- [DEBUG] Parsed Category Label: {category_label}")
+            print(f"--- [DEBUG] Clean Message: {clean_message}")
+            
+            # 카테고리 라벨을 내부 키로 매핑 (필요시)
+            # 현재는 단순 매핑 또는 그대로 전달. 그래프의 router 로직에 의존.
+            # 그래프에서는 "운동 플랜 조정", "식단 조정" 등을 기대함.
+            # 프론트엔드 라벨: "📅 주간 계획", "🏋️ 부위별 운동" 등.
+            # 여기서는 우선 매핑 없이 전달하거나, 간단한 변환 로직 추가 가능.
+            
+            # 임시 매핑 로직 (프론트 라벨 -> 그래프 내부 카테고리)
+            if "운동" in category_label or "플랜" in category_label or "계획" in category_label: # 예: 운동 플랜 조정
+                category = "adjust_exercise_plan"
+            elif "식단" in category_label:
+                category = "adjust_diet_plan"
+            elif "강도" in category_label:
+                category = "adjust_intensity"
+            else:
+                # 그 외 (주간 계획, 부위별 운동 등)은 일반 Q&A로 처리하되,
+                # 그래프 라우터가 "qa_general"로 폴백하도록 None 또는 "qa_general" 전달
+                category = "qa_general"
+            
+            print(f"--- [DEBUG] Mapped Category Key: {category}")
+            
+        else:
+            print("--- [DEBUG] No Category prefix found. Treating as general message.")
+            category = "qa_general"
+
+        # 상태 업데이트 준비
+        input_payload = {
+            "messages": [("human", clean_message)],
+            # feedback_category를 업데이트하여 라우터가 올바른 경로를 타도록 함
+            "feedback_category": category 
+        }
+        
+        print(f"--- [DEBUG] Invoking weekly_plan_agent with payload: {input_payload}")
+
+        # LangGraph 실행 (이전 상태에서 이어서 실행)
+        try:
+            result = self.weekly_plan_agent.invoke(
+                input_payload,
+                config=config
+            )
+            print("--- [DEBUG] LangGraph invocation successful")
+            # print(f"--- [DEBUG] Result messages: {result.get('messages')}")
+            
+            last_message = result["messages"][-1].content
+            print(f"--- [DEBUG] Last AI Message: {last_message[:100]}...") # 길면 자름
+            
+            return last_message
+            
+        except Exception as e:
+            print(f"--- [ERROR] LangGraph invocation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
+
+    async def refine_plan(
+        self,
+        thread_id: str,
+        state_update: dict
+    ) -> str:
+        """
+        LLM2 휴먼 피드백: 구조화된 피드백으로 주간 계획 수정
+        """
+        print(f"--- [DEBUG] refine_plan 진입 ---")
+        print(f"--- [DEBUG] thread_id: {thread_id}")
+        print(f"--- [DEBUG] state_update: {state_update}")
+
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # LangGraph 실행 (전달받은 state_update로 상태 업데이트)
+        try:
+            result = self.weekly_plan_agent.invoke(
+                state_update,
+                config=config
+            )
+            print("--- [DEBUG] LangGraph invocation successful")
+            
+            last_message = result["messages"][-1].content
+            print(f"--- [DEBUG] Last AI Message: {last_message[:100]}...")
+            
+            return last_message
+        except Exception as e:
+            print(f"--- [ERROR] LangGraph invocation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e

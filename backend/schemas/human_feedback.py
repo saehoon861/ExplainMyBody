@@ -1,20 +1,23 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from database import Base
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
 
 
-class HumanFeedback(Base):
-    __tablename__ = "human_feedbacks"
+class HumanFeedbackBase(BaseModel):
+    """HumanFeedback 기본 스키마"""
+    llm_interaction_id: int
+    feedback_category: Optional[str] = None
+    feedback_text: str
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    llm_interaction_id = Column(Integer, ForeignKey("llm_interactions.id"), nullable=False)
-    feedback_category = Column(String)  # "question", "exercise_adjustment", etc.
-    feedback_text = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+class HumanFeedbackCreate(HumanFeedbackBase):
+    """HumanFeedback 생성 요청 스키마"""
+    pass
 
-    # NOTE: The 'User' model in 'models/user.py' should be updated with:
-    # human_feedbacks = relationship("HumanFeedback", back_populates="user")
-    user = relationship("User", back_populates="human_feedbacks")
-    llm_interaction = relationship("LLMInteraction", back_populates="human_feedbacks")
+class HumanFeedbackResponse(HumanFeedbackBase):
+    """HumanFeedback 응답 스키마"""
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

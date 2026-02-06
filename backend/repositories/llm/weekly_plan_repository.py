@@ -23,7 +23,9 @@ class WeeklyPlanRepository:
             start_date=plan_data.start_date,
             end_date=plan_data.end_date,
             plan_data=plan_data.plan_data,
-            model_version=plan_data.model_version
+            model_version=plan_data.model_version,
+            thread_id=plan_data.thread_id,
+            initial_llm_interaction_id=plan_data.initial_llm_interaction_id
         )
         db.add(db_plan)
         db.commit()
