@@ -80,9 +80,22 @@ def reset_database():
 
     print("\n⏳ 기존 테이블 삭제 중... (Dropping tables)")
     try:
-        # 외래 키 제약 조건 등으로 인해 순서가 중요할 수 있으나 drop_all이 대부분 처리해줌
-        Base.metadata.drop_all(bind=engine)
-        print("✅ 테이블 삭제 완료")
+        from sqlalchemy import text
+        # PostgreSQL에서는 CASCADE를 사용해 순환 참조가 있는 테이블들을 강제로 삭제할 수 있습니다.
+        with engine.connect() as conn:
+            # 모든 테이블 이름을 가져와서 DROP TABLE ... CASCADE 실행
+            # Base.metadata.sorted_tables가 의존성 때문에 실패하므로 raw SQL 사용
+            conn.execute(text("""
+                DO $$ DECLARE
+                    r RECORD;
+                BEGIN
+                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                    END LOOP;
+                END $$;
+            """))
+            conn.commit()
+        print("✅ 테이블 삭제 완료 (CASCADE 적용)")
     except Exception as e:
         print(f"❌ 테이블 삭제 중 오류 발생: {e}")
         return

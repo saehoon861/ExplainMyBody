@@ -24,16 +24,16 @@ const ExercisePlanPopup = ({ isOpen, onClose, onSubmit, initialData }) => {
     const handleSubmit = () => {
         setStep(2);
 
-        // Simulate loading process
+        // 부모 컴포넌트의 onSubmit(API 호출)을 즉시 실행
+        onSubmit({ goal, preferences, diseases });
+
+        // 시뮬레이션은 시각적 효과를 위해 유지하되, 실제 제어권은 부모에게 있음
         let progress = 0;
         const interval = setInterval(() => {
             progress += Math.random() * 15;
             if (progress >= 100) {
                 progress = 100;
                 clearInterval(interval);
-                setTimeout(() => {
-                    onSubmit({ goal, preferences, diseases });
-                }, 800);
             }
             setLoadingProgress(progress);
         }, 500);
