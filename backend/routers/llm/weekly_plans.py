@@ -50,8 +50,11 @@ async def weekly_plan_session(
         # 여기서는 FastAPI가 Union을 Body로 받을 때의 동작을 고려하여 request.__root__ 확인 (사용하지 않는 경우 request 자체 사용)
         
         actual_request = request.root
-
+        print("====================================")
+        print("actual_request: ", actual_request)
+        print("====================================")
         if isinstance(actual_request, GenerateWeeklyPlanRequest):
+            print("--- [DEBUG] 주간 계획 생성 ---")
             # 1. 주간 계획 생성
             result = await weekly_plan_service.generate_plan(db, user_id, actual_request)
             return WeeklyPlanUnifiedResponse(
@@ -63,6 +66,7 @@ async def weekly_plan_session(
             )
             
         elif isinstance(actual_request, ChatWeeklyPlanRequest):
+            print("--- [DEBUG] 주간 계획 채팅 ---")
             # 2. 주간 계획 채팅
             # 계획 존재 여부 확인
             plan = WeeklyPlanRepository.get_by_id(db, actual_request.plan_id)

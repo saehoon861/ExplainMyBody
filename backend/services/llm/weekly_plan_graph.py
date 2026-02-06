@@ -148,7 +148,27 @@ def create_weekly_plan_agent(llm_client):
     workflow.add_node("qa_general", qa_general)
     workflow.add_node("finalize_plan", finalize_plan)
 
-    workflow.set_entry_point("router")
+    def decide_entry_point(state: PlanState) -> str:
+        """진입점 결정 로직: 첫 실행(메시지 없음)이면 initial_plan, 아니면 router"""
+        messages = state.get("messages", [])
+        category = state.get("feedback_category")
+        
+        # 메시지가 있거나 피드백 카테고리가 있으면 이미 진행 중인 대화 -> 라우터
+        if (messages and len(messages) > 0) or category:
+            print(f"--- [DEBUG] 진입점 결정: Router (msgs={len(messages)}, cat={category}) ---")
+            return "router"
+            
+        # 아무 기록도 없으면 초기 계획 생성
+        print("--- [DEBUG] 진입점 결정: Initial Plan (첫 실행) ---")
+        return "initial_plan"
+
+    workflow.set_conditional_entry_point(
+        decide_entry_point,
+        {
+            "router": "router",
+            "initial_plan": "initial_plan"
+        }
+    )
     
     # 초기 계획 생성 후 종료 (사용자 피드백 대기)
     workflow.add_edge("initial_plan", END)

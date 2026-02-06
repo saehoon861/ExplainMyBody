@@ -176,8 +176,7 @@ class LLMService:
         # 2. LangGraph 에이전트 호출
         initial_state = self.weekly_plan_agent.invoke(
             {"plan_input": input_data},
-            config=config,
-            start_at="initial_plan"
+            config=config
         )
         
         # (

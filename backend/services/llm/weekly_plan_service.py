@@ -72,7 +72,10 @@ class WeeklyPlanService :
         """
         주간 계획 생성 (LLM 호출)
         """
-        
+        #fixme : 기존 계획 재사용 시 이후 대화에서 LLM이 기존 주간 계획을 알지 못하는 문제 발생.
+        # 해결 방안: 
+        # 1. LLM이 대화할 때마다 최신 주간 계획을 함께 전달
+        # 2. LLM에게 현재 진행중인 주간 계획을 알려주는 기능 추가
         # Early return: 기존 계획 재사용
         latest_plan = WeeklyPlanRepository.get_latest(db, user_id)
         if not self._should_create_new_plan(db, user_id, latest_plan):

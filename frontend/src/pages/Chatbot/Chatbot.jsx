@@ -1019,49 +1019,7 @@ const Chatbot = () => {
                     </div>
                 </div>
 
-                {/* 2. 카테고리 선택됨 표시 UI */}
-                {chatCategory && (
-                    <div style={{
-                        padding: '0 16px 12px 16px',
-                        display: 'flex',
-                        justifyContent: 'center'
-                    }}>
-                        <div className="selected-category-indicator" style={{
-                            padding: '6px 16px',
-                            background: '#f5f3ff',
-                            color: '#6366f1',
-                            borderRadius: '20px',
-                            fontSize: '0.9rem',
-                            fontWeight: '600',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            border: '1px solid #ddd6fe'
-                        }}>
-                            <span>💬 대화 주제: {getCategoryLabel()}</span>
-                            <button
-                                type="button"
-                                onClick={() => setChatCategory(null)}
-                                style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '4px',
-                                    color: '#ef4444',
-                                    marginLeft: '4px'
-                                }}
-                                title="주제 취소"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* 3. 입력창 */}
                 <form className="chat-input-area-static" onSubmit={handleSend} style={{
