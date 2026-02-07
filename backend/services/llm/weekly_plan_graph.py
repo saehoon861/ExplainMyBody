@@ -20,6 +20,8 @@ class PlanState(TypedDict):
     # 사용자 피드백을 명시적으로 관리하기 위한 필드 추가
     feedback_category: Optional[str]
     feedback_text: Optional[str]
+    # 기존 계획 내용 주입용 (새 세션에서 맥락 제공)
+    existing_plan: Optional[str]
 
 
 # --- 3. 그래프 생성 ---
@@ -46,8 +48,27 @@ def create_weekly_plan_agent(llm_client):
     def _generate_feedback_response(state: PlanState, category_name: str, system_prompt: str) -> dict:
         """공통 피드백 기반 답변 생성 로직"""
         print(f"--- LLM2: 주간 계획 피드백 반영 ({category_name}) ---")
+        
+        # [강력 조치] 시스템 프롬프트에 직접 현재 계획 정보 주입
+        existing_plan = state.get("existing_plan")
+        if existing_plan:
+            system_prompt += f"\n\n[참고: 현재 사용자의 주간 계획 정보]\n{existing_plan}\n\n사용자의 질문이나 요청이 위 계획과 관련이 있다면, 이 내용을 바탕으로 답변하거나 수정해주세요."
+            print(f"--- [DEBUG] 시스템 프롬프트에 existing_plan 컨텍스트 주입 완료 ---")
+
+        for i, msg in enumerate(state["messages"]):
+            msg_content = msg.content if msg.content else ""
+            print(f"--- [DEBUG] msg[{i}] type={msg.type}, content={msg_content[:50].replace(chr(10), ' ')}... ---")
 
         history = []
+        
+        # AI 메시지(기존 계획)가 히스토리에 없고 existing_plan이 있으면 맥락으로 주입
+        has_ai_message = any(msg.type == "ai" for msg in state["messages"])
+        if not has_ai_message and existing_plan:
+            print("--- [DEBUG] 히스토리에 기존 계획 주입 (Assistant 메시지로 추가) ---")
+            history.append(("assistant", existing_plan))
+        else:
+            print(f"--- [DEBUG] 히스토리 주입 스킵: has_ai_msg={has_ai_message}, has_plan={bool(existing_plan)} ---")
+        
         for msg in state["messages"]:
             role = "user" if msg.type == "human" else "assistant"
             # OpenAI API는 content가 None인 것을 허용하지 않으므로, None일 경우 빈 문자열로 변환합니다.
@@ -57,6 +78,8 @@ def create_weekly_plan_agent(llm_client):
         feedback_text = state.get("feedback_text")
         if feedback_text:
             history.append(("user", feedback_text))
+        
+        print(f"--- [DEBUG] LLM 호출 직전 히스토리 총 메시지 수: {len(history)} ---")
         
         response = llm_client.generate_chat_with_history(
             system_prompt=system_prompt,
