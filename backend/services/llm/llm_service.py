@@ -245,8 +245,8 @@ class LLMService:
                             body_type2=getattr(health_record, 'body_type2', None),
                             # 이전 인바디 데이터가 없을 경우를 대비해서 예외처리를 해야함
                             prev_inbody_data=prev_measurements if prev_measurements else None,
-                            # 이전 인바디 데이터가 언제 측정되었는지에 대한 정보도 같이 전달해야함
-                            prev_inbody_date=prev_health_record.created_at if prev_health_record else None,
+                            # 이전 인바디 데이터가 가장 최신의 인바디 데이터와 간격 계산
+                            interval_days=(health_record.created_at - prev_health_record.created_at).days if prev_health_record else None
                         )
                         initial_messages.append(("human", user_prompt))
                         print(f"[DEBUG][chat_with_analysis] ✅ InBody 데이터 복원 완료 (record_id={analysis_report.record_id})")

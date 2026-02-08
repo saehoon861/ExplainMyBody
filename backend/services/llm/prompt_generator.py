@@ -12,7 +12,7 @@ def create_inbody_analysis_prompt(
     body_type1: Optional[str] = None,
     body_type2: Optional[str] = None,
     prev_inbody_data: Optional[InBodyMeasurements] = None,
-    prev_inbody_date: Optional[str] = None
+    interval_days: Optional[str] = None
 ) -> Tuple[str, str]:
     """
     인바디 분석용 프롬프트 생성
@@ -22,7 +22,7 @@ def create_inbody_analysis_prompt(
         body_type1: 1차 체형 (예: 비만형)
         body_type2: 2차 체형 (예: 상체발달형)
         prev_inbody_data: 이전 InBody 측정 데이터 (선택)
-        prev_inbody_date: 이전 InBody 측정 일시 (선택)
+        interval_days: 이전 InBody 측정 일시 (선택)
 
     Returns:
         (system_prompt, user_prompt)
@@ -30,19 +30,20 @@ def create_inbody_analysis_prompt(
     
     print(f"\n[DEBUG][PromptGenerator] create_inbody_analysis_prompt 호출")
     print(f"[DEBUG][PromptGenerator] prev_inbody_data is None: {prev_inbody_data is None}")
-    print(f"[DEBUG][PromptGenerator] prev_inbody_date is None: {prev_inbody_date is None}")
+    print(f"[DEBUG][PromptGenerator] interval_days is None: {interval_days is None}")
 
     # 이전 인바디 데이터 포맷팅
     prev_inbody_text = "없음"
-    if prev_inbody_data and prev_inbody_date:
+    if prev_inbody_data:
         print(f"[DEBUG][PromptGenerator] ✅ 이전 인바디 데이터로 텍스트 생성 중...")
         prev_inbody_text = f"""
-측정 일시: {prev_inbody_date}
-- 변화 체중: {prev_inbody_data.체중관리.체중 - measurements.체중관리.체중} kg
-- 변화 골격근량: {prev_inbody_data.체중관리.골격근량 - measurements.체중관리.골격근량} kg
-- 변화 체지방률: {prev_inbody_data.비만분석.체지방률 - measurements.비만분석.체지방률}%
-- 변화 BMI: {prev_inbody_data.비만분석.BMI - measurements.비만분석.BMI}
-
+이전 인바디 데이터와 간격 {interval_days}일
+- 변화 체중: {measurements.체중관리.체중 - prev_inbody_data.체중관리.체중} kg
+- 변화 골격근량: {measurements.체중관리.골격근량 - prev_inbody_data.체중관리.골격근량} kg
+- 변화 체지방률: {measurements.비만분석.체지방률 - prev_inbody_data.비만분석.체지방률}%
+- 변화 BMI: {measurements.비만분석.BMI - prev_inbody_data.비만분석.BMI}
+- 변화 체지방량: {measurements.체성분.체지방 - prev_inbody_data.체성분.체지방} kg
+- 변화 복부지방률: {measurements.비만분석.복부지방률 - prev_inbody_data.비만분석.복부지방률}%
 """
         print(f"[DEBUG][PromptGenerator] prev_inbody_text 생성 완료: {len(prev_inbody_text)} chars")
     else:
@@ -212,10 +213,10 @@ def create_inbody_analysis_prompt(
     # Stage 분석
     user_prompt_parts.append("\n## 규칙 기반 체형 분석")
     user_prompt_parts.append(
-        f"- Stage 2 (근육 보정 체형): {body_type1 or 'N/A'}"
+        f"- 체형 분류: {body_type1 or 'N/A'}"
     )
     user_prompt_parts.append(
-        f"- Stage 3 (상하체 밸런스): {body_type2 or 'N/A'}"
+        f"- 상하체 밸런스: {body_type2 or 'N/A'}"
     )
 
     user_prompt = "\n".join(user_prompt_parts)

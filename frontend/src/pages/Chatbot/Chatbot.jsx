@@ -1045,7 +1045,8 @@ const Chatbot = () => {
                                 outline: 'none',
                                 transition: 'all 0.2s',
                                 background: '#f8fafc',
-                                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+                                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)',
+                                color: '#1e293b'
                             }}
                         />
                         <button

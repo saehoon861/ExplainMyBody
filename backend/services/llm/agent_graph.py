@@ -74,7 +74,7 @@ def create_analysis_agent(llm_client: BaseLLMClient):
         # 이전 인바디 데이터 확인
         print(f"\n[DEBUG][initial_analysis] === 이전 인바디 데이터 확인 ===")
         print(f"[DEBUG][initial_analysis] analysis_input.prev_inbody_data is None: {analysis_input.prev_inbody_data is None}")
-        print(f"[DEBUG][initial_analysis] analysis_input.prev_inbody_date is None: {analysis_input.prev_inbody_date is None}")
+        print(f"[DEBUG][initial_analysis] analysis_input.interval_days is None: {analysis_input.interval_days is None}")
         if analysis_input.prev_inbody_data:
             print(f"[DEBUG][initial_analysis] prev_inbody_data 타입: {type(analysis_input.prev_inbody_data)}")
             if isinstance(analysis_input.prev_inbody_data, dict):
@@ -98,14 +98,14 @@ def create_analysis_agent(llm_client: BaseLLMClient):
         # 2. 프롬프트 생성 및 LLM 호출
         print(f"\n[DEBUG][initial_analysis] === 프롬프트 생성 ===")
         print(f"[DEBUG][initial_analysis] prev_measurements is None: {prev_measurements is None}")
-        print(f"[DEBUG][initial_analysis] prev_inbody_date: {analysis_input.prev_inbody_date}")
+        print(f"[DEBUG][initial_analysis] interval_days: {analysis_input.interval_days}")
         
         system_prompt, user_prompt = create_inbody_analysis_prompt(
             measurements,
             body_type1=analysis_input.body_type1,
             body_type2=analysis_input.body_type2,
             prev_inbody_data=prev_measurements,
-            prev_inbody_date=analysis_input.prev_inbody_date,
+            interval_days=analysis_input.interval_days,
         )
         print(f"[DEBUG][initial_analysis] prompt ready, calling LLM...")
         response = llm_client.generate_chat(system_prompt, user_prompt)

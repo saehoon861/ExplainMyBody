@@ -19,7 +19,6 @@ dependencies = [
     # OCR (PaddleOCR)
     "paddlepaddle==3.2.2",
     "paddleocr==3.3.2",
-    "opencv-python>=4.9,<5.0",
     "pillow>=10.0,<13.0",
     "pypdfium2>=4.30,<6.0",
     # Body Type Analysis
@@ -31,6 +30,7 @@ dependencies = [
     "langgraph>=1.0.7",
     "openai>=2.16.0",
     "anthropic>=0.77.0",
+    "opencv-python-headless>=4.13.0.92",
 ]
 
 [dependency-groups]

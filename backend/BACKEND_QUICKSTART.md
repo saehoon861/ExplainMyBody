@@ -54,6 +54,33 @@ cp .env.example .env
 
 ### 4. 데이터베이스 준비
 PostgreSQL이 설치되어 있어야 합니다.
+
+### PostgreSQL 설치 및 설정
+```bash
+# PostgreSQL client 설치
+sudo apt update
+sudo apt install postgresql-client
+
+# PostgreSQL 빌드 도구 설치
+sudo apt install postgresql-server-dev-all
+
+# pgvector 설치  # postgresql 버전에 맞게 설치
+sudo apt install postgresql-14-pgvector
+
+# PostgreSQL 서버 시작
+sudo service postgresql start
+
+# PostgreSQL 관리자 비밀번호 설정  # 비밀번호는 임의로 설정  # 해당 비밀번호는 .env 파일에 DATABASE_URL에 반영되어야 함
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+
+
+
+# PostgreSQL에서 데이터베이스 생성
+createdb explainmybody
+```
+
+
+
 ```bash
 # PostgreSQL에서 데이터베이스 생성
 createdb explainmybody
