@@ -14,12 +14,103 @@ from repositories.llm.llm_interaction_repository import LLMInteractionRepository
 from services.llm.llm_clients import create_llm_client
 from .agent_graph import create_analysis_agent
 from .weekly_plan_graph import create_weekly_plan_agent
+from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
+import re
 
 load_dotenv()
 
 
 class LLMService:
     """LLM API 호출 서비스"""
+    async def stream_chat_with_plan(
+        self,
+        thread_id: str,
+        user_message: str,
+        existing_plan: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        LLM2 휴먼 피드백 (Q&A) - 스트리밍 버전
+        """
+        print(f"--- [DEBUG] stream_chat_with_plan 진입 ---")
+        print(f"--- [DEBUG] thread_id: {thread_id}")
+        print(f"--- [DEBUG] raw user_message: {user_message}")
+
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # =========================
+        # 1. Category 파싱 (기존 로직 그대로)
+        # =========================
+        category = "qa_general"
+        clean_message = user_message
+
+        match = re.match(r"^\[Category:\s*(.*?)\]\s*(.*)$", user_message, re.DOTALL)
+        if match:
+            category_label = match.group(1).strip()
+            clean_message = match.group(2).strip()
+
+            if "운동" in category_label or "플랜" in category_label or "계획" in category_label:
+                category = "adjust_exercise_plan"
+            elif "식단" in category_label:
+                category = "adjust_diet_plan"
+            elif "강도" in category_label:
+                category = "adjust_intensity"
+
+        print(f"--- [DEBUG] category: {category}")
+        print(f"--- [DEBUG] clean_message: {clean_message}")
+
+        # =================================================
+        # 2. LangGraph 상태에서 히스토리 가져오기 (메모리 연동)
+        # =================================================
+        state_snapshot = self.weekly_plan_agent.get_state(config)
+        history_messages = []
+        
+        if state_snapshot and state_snapshot.values:
+            for msg in state_snapshot.values.get("messages", []):
+                role = "user" if msg.type == "human" else "assistant"
+                history_messages.append((role, msg.content))
+
+        # 시스템 프롬프트 구성
+        system_prompt = """당신은 사용자의 주간 운동 및 식단 계획을 담당하는 퍼스널 트레이너입니다.
+        사용자가 생성된 계획에 대해 질문하면, 전문적이고 친절하게 답변해주세요.
+        이전 대화 맥락(사용자의 신체 정보, 목표, 생성된 계획)을 모두 고려해야 합니다."""
+        
+        if existing_plan:
+            system_prompt += f"\n\n[참고: 현재 사용자의 주간 계획 정보]\n{existing_plan}\n\n사용자의 질문이나 요청이 위 계획과 관련이 있다면, 이 내용을 바탕으로 답변하거나 수정해주세요."
+
+        # 현재 사용자 메시지 추가 (LLM 호출용)
+        # history_messages에는 이미 이전 대화가 포함되어 있음
+        messages_to_send = history_messages + [("user", clean_message)]
+
+        full_text = ""
+
+        # =================================================
+        # 3. 직접 LLM 스트리밍 호출 (LangGraph 우회)
+        # =================================================
+        try:
+            async for chunk in self.llm_client.generate_chat_with_history_stream(system_prompt, messages_to_send):
+                full_text += chunk
+                yield chunk
+            
+            # =================================================
+            # 4. 대화 완료 후 LangGraph 상태 수동 업데이트 (메모리 저장)
+            # =================================================
+            print(f"--- [DEBUG] 스트리밍 완료. 상태 업데이트 진행 ---")
+            self.weekly_plan_agent.update_state(
+                config, 
+                {"messages": [("human", clean_message), ("ai", full_text)]}
+            )
+            
+        except Exception as e:
+            print(f"--- [ERROR] 스트리밍 중 오류 발생: {e}")
+            # 에러 발생 시에도 클라이언트에게 에러 메시지를 스트리밍으로 전달 가능
+            yield f"\n[오류 발생] 죄송합니다. 응답을 생성하는 도중 문제가 발생했습니다: {str(e)}"
+
+        # =========================
+        # 4. (선택) 스트리밍 종료 후 DB 저장
+        # =========================
+        # 지금은 MVP라 생략
+        # 나중에 필요하면 여기서 LLMInteractionRepository.create(...)
 
     def __init__(self):
         """LLM 에이전트 및 클라이언트 초기화"""
@@ -387,3 +478,42 @@ class LLMService:
             import traceback
             traceback.print_exc()
             raise e
+    
+# NOTE:
+# - 초기 주간 계획 생성은 invoke 방식 사용
+# - 스트리밍은 휴먼 피드백(chat/refine)에만 사용 예정
+# - stream_goal_plan_llm은 향후 UX 변경 대비용
+
+    async def stream_goal_plan_llm(
+            self,
+            input_data: GoalPlanInput
+            ) -> AsyncGenerator[str, None]:
+        """
+        LLM2: 주간 계획서 생성 (스트리밍 버전)
+        """
+        thread_id = f"plan_{input_data.user_id}_{input_data.record_id}_{datetime.now().timestamp()}"
+        config = {"configurable": {"thread_id": thread_id}}
+
+        full_text = ""
+
+        # 🔥 invoke → stream
+        async for event in self.weekly_plan_agent.stream(
+            {"plan_input": input_data},
+            config=config
+        ):
+            """
+            LangGraph stream 이벤트는 여러 종류가 있음
+            여기서는 'LLM이 말하는 텍스트'만 골라냄
+            """
+
+            # 이벤트 구조는 LangGraph 버전에 따라 조금 다를 수 있음
+            # 가장 흔한 패턴 예시:
+            if event.get("event") == "on_chat_model_stream":
+                chunk = event["data"]["chunk"].content
+                if chunk:
+                    full_text += chunk
+                    yield chunk
+
+                # ❗ 하루 MVP에서는 여기서 DB 저장 안 함
+                # 나중에:
+                # LLMInteractionRepository.create(..., output_text=full_text)

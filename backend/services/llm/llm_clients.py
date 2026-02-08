@@ -1,7 +1,7 @@
 import os
-from typing import List, Tuple
+from typing import List, Tuple, AsyncGenerator
 from abc import ABC, abstractmethod
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,12 +22,18 @@ class BaseLLMClient(ABC):
         """임베딩 생성"""
         pass
 
+    @abstractmethod
+    async def generate_chat_with_history_stream(self, system_prompt: str, messages: List[Tuple[str, str]]) -> AsyncGenerator[str, None]:
+        """대화 기록을 포함하여 스트리밍 채팅 생성"""
+        pass
+
 
 class OpenAIClient(BaseLLMClient):
     """OpenAI API 클라이언트"""
 
     def __init__(self, model: str = "gpt-4o-mini"):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = model
 
     def generate_chat(self, system_prompt: str, user_prompt: str) -> str:
@@ -64,6 +70,25 @@ class OpenAIClient(BaseLLMClient):
             model="text-embedding-3-small"
         )
         return response.data[0].embedding
+
+    async def generate_chat_with_history_stream(self, system_prompt: str, messages: List[Tuple[str, str]]) -> AsyncGenerator[str, None]:
+        formatted_messages = [{"role": "system", "content": system_prompt}]
+        
+        for role, content in messages:
+            openai_role = "user" if role in ["human", "user"] else "assistant"
+            formatted_messages.append({"role": openai_role, "content": content})
+
+        stream = await self.async_client.chat.completions.create(
+            model=self.model,
+            messages=formatted_messages,
+            temperature=0.7,
+            stream=True
+        )
+
+        async for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
 
 def create_llm_client(model_name: str = "gpt-4o-mini") -> BaseLLMClient:
