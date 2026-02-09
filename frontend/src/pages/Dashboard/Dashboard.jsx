@@ -559,7 +559,7 @@ const Dashboard = () => {
             '지금의 루틴이 목표를 가까이 데려다줘요.'
         ];
         setMotivationMessage(messages[Math.floor(Math.random() * messages.length)]);
-
+        //
         const loadDashboardData = async () => {
             // 1. 사용자 정보 로드
             const storedUser = localStorage.getItem('user');
