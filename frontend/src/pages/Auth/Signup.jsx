@@ -23,10 +23,10 @@ const Signup = () => {
         medicalConditionsDetail: '',
         preferredExercises: [],
         gender: '남성',
-        age: '31',
-        height: '170',
-        startWeight: '60',
-        targetWeight: '58',
+        age: '',
+        height: '',
+        startWeight: '',
+        targetWeight: '',
         goalType: '감량',
         activityLevel: '보통',
         goal: ''
@@ -178,7 +178,27 @@ const Signup = () => {
             if (value.length > 7) return; // 길이 제한
         }
 
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const newState = { ...prev, [field]: value };
+
+            // Sync with inbodyData if it exists
+            if (newState.inbodyData) {
+                if (field === 'startWeight') {
+                    if (!newState.inbodyData['체중관리']) newState.inbodyData['체중관리'] = {};
+                    newState.inbodyData['체중관리']['체중'] = value;
+                } else if (field === 'height') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['신장'] = value;
+                } else if (field === 'age') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['연령'] = value;
+                } else if (field === 'gender') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['성별'] = value;
+                }
+            }
+            return newState;
+        });
         setErrors(prev => ({ ...prev, [field]: '' }));
 
         if (field === 'password') {
@@ -230,16 +250,26 @@ const Signup = () => {
         }
 
         if (isValid) {
-            setFormData(prev => ({
-                ...prev,
-                inbodyData: {
-                    ...prev.inbodyData,
-                    [category]: {
-                        ...prev.inbodyData[category],
-                        [field]: value
+            setFormData(prev => {
+                const newState = {
+                    ...prev,
+                    inbodyData: {
+                        ...prev.inbodyData,
+                        [category]: {
+                            ...prev.inbodyData[category],
+                            [field]: value
+                        }
                     }
-                }
-            }));
+                };
+
+                // Sync with root fields if OCR data is updated
+                if (category === '체중관리' && field === '체중') newState.startWeight = value;
+                if (category === '기본정보' && field === '신장') newState.height = value;
+                if (category === '기본정보' && field === '연령') newState.age = value;
+                if (category === '기본정보' && field === '성별') newState.gender = value;
+
+                return newState;
+            });
         }
     };
 
@@ -471,11 +501,11 @@ const Signup = () => {
                     body: JSON.stringify({
                         ...formData,
                         username: formData.email.split('@')[0], // Backend requires username, use email prefix
-                        // Convert string numbers to actual numbers for backend validation
-                        age: parseInt(formData.age),
-                        height: parseFloat(formData.height),
-                        startWeight: parseFloat(formData.startWeight),
-                        targetWeight: parseFloat(formData.targetWeight)
+                        // Convert string numbers to actual numbers or null for backend validation
+                        age: formData.age ? parseInt(formData.age) : null,
+                        height: formData.height ? parseFloat(formData.height) : null,
+                        startWeight: formData.startWeight ? parseFloat(formData.startWeight) : null,
+                        targetWeight: formData.targetWeight ? parseFloat(formData.targetWeight) : null
                     }),
                 });
 
@@ -961,14 +991,15 @@ const Signup = () => {
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">목표체중</span>
-                                            <span className="stat-value">{formData.targetWeight} kg</span>
+                                            <span className="stat-value">{formData.targetWeight || '-'} kg</span>
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">변화</span>
                                             <span className="stat-value">
                                                 {(() => {
-                                                    const start = parseFloat(formData.startWeight || 0);
-                                                    const target = parseFloat(formData.targetWeight || 0);
+                                                    const start = parseFloat(formData.startWeight);
+                                                    const target = parseFloat(formData.targetWeight);
+                                                    if (isNaN(start) || isNaN(target)) return '-';
                                                     const diff = (target - start).toFixed(1);
                                                     const sign = diff > 0 ? '+' : '';
                                                     return `${sign}${diff}`;
@@ -1248,10 +1279,21 @@ const Signup = () => {
                                 <span className="field-label">시작 체중 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '400' }}>(인바디 기준)</span></span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={formData.startWeight}
-                                        disabled
-                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center', background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                                        onChange={(e) => handleInputChange('startWeight', e.target.value)}
+                                        disabled={!!formData.inbodyData?.["체중관리"]?.["체중"]}
+                                        style={{
+                                            width: '80px',
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #e2e8f0',
+                                            fontSize: '1rem',
+                                            textAlign: 'center',
+                                            backgroundColor: !!formData.inbodyData?.["체중관리"]?.["체중"] ? '#f1f5f9' : 'white',
+                                            color: !!formData.inbodyData?.["체중관리"]?.["체중"] ? '#64748b' : 'inherit',
+                                            cursor: !!formData.inbodyData?.["체중관리"]?.["체중"] ? 'not-allowed' : 'text'
+                                        }}
                                     />
                                     <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>
@@ -1260,7 +1302,7 @@ const Signup = () => {
                                 <span className="field-label">목표 체중</span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={formData.targetWeight}
                                         onChange={(e) => handleInputChange('targetWeight', e.target.value)}
                                         style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}

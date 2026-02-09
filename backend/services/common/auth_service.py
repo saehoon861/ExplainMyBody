@@ -48,28 +48,37 @@ class AuthService:
         # 1. 사용자 생성
         # UserSignupRequest inherits UserCreate, so valid for UserRepository
         new_user = UserRepository.create(db, signup_data)
-        
         try:
-            # 2. 초기 건강 기록 생성
-            measurements = signup_data.inbodyData or {}
-            
-            # 기본키 보장
-            if "기본정보" not in measurements:
-                measurements["기본정보"] = {}
-            if "체중관리" not in measurements:
-                measurements["체중관리"] = {}
-            
-            # 매뉴얼 입력값 덮어쓰기 (Step 3에서 입력한 값 등)
-            measurements["기본정보"]["신장"] = signup_data.height
-            measurements["기본정보"]["연령"] = signup_data.age
-            measurements["기본정보"]["성별"] = signup_data.gender
-            measurements["체중관리"]["체중"] = signup_data.startWeight
-            
-            # 체형 분석 수행 (inbodyData가 있을 경우)
-            body_type1 = None
-            body_type2 = None
+            # Determine effective starting weight (Priority: OCR > Manual)
+            effective_start_weight = signup_data.startWeight
             
             if signup_data.inbodyData:
+                measurements = signup_data.inbodyData
+                
+                # 기본키 보장 및 필드 추출
+                if "기본정보" not in measurements: measurements["기본정보"] = {}
+                if "체중관리" not in measurements: measurements["체중관리"] = {}
+                
+                ocr_weight = measurements["체중관리"].get("체중")
+                if ocr_weight:
+                    try:
+                        # OCR 데이터(또는 수정된 인바디 테이블 값)가 있으면 목표 시작체중으로 우선 사용
+                        effective_start_weight = float(str(ocr_weight).replace('kg', '').strip())
+                    except:
+                        pass
+                else:
+                    # OCR에 체중이 없으면 매뉴얼 입력값으로 보완
+                    measurements["체중관리"]["체중"] = signup_data.startWeight
+
+                # 신장, 연령, 성별도 OCR 데이터 우선, 없으면 매뉴얼 입력값으로 보안
+                if not measurements["기본정보"].get("신장"): measurements["기본정보"]["신장"] = signup_data.height
+                if not measurements["기본정보"].get("연령"): measurements["기본정보"]["연령"] = signup_data.age
+                if not measurements["기본정보"].get("성별"): measurements["기본정보"]["성별"] = signup_data.gender
+                
+                # 체형 분석 수행 (inbodyData가 있을 경우)
+                body_type1 = None
+                body_type2 = None
+                
                 try:
                     # InBodyData로 검증
                     validated_inbody_data = InBodyData(**signup_data.inbodyData)
@@ -101,13 +110,13 @@ class AuthService:
                 except Exception as e:
                     # 체형 분석 실패 → 체형 분석 없이 진행
                     print(f"⚠️ 체형 분석 실패, 인바디 데이터만 저장: {e}")
-            
-            health_record_data = HealthRecordCreate(
-                measurements=measurements,
-                source="signup",
-                measured_at=None
-            )
-            health_record = HealthRecordRepository.create(db, new_user.id, health_record_data)
+                
+                health_record_data = HealthRecordCreate(
+                    measurements=measurements,
+                    source="signup",
+                    measured_at=None
+                )
+                health_record = HealthRecordRepository.create(db, new_user.id, health_record_data)
             
             # # body_type 별도 컬럼에도 저장 (조회 편의용)
             # if body_type1 is not None or body_type2 is not None:
@@ -133,7 +142,7 @@ class AuthService:
             # DB 스키마 변경 없이 goal_description 컬럼(Text) 활용
             import json
             combined_description = {
-                "start_weight": signup_data.startWeight,
+                "start_weight": effective_start_weight,
                 "target_weight": signup_data.targetWeight,
                 "description": signup_data.goal if signup_data.goal else signup_data.goalType
             }

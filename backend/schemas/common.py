@@ -30,15 +30,15 @@ class EmailCheckRequest(BaseModel):
 class UserSignupRequest(UserCreate):
     """회원가입 요청 스키마 (확장)"""
     # 신체 정보
-    gender: str
-    age: int
-    height: float
+    gender: Optional[str] = "남성"
+    age: Optional[int] = None
+    height: Optional[float] = None
     # 인바디 데이터 (Step 2) - 선택 사항 (건너뛰기 가능할 수도 있음)
     inbodyData: Optional[Dict[str, Any]] = None
     inbodyImage: Optional[Any] = None # 이미지는 별도 처리하거나 URL로 받을 수 있음. 여기선 제외.
     # 목표 설정 (Step 3)
-    startWeight: float
-    targetWeight: float
+    startWeight: Optional[float] = None
+    targetWeight: Optional[float] = None
     goalType: str
     activityLevel: str
     preferredExercises: Optional[list[str]] = []
