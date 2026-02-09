@@ -119,6 +119,9 @@ class LLMService:
         self.analysis_agent = create_analysis_agent(self.llm_client)
         self.weekly_plan_agent = create_weekly_plan_agent(self.llm_client)
 
+    # LLM1: 건강 기록 분석 및 리포트 생성 - 데이터 준비 
+    # fixme : 단순히 input에 대해서 그대로 되돌려주고 있음. 
+    # 필요가 없음. health_service에서 처리해야함.
     def prepare_status_analysis_input(
         self,
         record_id: int,
@@ -126,7 +129,10 @@ class LLMService:
         measured_at: datetime,
         measurements: Dict[str, Any],
         body_type1: Optional[str],
-        body_type2: Optional[str]
+        body_type2: Optional[str],
+        prev_inbody_data: Optional[Dict[str, Any]] = None,
+        prev_inbody_date: Optional[datetime] = None,
+        interval_days: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         LLM1: 건강 상태 분석용 input 데이터 준비
@@ -138,10 +144,20 @@ class LLMService:
             measurements: 인바디 측정 데이터(체형 분류 포함)
             body_type1: 1차 체형 분류
             body_type2: 2차 체형 분류
+            prev_inbody_data: 이전 인바디 측정 데이터 (선택)
+            prev_inbody_date: 이전 인바디 측정 일시 (선택)
+            interval_days: 이전 InBody 측정 일시 (선택)
 
         Returns:
             LLM에 전달할 input 데이터 (프론트엔드에서 LLM API 호출 시 사용)
         """
+        print(f"\n[DEBUG][LLMService] prepare_status_analysis_input 호출")
+        print(f"[DEBUG][LLMService] prev_inbody_data is None: {prev_inbody_data is None}")
+        print(f"[DEBUG][LLMService] prev_inbody_date is None: {prev_inbody_date is None}")
+        print(f"[DEBUG][LLMService] interval_days is None: {interval_days is None}")
+        if prev_inbody_data:
+            print(f"[DEBUG][LLMService] prev_inbody_data 키: {list(prev_inbody_data.keys())[:5]}...")
+        
         return {
             "record_id": record_id,
             "user_id": user_id,
@@ -149,6 +165,9 @@ class LLMService:
             "measurements": measurements,
             "body_type1": body_type1,
             "body_type2": body_type2,
+            "prev_inbody_data": prev_inbody_data,
+            "prev_inbody_date": prev_inbody_date,
+            "interval_days": interval_days
         }
 
     def prepare_goal_plan_input(
@@ -196,6 +215,7 @@ class LLMService:
     # 아래는 팀원이 LLM API 연동 시 구현할 메서드들
     # =====================================================
 
+    # LLM1: 건강 기록 분석 및 리포트 생성 - LLM 호출
     async def call_status_analysis_llm(
         self,
         input_data: StatusAnalysisInput
@@ -218,8 +238,22 @@ class LLMService:
         config = {"configurable": {"thread_id": thread_id}}
         print(f"\n[DEBUG][call_status_analysis_llm] 생성된 thread_id: {thread_id}")
         print(f"[DEBUG][call_status_analysis_llm] user_id: {input_data.user_id}, record_id: {input_data.record_id}")
+        
+        # 🔍 중요: agent에 전달하기 전 input_data 검증
+        print(f"\n[DEBUG][call_status_analysis_llm] === Agent 호출 전 input_data 검증 ===")
+        print(f"[DEBUG][call_status_analysis_llm] input_data 타입: {type(input_data)}")
+        print(f"[DEBUG][call_status_analysis_llm] input_data.prev_inbody_data is None: {input_data.prev_inbody_data is None}")
+        print(f"[DEBUG][call_status_analysis_llm] input_data.prev_inbody_date is None: {input_data.prev_inbody_date is None}")
+        if input_data.prev_inbody_data:
+            print(f"[DEBUG][call_status_analysis_llm] ✅ prev_inbody_data 존재!")
+            print(f"[DEBUG][call_status_analysis_llm] prev_inbody_data 타입: {type(input_data.prev_inbody_data)}")
+            if isinstance(input_data.prev_inbody_data, dict):
+                print(f"[DEBUG][call_status_analysis_llm] prev_inbody_data 키 샘플: {list(input_data.prev_inbody_data.keys())[:3]}")
+        else:
+            print(f"[DEBUG][call_status_analysis_llm] ⚠️ prev_inbody_data 없음 (첫 인바디 또는 유실)")
 
         # 2. LangGraph 에이전트 호출 (최초 분석)
+        print(f"[DEBUG][call_status_analysis_llm] === Agent 호출 시작 ===")
         initial_state = self.analysis_agent.invoke(
             {"analysis_input": input_data},
             config=config
@@ -282,22 +316,36 @@ class LLMService:
             print(f"[DEBUG][chat_with_analysis] 🔄 DB Fallback 시작 (report_id={report_id})")
             try:
                 from repositories.llm.analysis_report_repository import AnalysisReportRepository
-                from models.health_record import HealthRecord
+                from repositories.common.health_record_repository import HealthRecordRepository
                 from services.llm.prompt_generator import create_inbody_analysis_prompt
                 from schemas.inbody import InBodyData as InBodyMeasurements
 
                 # 1. analysis_report에서 record_id 조회
                 analysis_report = AnalysisReportRepository.get_by_id(db, report_id)
                 if analysis_report and analysis_report.record_id:
-                    # 2. health_record에서 measurements 조회
-                    health_record = db.query(HealthRecord).filter(HealthRecord.id == analysis_report.record_id).first()
+                    # 2. health_record에서 measurements 조회 
+                    # 이때, 가장 최신의 두개의 인바디 데이터를 가져와야함
+                    # 단, 이전 인바디 데이터가 없을 경우를 대비해서 예외처리를 해야함
+                    health_record = HealthRecordRepository.get_by_id(db, analysis_report.record_id)
+                    
+                    # 이전 인바디 데이터 조회: 같은 사용자의 현재 기록보다 이전 측정 기록
+                    prev_health_record = None
+                    if health_record:
+                        prev_health_record = HealthRecordRepository.get_previous_record(
+                            db, health_record.user_id, health_record
+                        )
                     if health_record and health_record.measurements:
                         # 3. InBody 프롬프트 재생성
                         measurements = InBodyMeasurements(**health_record.measurements)
+                        prev_measurements = InBodyMeasurements(**prev_health_record.measurements) if prev_health_record else None
                         system_prompt, user_prompt = create_inbody_analysis_prompt(
                             measurements,
                             body_type1=getattr(health_record, 'body_type1', None),
-                            body_type2=getattr(health_record, 'body_type2', None)
+                            body_type2=getattr(health_record, 'body_type2', None),
+                            # 이전 인바디 데이터가 없을 경우를 대비해서 예외처리를 해야함
+                            prev_inbody_data=prev_measurements if prev_measurements else None,
+                            # 이전 인바디 데이터가 가장 최신의 인바디 데이터와 간격 계산
+                            interval_days=(health_record.created_at - prev_health_record.created_at).days if prev_health_record else None
                         )
                         initial_messages.append(("human", user_prompt))
                         print(f"[DEBUG][chat_with_analysis] ✅ InBody 데이터 복원 완료 (record_id={analysis_report.record_id})")

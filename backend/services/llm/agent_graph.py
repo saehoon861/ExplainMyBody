@@ -70,15 +70,42 @@ def create_analysis_agent(llm_client: BaseLLMClient):
             return {}
 
         print(f"[DEBUG][initial_analysis] user_id={analysis_input.user_id}, record_id={analysis_input.record_id}")
+        
+        # 이전 인바디 데이터 확인
+        print(f"\n[DEBUG][initial_analysis] === 이전 인바디 데이터 확인 ===")
+        print(f"[DEBUG][initial_analysis] analysis_input.prev_inbody_data is None: {analysis_input.prev_inbody_data is None}")
+        print(f"[DEBUG][initial_analysis] analysis_input.interval_days is None: {analysis_input.interval_days is None}")
+        if analysis_input.prev_inbody_data:
+            print(f"[DEBUG][initial_analysis] prev_inbody_data 타입: {type(analysis_input.prev_inbody_data)}")
+            if isinstance(analysis_input.prev_inbody_data, dict):
+                print(f"[DEBUG][initial_analysis] prev_inbody_data 키: {list(analysis_input.prev_inbody_data.keys())[:5]}...")
 
         # 1. InBodyMeasurements 모델로 변환 (prompt_generator가 요구하는 타입)
         measurements = InBodyMeasurements(**analysis_input.measurements)
+        
+        # 이전 인바디 데이터도 InBodyMeasurements 모델로 변환 (있는 경우)
+        prev_measurements = None
+        if analysis_input.prev_inbody_data:
+            try:
+                prev_measurements = InBodyMeasurements(**analysis_input.prev_inbody_data)
+                print(f"[DEBUG][initial_analysis] ✅ 이전 인바디 데이터 변환 성공")
+                print(f"[DEBUG][initial_analysis] prev 체중: {prev_measurements.체중관리.체중}kg")
+            except Exception as e:
+                print(f"[DEBUG][initial_analysis] ❌ 이전 인바디 데이터 변환 실패: {e}")
+        else:
+            print(f"[DEBUG][initial_analysis] ⚠️ 이전 인바디 데이터 없음")
 
         # 2. 프롬프트 생성 및 LLM 호출
+        print(f"\n[DEBUG][initial_analysis] === 프롬프트 생성 ===")
+        print(f"[DEBUG][initial_analysis] prev_measurements is None: {prev_measurements is None}")
+        print(f"[DEBUG][initial_analysis] interval_days: {analysis_input.interval_days}")
+        
         system_prompt, user_prompt = create_inbody_analysis_prompt(
             measurements,
             body_type1=analysis_input.body_type1,
-            body_type2=analysis_input.body_type2
+            body_type2=analysis_input.body_type2,
+            prev_inbody_data=prev_measurements,
+            interval_days=analysis_input.interval_days,
         )
         print(f"[DEBUG][initial_analysis] prompt ready, calling LLM...")
         response = llm_client.generate_chat(system_prompt, user_prompt)

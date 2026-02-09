@@ -129,7 +129,9 @@ class StatusAnalysisInput(BaseModel):
     measurements: Dict[str, Any]
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
-    previous_analysis_result: Optional[str] = None
+    prev_inbody_data: Optional[Dict[str, Any]] = None  # 이전 InBody 측정 데이터
+    prev_inbody_date: Optional[datetime] = None  # 이전 InBody 측정 일시 (하위 호환성)
+    interval_days: Optional[str] = None  # 이전 InBody와의 간격 (일 단위, 문자열)
 
 
 class GoalPlanInput(BaseModel):

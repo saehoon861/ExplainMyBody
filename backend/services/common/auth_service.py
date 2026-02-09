@@ -11,6 +11,10 @@ from repositories.common.health_record_repository import HealthRecordRepository
 from repositories.llm.user_detail_repository import UserDetailRepository
 from schemas.common import UserCreate, UserLogin, UserSignupRequest, HealthRecordCreate
 from schemas.llm import UserDetailCreate
+from schemas.inbody import InBodyData
+from schemas.body_type import BodyTypeAnalysisInput
+from services.ocr.body_type_service import BodyTypeService
+from pydantic import ValidationError
 from exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
@@ -61,12 +65,56 @@ class AuthService:
             measurements["기본정보"]["성별"] = signup_data.gender
             measurements["체중관리"]["체중"] = signup_data.startWeight
             
+            # 체형 분석 수행 (inbodyData가 있을 경우)
+            body_type1 = None
+            body_type2 = None
+            
+            if signup_data.inbodyData:
+                try:
+                    # InBodyData로 검증
+                    validated_inbody_data = InBodyData(**signup_data.inbodyData)
+                    
+                    # InBodyData에서 체형 분석에 필요한 필드만 추출하여 입력 생성
+                    body_type_service = BodyTypeService()
+                    body_type_input = BodyTypeAnalysisInput.from_inbody_data(
+                        inbody=validated_inbody_data,
+                        muscle_seg=validated_inbody_data.부위별근육분석.model_dump(),
+                        fat_seg=validated_inbody_data.부위별체지방분석.model_dump()
+                    )
+                    
+                    # 체형 분석 실행 (stage2, stage3 결과 반환)
+                    body_type_result = body_type_service.get_full_analysis(body_type_input)
+                    
+                    if body_type_result:
+                        body_type1 = body_type_result.stage2  # 1차 체형 분류
+                        body_type2 = body_type_result.stage3  # 2차 체형 분류
+                        print(f"✅ 회원가입 체형 분석 완료: {body_type1}, {body_type2}")
+                        
+                        # measurements에 체형 분석 결과 추가
+                        measurements["body_type1"] = body_type1
+                        measurements["body_type2"] = body_type2
+                
+                except ValidationError as e:
+                    # 체형 분석 필수 필드 누락 → 체형 분석 없이 진행
+                    print(f"⚠️ 체형 분석 필수 필드 누락, 인바디 데이터만 저장: {e}")
+                
+                except Exception as e:
+                    # 체형 분석 실패 → 체형 분석 없이 진행
+                    print(f"⚠️ 체형 분석 실패, 인바디 데이터만 저장: {e}")
+            
             health_record_data = HealthRecordCreate(
                 measurements=measurements,
                 source="signup",
                 measured_at=None
             )
-            HealthRecordRepository.create(db, new_user.id, health_record_data)
+            health_record = HealthRecordRepository.create(db, new_user.id, health_record_data)
+            
+            # # body_type 별도 컬럼에도 저장 (조회 편의용)
+            # if body_type1 is not None or body_type2 is not None:
+            #     health_record.body_type1 = body_type1
+            #     health_record.body_type2 = body_type2
+            #     db.commit()
+            #     db.refresh(health_record)
             
             # 3. 사용자 목표/상세정보 생성
             preferences_list = []
@@ -92,7 +140,6 @@ class AuthService:
             
             detail_data = UserDetailCreate(
                 goal_type=signup_data.goalType,
-                # target_weight=signup_data.targetWeight, # DB 컬럼 없음
                 goal_description=json.dumps(combined_description, ensure_ascii=False),
                 preferences=preferences_str,
                 health_specifics=medical_str,

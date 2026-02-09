@@ -215,14 +215,8 @@ async def validate_and_save_inbody(
     )
     health_record = health_service.create_health_record(db, user_id, record_data)
     
-    # Step 5: body_type 별도 컬럼에도 저장 (조회 편의용)
-    if body_type1 is not None or body_type2 is not None:
-        health_record.body_type1 = body_type1
-        health_record.body_type2 = body_type2
-        db.commit()
-        db.refresh(health_record)
-    
     return health_record
+
 
 
 
