@@ -147,6 +147,14 @@ class HealthService:
             status_analysis_result = status_analysis.llm_output
             status_analysis_id = status_analysis.id
 
+        # user_profile 생성 (rule_based_prompts에서 사용)
+        user_profile = {
+            "body_type1": health_record.measurements.get('body_type1', '알 수 없음'),
+            "body_type2": health_record.measurements.get('body_type2', '표준형'),
+            "health_specifics": "",  # 추후 user_details 테이블에서 가져오기
+            "preferences": ""  # 추후 user_details 테이블에서 가져오기
+        }
+
         # LLM input 데이터 준비
         input_data = self.llm_service.prepare_goal_plan_input(
             user_goal_type=user_goal_type,
@@ -158,6 +166,9 @@ class HealthService:
             status_analysis_result=status_analysis_result,
             status_analysis_id=status_analysis_id
         )
+
+        # user_profile 추가
+        input_data["user_profile"] = user_profile
 
         return GoalPlanPrepareResponse(
             success=True,

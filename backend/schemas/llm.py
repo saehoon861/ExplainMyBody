@@ -148,6 +148,9 @@ class GoalPlanInput(BaseModel):
     status_analysis_id: Optional[int] = None
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    user_profile: Optional[Dict[str, Any]] = None  # rule_based_prompts용 프로필 정보
+    available_days_per_week: Optional[int] = 5  # 주당 운동 가능 일수
+    available_time_per_session: Optional[int] = 60  # 회당 운동 시간 (분)
 
 
 class GoalPlanRequest(BaseModel):
