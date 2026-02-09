@@ -430,6 +430,186 @@ body {
     font-weight: 600;
 }
 
+/* Tutorial Overlay */
+.tutorial-overlay {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tutorial-panel {
+    width: min(560px, 92vw);
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+    font-family: inherit;
+}
+
+.tutorial-step {
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1f2937;
+    background: #e5e7eb;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}
+
+.tutorial-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+}
+
+.tutorial-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #1f2937;
+    font-size: 1rem;
+}
+
+.tutorial-list li::before {
+    content: '✍';
+    margin-right: 8px;
+}
+
+.tutorial-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.tutorial-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    color: #111827;
+    margin-bottom: 10px;
+}
+
+.tutorial-checkbox input {
+    width: 16px;
+    height: 16px;
+    accent-color: #111827;
+}
+
+.tutorial-next {
+    background: #111827;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.tutorial-hint {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.tutorial-nav-bubbles {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 96px;
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+    padding: 0 10px;
+    z-index: 1503;
+    pointer-events: none;
+}
+
+.tutorial-bubble {
+    position: relative;
+    max-width: 170px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    text-align: center;
+    line-height: 1.2;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.tutorial-bubble::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #ffffff;
+}
+
+.tutorial-bottom-bar {
+    position: fixed;
+    bottom: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1503;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    padding: 8px 12px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+/* Tutorial spotlight */
+body[data-tutorial-step="1"] .tutorial-spotlight[data-tutorial-step="1"],
+body[data-tutorial-step="2"] .tutorial-spotlight[data-tutorial-step="2"],
+body[data-tutorial-step="3"] .bottom-nav.fixed-nav {
+    position: relative;
+    z-index: 1502;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65), 0 0 0 3px rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+}
+
+@media (max-width: 768px) {
+    .tutorial-panel {
+        padding: 16px 16px;
+    }
+    .tutorial-title {
+        font-size: 1.05rem;
+    }
+    .tutorial-list {
+        font-size: 0.95rem;
+    }
+    .tutorial-nav-bubbles {
+        bottom: 86px;
+    }
+    .tutorial-bubble {
+        max-width: 120px;
+        font-size: 0.78rem;
+        padding: 6px 8px;
+    }
+    .tutorial-bottom-bar {
+        bottom: 140px;
+    }
+}
+
 /* Chatbot Styles */
 .chatbot-container {
     display: flex;

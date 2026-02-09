@@ -1,6 +1,7 @@
-import { useState, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import { canUseHaptics, softTap } from './utils/haptics';
 
 // Pages - Static Loading (Critical Path)
 import Login from './pages/Auth/Login';
@@ -28,6 +29,31 @@ import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import './styles/App.css';
 
 function App() {
+  useEffect(() => {
+    if (!canUseHaptics()) return;
+
+    let lastTapAt = 0;
+    const onPointerDown = (e) => {
+      const target = e.target;
+      if (!target?.closest) return;
+
+      const el = target.closest(
+        'button, [role="button"], a, input[type="button"], input[type="submit"], .haptic'
+      );
+      if (!el) return;
+      if (el.closest('[data-haptic="off"], .no-haptic')) return;
+      if (el.disabled || el.getAttribute('aria-disabled') === 'true') return;
+
+      const now = Date.now();
+      if (now - lastTapAt < 120) return;
+      lastTapAt = now;
+      softTap();
+    };
+
+    document.addEventListener('pointerdown', onPointerDown, { passive: true });
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
   // PWA 로딩 화면: 세션당 한 번만 표시 (새로고침 또는 앱 재시작시)
   const [showSplash, setShowSplash] = useState(() => {
     // sessionStorage를 사용하여 세션당 한 번만 표시

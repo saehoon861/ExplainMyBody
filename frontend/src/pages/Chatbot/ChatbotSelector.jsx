@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, X, TrendingUp, Activity, Zap, FileText, AlertCircle, Loader2, Lock } from 'lucide-react';
 import '../../styles/LoginLight.css';
-import { getUserHealthRecords } from '../../services/inbodyService';
+import { getUserHealthRecords, getAnalysisByRecord } from '../../services/inbodyService';
 import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
 import LoadingAnimation from '../../components/common/LoadingAnimation';
 
@@ -36,6 +36,7 @@ const ChatbotSelector = () => {
     // OCR 검사 안내 팝업 (OCR 데이터가 없을 때)
     const [showNoDataPopup, setShowNoDataPopup] = useState(false);
     const [latestInbodyData, setLatestInbodyData] = useState(null);
+    const [hasAnalysisReport, setHasAnalysisReport] = useState(false); // 분석 보고서 존재 여부
     const [isLoading, setIsLoading] = useState(false);
     // 팝업 타입 상태 ('ocr': OCR 안내, 'guide': 분석가 안내)
     const [popupType, setPopupType] = useState('ocr');
@@ -50,9 +51,11 @@ const ChatbotSelector = () => {
             if (USE_MOCK_DATA) {
                 // 테스트: 데이터 있음 (잠금 해제)
                 setLatestInbodyData(MOCK_INBODY_DATA);
+                setHasAnalysisReport(true); // 목업에서는 분석 완료로 간주
 
                 // 테스트: 데이터 없음 (잠금 확인용)
                 // setLatestInbodyData(null);
+                // setHasAnalysisReport(false);
 
                 setIsLoading(false);
                 return;
@@ -63,10 +66,21 @@ const ChatbotSelector = () => {
 
             setIsLoading(true);
             try {
-
                 const records = await getUserHealthRecords(userData.id, 1);
                 if (records && records.length > 0) {
                     setLatestInbodyData(records[0]);
+
+                    // 분석 보고서 존재 여부 확인
+                    try {
+                        const analysisReport = await getAnalysisByRecord(records[0].id);
+                        setHasAnalysisReport(!!analysisReport);
+                        console.log('분석 보고서 존재:', !!analysisReport);
+                    } catch (error) {
+                        console.error('분석 보고서 확인 실패:', error);
+                        setHasAnalysisReport(false);
+                    }
+                } else {
+                    setHasAnalysisReport(false);
                 }
             } catch (error) {
                 console.error('인바디 데이터 로드 실패:', error);
@@ -78,11 +92,33 @@ const ChatbotSelector = () => {
         loadInbodyData();
     }, []);
 
-    const handleBotClick = (botId) => {
+    // 흔들림 효과가 적용된 봇 ID 관리
+    const [shakingBotId, setShakingBotId] = useState(null);
+
+    const handleBotClick = async (botId) => {
+        // Workout Planner 잠금 체크: 목업 모드가 아니고, 분석 보고서가 없으면 잠김
+        if (botId === 'workout-planner' && !USE_MOCK_DATA && !hasAnalysisReport) {
+            // 흔들림 애니메이션 트리거
+            setShakingBotId(botId);
+            setTimeout(() => setShakingBotId(null), 500);
+
+            // 안내 팝업 표시
+            if (!latestInbodyData) {
+                // 데이터조차 없으면 가이드 팝업
+                setPopupType('guide');
+                setShowNoDataPopup(true);
+            } else {
+                // 데이터는 있지만 분석을 안 했으면 분석 유도
+                setPopupType('guide');
+                setShowNoDataPopup(true);
+            }
+            return;
+        }
+
         // 데이터가 없는 경우 처리 (목업 모드 제외)
         if (!latestInbodyData && !USE_MOCK_DATA) {
             if (botId === 'workout-planner') {
-                // 운동 플래너 클릭 시 -> "인바디 분석 전문가 먼저 이용하세요" 안내
+                // 이 부분은 위에서 처리되지만, 안전장치로 유지
                 setPopupType('guide');
                 setShowNoDataPopup(true);
                 return;
@@ -98,7 +134,23 @@ const ChatbotSelector = () => {
             // 데이터가 있으면 인바디 정보 팝업 표시
             setShowInbodyPopup(true);
         } else if (botId === 'workout-planner') {
-            // 운동 플래너: 팝업 무조건 표시 (저장된 정보 있으면 read-only로 보여줌)
+            // 운동 플래너: 인바디 분석이 완료되었는지 먼저 확인 (중복 체크지만 유지)
+            if (!USE_MOCK_DATA && latestInbodyData) {
+                try {
+                    const analysisReport = await getAnalysisByRecord(latestInbodyData.id);
+                    if (!analysisReport) {
+                        setPopupType('guide');
+                        setShowNoDataPopup(true);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('분석 보고서 확인 실패:', error);
+                    setPopupType('guide');
+                    setShowNoDataPopup(true);
+                    return;
+                }
+            }
+            // 분석이 완료되었으면 팝업 표시
             setShowExercisePopup(true);
         } else {
             // 그 외 (예비용)
@@ -350,12 +402,14 @@ const ChatbotSelector = () => {
                 margin: '0 auto'
             }}>
                 {bots.map((bot, index) => {
-                    // workout-planner인 경우 데이터 없으면 잠김 처리 (목업 모드 제외)
-                    const isLocked = bot.id === 'workout-planner' && !latestInbodyData && !USE_MOCK_DATA;
+                    // workout-planner인 경우 분석 보고서가 없으면 잠김 (목업 모드 제외)
+                    const isLocked = bot.id === 'workout-planner' && !USE_MOCK_DATA && !hasAnalysisReport;
+                    const isShaking = shakingBotId === bot.id;
 
                     return (
                         <div
                             key={bot.id}
+                            className={isShaking ? 'shake' : ''}
                             onClick={() => handleBotClick(bot.id)}
                             style={{
                                 background: 'rgba(255, 255, 255, 0.9)',
@@ -580,7 +634,7 @@ const ChatbotSelector = () => {
                                 marginBottom: '8px',
                                 letterSpacing: '-0.03em'
                             }}>
-                                현재 인바디 분석 결과
+                                현재 내 인바디 수치
                             </h2>
                             <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
                                 {new Date(latestInbodyData.created_at).toLocaleDateString('ko-KR', {
@@ -883,7 +937,7 @@ const ChatbotSelector = () => {
                                 }}
                             >
                                 <FileText size={20} />
-                                인바디 검사하러 가기
+                                다음에 분석하기
                             </button>
                         ) : (
                             <button
