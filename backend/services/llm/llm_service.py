@@ -28,6 +28,9 @@ class LLMService:
         self.analysis_agent = create_analysis_agent(self.llm_client)
         self.weekly_plan_agent = create_weekly_plan_agent(self.llm_client)
 
+    # LLM1: 건강 기록 분석 및 리포트 생성 - 데이터 준비 
+    # fixme : 단순히 input에 대해서 그대로 되돌려주고 있음. 
+    # 필요가 없음. health_service에서 처리해야함.
     def prepare_status_analysis_input(
         self,
         record_id: int,
@@ -37,7 +40,8 @@ class LLMService:
         body_type1: Optional[str],
         body_type2: Optional[str],
         prev_inbody_data: Optional[Dict[str, Any]] = None,
-        prev_inbody_date: Optional[datetime] = None
+        prev_inbody_date: Optional[datetime] = None,
+        interval_days: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         LLM1: 건강 상태 분석용 input 데이터 준비
@@ -51,6 +55,7 @@ class LLMService:
             body_type2: 2차 체형 분류
             prev_inbody_data: 이전 인바디 측정 데이터 (선택)
             prev_inbody_date: 이전 인바디 측정 일시 (선택)
+            interval_days: 이전 InBody 측정 일시 (선택)
 
         Returns:
             LLM에 전달할 input 데이터 (프론트엔드에서 LLM API 호출 시 사용)
@@ -58,6 +63,7 @@ class LLMService:
         print(f"\n[DEBUG][LLMService] prepare_status_analysis_input 호출")
         print(f"[DEBUG][LLMService] prev_inbody_data is None: {prev_inbody_data is None}")
         print(f"[DEBUG][LLMService] prev_inbody_date is None: {prev_inbody_date is None}")
+        print(f"[DEBUG][LLMService] interval_days is None: {interval_days is None}")
         if prev_inbody_data:
             print(f"[DEBUG][LLMService] prev_inbody_data 키: {list(prev_inbody_data.keys())[:5]}...")
         
@@ -70,6 +76,7 @@ class LLMService:
             "body_type2": body_type2,
             "prev_inbody_data": prev_inbody_data,
             "prev_inbody_date": prev_inbody_date,
+            "interval_days": interval_days
         }
 
     def prepare_goal_plan_input(
@@ -117,6 +124,7 @@ class LLMService:
     # 아래는 팀원이 LLM API 연동 시 구현할 메서드들
     # =====================================================
 
+    # LLM1: 건강 기록 분석 및 리포트 생성 - LLM 호출
     async def call_status_analysis_llm(
         self,
         input_data: StatusAnalysisInput

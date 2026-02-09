@@ -17,6 +17,7 @@ from schemas.llm import (
 )
 from services.ocr.body_type_service import BodyTypeService
 from services.llm.llm_service import LLMService
+from services.llm.parse_utils import split_analysis_response
 from typing import Optional, Dict, Any
 
 
@@ -164,7 +165,7 @@ class HealthService:
             input_data=GoalPlanInput(**input_data)
         )
 
-
+    # LLM1: 건강 기록 분석 및 리포트 생성
     async def analyze_health_record(
         self,
         db: Session,
@@ -195,8 +196,6 @@ class HealthService:
         
         if existing_report:
             # 기존 리포트도 summary와 content로 분리하여 반환
-            from services.llm.parse_utils import split_analysis_response
-            
             response = AnalysisReportResponse.model_validate(existing_report)
             parsed = split_analysis_response(existing_report.llm_output)
             response.summary = parsed["summary"]
@@ -217,7 +216,7 @@ class HealthService:
             body_type1=health_record.measurements.get('body_type1'),
             body_type2=health_record.measurements.get('body_type2'),
             prev_inbody_data=prev_health_record.measurements if prev_health_record else None,
-            prev_inbody_date=prev_health_record.created_at if prev_health_record else None
+            interval_days=str((health_record.created_at - prev_health_record.created_at).days) if prev_health_record else None
         )
         
         # 4. LLM 호출
@@ -230,21 +229,10 @@ class HealthService:
             embedding_data = llm_result.get("embedding") or {}
             embedding_1536 = embedding_data.get("embedding_1536")
             embedding_1024 = embedding_data.get("embedding_1024")
-        except NotImplementedError:
-             # LLM 서비스가 아직 구현되지 않았을 경우 Mock 데이터 사용
-            llm_output = f"""
-[건강 상태 분석 결과]
-측정일: {health_record.measured_at.strftime('%Y-%m-%d')}
-체중: {health_record.measurements.get('weight', 'N/A')}kg
-골격근량: {health_record.measurements.get('skeletal_muscle_mass', 'N/A')}kg
-체지방률: {health_record.measurements.get('body_fat_percentage', 'N/A')}%
-
-현재 건강 상태는 전반적으로 양호합니다. 
-꾸준한 운동과 식단 관리를 통해 현재 상태를 유지하는 것을 권장합니다.
-"""
-            thread_id = None
-            embedding_1536 = None
-            embedding_1024 = None
+        except Exception as e:
+            # LLM 호출 실패 시 에러 로깅 및 재발생
+            print(f"[ERROR][HealthService] LLM 호출 실패: {str(e)}")
+            raise Exception(f"건강 기록 분석 중 오류가 발생했습니다: {str(e)}") from e
 
         # 5. 분석 리포트 저장
         report_data = AnalysisReportCreate(
@@ -266,7 +254,6 @@ class HealthService:
         
         # LLM1 출력 결과를 요약과 전문으로 분리 (프론트엔드 표시용)
         # 프론트엔드에서 요약만 먼저 보여주고, 전문은 접었다가 펼칠 수 있도록 함
-        from services.llm.parse_utils import split_analysis_response
         parsed = split_analysis_response(llm_output)
         response.summary = parsed["summary"]
         response.content = parsed["content"]
