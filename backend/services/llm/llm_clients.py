@@ -18,6 +18,11 @@ class BaseLLMClient(ABC):
         pass
 
     @abstractmethod
+    async def agenerate_chat(self, system_prompt: str, user_prompt: str, key: str) -> dict:
+        """비동기 채팅 생성 (병렬 처리용)"""
+        pass
+
+    @abstractmethod
     def create_embedding(self, text: str) -> List[float]:
         """임베딩 생성"""
         pass
@@ -50,7 +55,7 @@ class OpenAIClient(BaseLLMClient):
     def generate_chat_with_history(self, system_prompt: str, messages: List[Tuple[str, str]]) -> str:
         # LangGraph 메시지 튜플 (role, content)을 OpenAI 포맷으로 변환
         formatted_messages = [{"role": "system", "content": system_prompt}]
-        
+
         for role, content in messages:
             # role 매핑: human/user -> user, ai/assistant -> assistant
             openai_role = "user" if role in ["human", "user"] else "assistant"
@@ -62,6 +67,21 @@ class OpenAIClient(BaseLLMClient):
             temperature=0.7,
         )
         return response.choices[0].message.content
+
+    async def agenerate_chat(self, system_prompt: str, user_prompt: str, key: str) -> dict:
+        """비동기 채팅 생성 (병렬 처리용)"""
+        response = await self.async_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+        )
+        return {
+            "key": key,
+            "content": response.choices[0].message.content
+        }
 
     def create_embedding(self, text: str) -> List[float]:
         # text-embedding-3-small 모델 사용 (1536차원)

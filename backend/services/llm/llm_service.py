@@ -380,8 +380,8 @@ class LLMService:
 
 
 
-        # 2. LangGraph 에이전트 호출
-        initial_state = self.weekly_plan_agent.invoke(
+        # 2. LangGraph 에이전트 호출 (비동기 노드 사용하므로 ainvoke 사용)
+        initial_state = await self.weekly_plan_agent.ainvoke(
             {"plan_input": input_data},
             config=config
         )
