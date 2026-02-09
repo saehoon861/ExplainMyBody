@@ -36,46 +36,101 @@ async def generate_initial_plan_concurrently(state: PlanState, llm_client) -> di
     Node: 주간 계획 초안 병렬 생성
     4개의 LLM Call(요약, 운동, 식단, 라이프스타일)을 동시에 실행하여 결과를 취합합니다.
     """
+    print("\n" + "="*80)
+    print("--- [DEBUG] generate_initial_plan_concurrently 함수 진입 ---")
     print("--- LLM2: 주간 계획 생성 (병렬 실행) ---")
+    print(f"--- [DEBUG] state 타입: {type(state)}")
+    print(f"--- [DEBUG] llm_client 타입: {type(llm_client)}")
+    print("="*80 + "\n")
+
     plan_input = state["plan_input"]
+    print(f"--- [DEBUG] plan_input 추출 완료: {type(plan_input)}")
 
     # InBody 데이터 모델 변환
     measurements = InBodyMeasurements(**plan_input.measurements)
+    print(f"--- [DEBUG] measurements 변환 완료: {type(measurements)}")
+
     user_profile = plan_input.user_profile if hasattr(plan_input, 'user_profile') else {}
+    print(f"--- [DEBUG] user_profile: {user_profile}")
 
     # --- 4가지 프롬프트 생성 ---
-    prompts = {
-        "summary": create_summary_prompt(
+    print("--- [DEBUG] 4가지 프롬프트 생성 시작 ---")
+    prompts = {}
+
+    try:
+        print("--- [DEBUG] summary 프롬프트 생성 중... ---")
+        prompts["summary"] = create_summary_prompt(
             goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "workout": create_workout_prompt(
+        )
+        print(f"--- [DEBUG] summary 프롬프트 생성 완료: {type(prompts['summary'])} ---")
+    except Exception as e:
+        print(f"--- [ERROR] summary 프롬프트 생성 실패: {type(e).__name__}: {str(e)} ---")
+        raise
+
+    try:
+        print("--- [DEBUG] workout 프롬프트 생성 중... ---")
+        prompts["workout"] = create_workout_prompt(
             goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "diet": create_diet_prompt(
+        )
+        print(f"--- [DEBUG] workout 프롬프트 생성 완료: {type(prompts['workout'])} ---")
+    except Exception as e:
+        print(f"--- [ERROR] workout 프롬프트 생성 실패: {type(e).__name__}: {str(e)} ---")
+        raise
+
+    try:
+        print("--- [DEBUG] diet 프롬프트 생성 중... ---")
+        prompts["diet"] = create_diet_prompt(
             goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "lifestyle": create_lifestyle_prompt(
+        )
+        print(f"--- [DEBUG] diet 프롬프트 생성 완료: {type(prompts['diet'])} ---")
+    except Exception as e:
+        print(f"--- [ERROR] diet 프롬프트 생성 실패: {type(e).__name__}: {str(e)} ---")
+        raise
+
+    try:
+        print("--- [DEBUG] lifestyle 프롬프트 생성 중... ---")
+        prompts["lifestyle"] = create_lifestyle_prompt(
             goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-    }
+        )
+        print(f"--- [DEBUG] lifestyle 프롬프트 생성 완료: {type(prompts['lifestyle'])} ---")
+    except Exception as e:
+        print(f"--- [ERROR] lifestyle 프롬프트 생성 실패: {type(e).__name__}: {str(e)} ---")
+        raise
+
+    print(f"--- [DEBUG] 모든 프롬프트 생성 완료, 총 {len(prompts)}개 ---")
 
     # --- LLM 비동기 호출 태스크 생성 ---
+    print("--- [DEBUG] LLM 비동기 태스크 생성 시작 ---")
     tasks = []
     for key, (system_prompt, user_prompt) in prompts.items():
+        print(f"--- [DEBUG] 태스크 생성 중: {key}")
         task = llm_client.agenerate_chat(system_prompt, user_prompt, key)
+        print(f"--- [DEBUG] 태스크 타입: {type(task)}")
         tasks.append(task)
+    print(f"--- [DEBUG] 총 {len(tasks)}개 태스크 생성 완료")
 
     # --- 모든 LLM 호출을 병렬로 실행 ---
-    results = await asyncio.gather(*tasks)
+    print("--- [DEBUG] asyncio.gather() 호출 시작 ---")
+    try:
+        results = await asyncio.gather(*tasks)
+        print(f"--- [DEBUG] asyncio.gather() 완료, 결과 개수: {len(results)}")
+    except Exception as e:
+        print(f"--- [ERROR] asyncio.gather() 실패: {type(e).__name__}: {str(e)}")
+        raise
 
     # 결과를 딕셔너리로 재구성
+    print("--- [DEBUG] 결과 재구성 시작 ---")
     plan_results = {res['key']: res['content'] for res in results}
+    print(f"--- [DEBUG] plan_results keys: {list(plan_results.keys())}")
+
     summary_result = plan_results.get("summary", "주간 목표 요약 생성에 실패했습니다.")
     workout_result = plan_results.get("workout", "운동 계획 생성에 실패했습니다.")
     diet_result = plan_results.get("diet", "식단 계획 생성에 실패했습니다.")
     lifestyle_result = plan_results.get("lifestyle", "생활 습관 및 동기부여 메시지 생성에 실패했습니다.")
+    print("--- [DEBUG] 4가지 결과 추출 완료")
 
     # --- 최종 결과 포맷팅 ---
+    print("--- [DEBUG] 최종 응답 포맷팅 시작 ---")
     combined_response = f"""### 📝 주간 목표 핵심 전략
 {summary_result}
 
@@ -93,12 +148,20 @@ async def generate_initial_plan_concurrently(state: PlanState, llm_client) -> di
 """
 
     # 사용자 프롬프트는 생략하고 AI 응답만 반환
-    return {"messages": [("ai", combined_response)]}
+    print(f"--- [DEBUG] combined_response 길이: {len(combined_response)} characters")
+    result = {"messages": [("ai", combined_response)]}
+    print(f"--- [DEBUG] 반환 결과 타입: {type(result)}")
+    print("--- [DEBUG] generate_initial_plan_concurrently 함수 정상 종료 ---\n")
+    return result
 
 
 # --- 3. 그래프 생성 ---
 def create_weekly_plan_agent(llm_client):
     """주간 계획 생성 및 수정을 위한 에이전트 그래프 생성"""
+    print("\n" + "="*80)
+    print("--- [DEBUG] create_weekly_plan_agent 함수 호출됨 ---")
+    print(f"--- [DEBUG] llm_client 타입: {type(llm_client)}")
+    print("="*80 + "\n")
 
     # --- 2. 노드 정의 ---
     def _generate_feedback_response(state: PlanState, category_name: str, system_prompt: str) -> dict:
@@ -193,58 +256,87 @@ def create_weekly_plan_agent(llm_client):
 
     def route_feedback(state: PlanState) -> str:
         """사용자 피드백 카테고리에 따른 라우팅"""
+        print("\n" + "="*80)
         print("--- [DEBUG] route_feedback function called ---")
         category = state.get("feedback_category")
         print(f"--- [DEBUG] Current State 'feedback_category': {category}")
+        print(f"--- [DEBUG] State type: {type(state)}")
+        print(f"--- [DEBUG] State keys: {list(state.keys()) if isinstance(state, dict) else 'N/A'}")
 
         if not category:
             # feedback_category가 없을 경우, 일반 Q&A 요청으로 간주
             # 기존 chat API 호출은 여기에 해당하며 qa_general 노드로 라우팅
             print("--- 라우팅: 피드백 카테고리 없음, 일반 Q&A (폴백) ---")
+            print("="*80 + "\n")
             return "qa_general" # 기존 chat API 호환성을 위해 qa_general로 바로 라우팅
 
         print(f"--- 라우팅: {category} ---")
         if category == "운동 플랜 조정" or category == "adjust_exercise_plan":
+            print("="*80 + "\n")
             return "adjust_exercise_plan"
         elif category == "식단 조정" or category == "adjust_diet_plan":
+            print("="*80 + "\n")
             return "adjust_diet_plan"
         elif category == "강도 조정" or category == "adjust_intensity":
+            print("="*80 + "\n")
             return "adjust_intensity"
         elif category == "최종 플랜으로 저장" or category == "finalize_plan":
+            print("="*80 + "\n")
             return "finalize_plan"
         else:
             # 정의되지 않은 카테고리의 경우에도 일반 Q&A로 처리
             print(f"--- 라우팅: 알 수 없는 카테고리 '{category}', 일반 Q&A로 처리 ---")
+            print("="*80 + "\n")
             return "qa_general"
 
+    print("--- [DEBUG] StateGraph 생성 ---")
     workflow = StateGraph(PlanState)
 
-    # 비동기 노드 추가 (lambda로 래핑)
-    workflow.add_node(
-        "initial_plan",
-        lambda state: generate_initial_plan_concurrently(state, llm_client)
-    )
+    # 비동기 노드 추가 (async wrapper 함수 사용)
+    print("--- [DEBUG] initial_plan 노드 추가 시작 ---")
+    print("--- [DEBUG] ✅ Async wrapper 함수 사용으로 LangGraph가 async를 올바르게 감지 ---")
+
+    async def _initial_plan_wrapper(state: PlanState) -> dict:
+        """Initial plan 노드를 위한 async wrapper"""
+        print("--- [DEBUG] _initial_plan_wrapper 호출됨 ---")
+        result = await generate_initial_plan_concurrently(state, llm_client)
+        print("--- [DEBUG] _initial_plan_wrapper 완료, 결과 반환 ---")
+        return result
+
+    print(f"--- [DEBUG] _initial_plan_wrapper 타입: {type(_initial_plan_wrapper)}")
+    workflow.add_node("initial_plan", _initial_plan_wrapper)
+    print("--- [DEBUG] initial_plan 노드 추가 완료 ---")
+    print("--- [DEBUG] 나머지 노드 추가 시작 ---")
     workflow.add_node("router", router)
     workflow.add_node("adjust_exercise_plan", adjust_exercise_plan)
     workflow.add_node("adjust_diet_plan", adjust_diet_plan)
     workflow.add_node("adjust_intensity", adjust_intensity)
     workflow.add_node("qa_general", qa_general)
     workflow.add_node("finalize_plan", finalize_plan)
+    print("--- [DEBUG] 모든 노드 추가 완료 ---")
 
     def decide_entry_point(state: PlanState) -> str:
         """진입점 결정 로직: 첫 실행(메시지 없음)이면 initial_plan, 아니면 router"""
+        print("\n" + "="*80)
+        print("--- [DEBUG] decide_entry_point 호출됨 ---")
         messages = state.get("messages", [])
         category = state.get("feedback_category")
+        print(f"--- [DEBUG] state keys: {list(state.keys())}")
+        print(f"--- [DEBUG] messages: {len(messages) if messages else 0}개")
+        print(f"--- [DEBUG] category: {category}")
 
         # 메시지가 있거나 피드백 카테고리가 있으면 이미 진행 중인 대화 -> 라우터
         if (messages and len(messages) > 0) or category:
             print(f"--- [DEBUG] 진입점 결정: Router (msgs={len(messages)}, cat={category}) ---")
+            print("="*80 + "\n")
             return "router"
 
         # 아무 기록도 없으면 초기 계획 생성
         print("--- [DEBUG] 진입점 결정: Initial Plan (첫 실행) ---")
+        print("="*80 + "\n")
         return "initial_plan"
 
+    print("--- [DEBUG] 조건부 진입점 설정 시작 ---")
     workflow.set_conditional_entry_point(
         decide_entry_point,
         {
@@ -252,8 +344,10 @@ def create_weekly_plan_agent(llm_client):
             "initial_plan": "initial_plan"
         }
     )
+    print("--- [DEBUG] 조건부 진입점 설정 완료 ---")
 
     # 초기 계획 생성 후 종료 (사용자 피드백 대기)
+    print("--- [DEBUG] 엣지 추가 시작 ---")
     workflow.add_edge("initial_plan", END)
 
     # 각 피드백 조정 후 종료 (Request/Response 모델이므로 턴 종료)
@@ -275,8 +369,14 @@ def create_weekly_plan_agent(llm_client):
 
     # 최종 노드에서 그래프 종료
     workflow.add_edge("finalize_plan", END)
+    print("--- [DEBUG] 모든 엣지 추가 완료 ---")
 
+    print("--- [DEBUG] MemorySaver 생성 ---")
     memory = MemorySaver()
 
     # interrupt_before 제거 (라우터 진입 시 멈추지 않고 즉시 실행)
-    return workflow.compile(checkpointer=memory)
+    print("--- [DEBUG] workflow.compile() 호출 시작 ---")
+    compiled_graph = workflow.compile(checkpointer=memory)
+    print("--- [DEBUG] workflow.compile() 완료 ---")
+    print("="*80 + "\n")
+    return compiled_graph

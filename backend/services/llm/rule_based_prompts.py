@@ -115,14 +115,16 @@ def _synthesize(goal_input: GoalPlanInput, user_profile: Dict[str, Any]) -> Dict
             health_prefer.extend(rule.get("prefer", []))
 
     # --- Goal 룰 수집 ---
+    # GOAL_RULES는 키워드 검증용 (감량, 증량, 유지, 재활)
+    # 실제 룰 데이터는 없으므로 빈 리스트 유지, goals 키워드만 LLM에 전달됨
     goal_diet_require, goal_diet_keep = [], []
     goal_training_require, goal_training_avoid = [], []
-    for g in goals:
-        rule = GOAL_RULES[g]
-        goal_diet_require.extend(rule["diet"].get("require", []))
-        goal_diet_keep.extend(rule["diet"].get("keep", []))
-        goal_training_require.extend(rule["training"].get("require", []))
-        goal_training_avoid.extend(rule["training"].get("avoid", []))
+    # for g in goals:
+    #     rule = GOAL_RULES[g]  # 빈 dict이므로 접근 불필요
+    #     goal_diet_require.extend(rule["diet"].get("require", []))
+    #     goal_diet_keep.extend(rule["diet"].get("keep", []))
+    #     goal_training_require.extend(rule["training"].get("require", []))
+    #     goal_training_avoid.extend(rule["training"].get("avoid", []))
 
     # --- 매칭 안된 값 수집 (룰 없이 그대로 LLM에 전달) ---
     # 이미 파싱된 결과와 원본 차이로 미매칭 항목 도출
