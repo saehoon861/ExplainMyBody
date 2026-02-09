@@ -114,7 +114,7 @@ class LLMService:
 
     def __init__(self):
         """LLM 에이전트 및 클라이언트 초기화"""
-        self.model_version = "gpt-4o-mini"  # 또는 설정에서 가져옴
+        self.model_version = "gpt-4.1"  # 또는 설정에서 가져옴
         self.llm_client = create_llm_client(self.model_version)
         self.analysis_agent = create_analysis_agent(self.llm_client)
         self.weekly_plan_agent = create_weekly_plan_agent(self.llm_client)

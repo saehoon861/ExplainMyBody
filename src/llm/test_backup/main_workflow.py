@@ -98,7 +98,7 @@ def main():
     # LLM 모델 선택
     parser.add_argument(
         "--model",
-        default="gpt-4o-mini",
+        default="gpt-4.1",
         help="Model name (ollama: qwen3:14b, claude: claude-3-5-sonnet-20241022, openai: gpt-4o-mini)"
     )
 

@@ -31,7 +31,7 @@ class BaseLLMClient(ABC):
 class OpenAIClient(BaseLLMClient):
     """OpenAI API 클라이언트"""
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4.1"):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = model

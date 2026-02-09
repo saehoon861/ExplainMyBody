@@ -10,7 +10,7 @@ from openai import OpenAI
 class OpenAIClient:
     """OpenAI API 클라이언트"""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini", max_tokens: int = 16384):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4.1", max_tokens: int = 16384):
         """
         OpenAI API 클라이언트 초기화
 

@@ -80,7 +80,7 @@ class ClaudeClient(BaseLLMClient):
 class OpenAIClient(BaseLLMClient):
     """OpenAI API Client"""
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4.1"):
         from openai import OpenAI
         self.model = model
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

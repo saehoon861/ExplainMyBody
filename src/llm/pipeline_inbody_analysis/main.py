@@ -26,7 +26,7 @@ load_dotenv()
 def run_inbody_analysis(
     user_id: int,
     measurements_dict: dict,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-4.1",
     db_url: str = None,
     source: str = "manual",
     enable_embedding: bool = False,
@@ -103,8 +103,8 @@ def main():
     # 선택적 인자
     parser.add_argument(
         "--model",
-        default="gpt-4o-mini",
-        help="LLM 모델 (gpt-4o-mini, claude-3-5-sonnet-20241022 등)",
+        default="gpt-4.1",
+        help="LLM 모델 (gpt-4.1, claude-3-5-sonnet-20241022 등)",
     )
     parser.add_argument("--db-url", default=None, help="데이터베이스 URL")
     parser.add_argument(

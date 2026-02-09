@@ -95,7 +95,7 @@ def main():
     parser.add_argument("--profile-id", type=int, help="Sample profile ID (1-10)")
     parser.add_argument(
         "--model",
-        default="gpt-4o-mini",
+        default="gpt-4.1",
         help="Model name"
     )
     parser.add_argument("--output-dir", default="outputs", help="Output directory")

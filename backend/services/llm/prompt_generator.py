@@ -31,10 +31,11 @@ def create_inbody_analysis_prompt(
     print(f"\n[DEBUG][PromptGenerator] create_inbody_analysis_prompt 호출")
     print(f"[DEBUG][PromptGenerator] prev_inbody_data is None: {prev_inbody_data is None}")
     print(f"[DEBUG][PromptGenerator] interval_days is None: {interval_days is None}")
-
+    # test를 위해서 interval_days를 10일로 설정
+    interval_days = "10"
     # 이전 인바디 데이터 포맷팅
     prev_inbody_text = "없음"
-    if prev_inbody_data:
+    if prev_inbody_data and interval_days:
         print(f"[DEBUG][PromptGenerator] ✅ 이전 인바디 데이터로 텍스트 생성 중...")
         prev_inbody_text = f"""
 이전 인바디 데이터와 간격 {interval_days}일
@@ -45,7 +46,9 @@ def create_inbody_analysis_prompt(
 - 변화 체지방량: {measurements.체성분.체지방 - prev_inbody_data.체성분.체지방} kg
 - 변화 복부지방률: {measurements.비만분석.복부지방률 - prev_inbody_data.비만분석.복부지방률}%
 """
+    
         print(f"[DEBUG][PromptGenerator] prev_inbody_text 생성 완료: {len(prev_inbody_text)} chars")
+        print(f"[DEBUG][PromptGenerator] prev_inbody_text: {prev_inbody_text}")
     else:
         print(f"[DEBUG][PromptGenerator] ⚠️ 이전 인바디 데이터 없음, '없음'으로 설정")
 
@@ -89,8 +92,12 @@ def create_inbody_analysis_prompt(
 
 
         ### [📊 이전 기록과의 변화]
-        (이전 기록 있으면 3~5줄 수치 비교 / 없으면 '이전 기록 없음')
-
+        이전 인바디 기록 정보: {prev_inbody_text}
+        - 이전 기록이 있으면 **3~5줄 이내**로 핵심 변화만 해석
+        - “이전보다 증가/감소”로 끝내지 말고
+        **이 변화가 의미하는 체성분 패턴**을 반드시 설명
+        - 이전 기록이 없으면:
+        → “이전 기록 없음” + 현재 상태가 **시작점으로서 어떤 의미인지** 설명
 
         ### [📈 개선사항 및 권장 행동]
         1. ...
@@ -128,9 +135,6 @@ def create_inbody_analysis_prompt(
         - 무례한 농담 금지
         - 유머는 "가볍고 긍정적인 동기부여" 수준만 허용
 
-        ---
-
-        이전 인바디 기록: {prev_inbody_text}
 
         """
 
@@ -147,10 +151,10 @@ def create_inbody_analysis_prompt(
     user_prompt_parts.append(f"- 신장: {measurements.기본정보.신장} cm")
     user_prompt_parts.append(f"- 체중: {measurements.체중관리.체중} kg")
 
-
-    # 인바디 이전 정보
-    user_prompt_parts.append("## 인바디 이전 정보")
-    user_prompt_parts.append(f"- 이전 인바디 기록: {prev_inbody_text}")
+    # 인바디 이전 정보 (데이터가 실제로 있을 때만 포함)
+    if prev_inbody_text != "없음":
+        user_prompt_parts.append("\n## ⚠️ 이전 인바디 기록과의 비교")
+        user_prompt_parts.append(prev_inbody_text)
 
 
     # 체성분

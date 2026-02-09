@@ -50,7 +50,7 @@ Table analysis_reports as AR {
   record_id integer [not null, ref: > HR.id, note: 'InBody 측정 ID (FK)']
   report_date timestamp [default: `now()`, note: '분석일시']
   llm_output text [not null, note: 'LLM 생성 분석 텍스트']
-  model_version varchar(100) [note: 'LLM 모델 (gpt-4o-mini, claude-3-5-sonnet, exaone3.5)']
+  model_version varchar(100) [note: 'LLM 모델 (gpt-4.1, claude-3-5-sonnet, exaone3.5)']
   embedding_1536 vector(1536) [note: 'OpenAI 임베딩 (1536차원)']
   embedding_1024 vector(1024) [note: 'Ollama bge-m3 임베딩 (1024차원)']
 

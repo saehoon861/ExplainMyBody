@@ -33,7 +33,7 @@ def run_weekly_plan_generation(
     preferences_dict: dict,
     week_number: int = 1,
     start_date: str = None,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-4.1",
     db_url: str = None,
     use_ollama_rag: bool = False,
 ) -> WeeklyPlanResponse:
@@ -109,7 +109,7 @@ def main():
     parser.add_argument("--week-number", type=int, default=1, help="주차 (기본: 1)")
     parser.add_argument("--start-date", type=str, help="시작 날짜 (YYYY-MM-DD)")
     parser.add_argument(
-        "--model", default="gpt-4o-mini", help="LLM 모델"
+        "--model", default="gpt-4.1", help="LLM 모델"
     )
     parser.add_argument("--db-url", default=None, help="데이터베이스 URL")
     parser.add_argument("--output-file", type=str, help="결과 저장 TXT 파일")
