@@ -1021,9 +1021,9 @@ const Chatbot = () => {
                                 key={cat.id}
                                 onClick={() => handleQuickReply(cat.value)}
                                 style={{
-                                    background: chatCategory === cat.id ? '#8b5cf6' : 'white',
-                                    color: chatCategory === cat.id ? 'white' : '#475569',
-                                    border: chatCategory === cat.id ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
+                                    background: chatCategory === cat.id ? '#ede9fe' : 'white',
+                                    color: chatCategory === cat.id ? '#6d28d9' : '#475569',
+                                    border: chatCategory === cat.id ? '2px solid #c4b5fd' : '1px solid #e2e8f0',
                                     borderRadius: '20px',
                                     padding: '8px 16px',
                                     fontSize: '0.85rem',

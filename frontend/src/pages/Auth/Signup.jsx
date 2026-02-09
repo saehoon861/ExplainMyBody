@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, User, Clock, Ruler, Camera } from 'lucide-react';
+import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, User, Clock, Ruler, Camera, Info } from 'lucide-react';
 import '../../styles/LoginLight.css';
 
 const Signup = () => {
@@ -549,6 +549,9 @@ const Signup = () => {
         const categoryData = formData.inbodyData?.[categoryKey];
         if (!categoryData) return null;
         const isSegmental = segmentalCategories.includes(categoryKey);
+        const missingCount = Object.values(categoryData).filter(
+            (value) => value === null || value === undefined || value === ''
+        ).length;
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -556,21 +559,29 @@ const Signup = () => {
                     <span className="section-bullet"></span>
                     <h4>{title}</h4>
                 </div>
+                {missingCount > 0 && (
+                    <div className="report-notice" style={{ marginTop: '10px' }}>
+                        <Info size={16} />
+                        <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                    </div>
+                )}
                 <div className="report-table">
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
                         <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
-                    {Object.entries(categoryData).map(([field, value]) => (
-                        <div className="table-row" key={field}>
+                    {Object.entries(categoryData).map(([field, value]) => {
+                        const isMissing = value === null || value === undefined || value === '';
+                        return (
+                        <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
                             <div className="row-label">{field}</div>
-                            <div className="row-value">
+                            <div className={`row-value ${isMissing ? 'missing' : ''}`}>
                                 {isSegmental ? (
                                     <select
                                         value={value || ''}
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                        className="segmental-select"
+                                        className={`segmental-select ${isMissing ? 'missing-input' : ''}`}
                                     >
                                         <option value="">선택</option>
                                         {segmentalOptions.map(option => (
@@ -583,12 +594,13 @@ const Signup = () => {
                                         value={value || ''}
                                         placeholder="-"
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className={isMissing ? 'missing-input' : ''}
                                     />
                                 )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         );
@@ -761,7 +773,7 @@ const Signup = () => {
                                                             style={{ marginTop: 0 }}
                                                             disabled={isProcessingOCR}
                                                         >
-                                                            분석 시작
+                                                            인바디 정보 인식
                                                         </button>
                                                     </div>
                                                 </div>
@@ -897,22 +909,40 @@ const Signup = () => {
                                                                 <div className="header-cell">결과값</div>
                                                                 <div className="header-cell">단위</div>
                                                             </div>
-                                                            {formData.inbodyData?.[reportSlides[reportSlideIndex].key] && Object.entries(formData.inbodyData[reportSlides[reportSlideIndex].key])
-                                                                .filter(([key]) => key !== "인바디점수")
-                                                                .map(([field, value]) => (
-                                                                    <div className="table-row" key={field}>
+                                                            {(() => {
+                                                                const categoryKey = reportSlides[reportSlideIndex].key;
+                                                                const data = formData.inbodyData?.[categoryKey];
+                                                                if (!data) return null;
+                                                                const entries = Object.entries(data).filter(([key]) => key !== "인바디점수");
+                                                                const missingCount = entries.filter(([, value]) => value === null || value === undefined || value === '').length;
+                                                                return (
+                                                                    <>
+                                                                        {missingCount > 0 && (
+                                                                            <div className="report-notice" style={{ marginTop: '10px' }}>
+                                                                                <Info size={16} />
+                                                                                <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                                                                            </div>
+                                                                        )}
+                                                                        {entries.map(([field, value]) => {
+                                                                            const isMissing = value === null || value === undefined || value === '';
+                                                                            return (
+                                                                            <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
                                                                         <div className="row-label">{field}</div>
-                                                                        <div className="row-value">
+                                                                        <div className={`row-value ${isMissing ? 'missing' : ''}`}>
                                                                             <input
                                                                                 type="text"
                                                                                 value={value || ''}
                                                                                 placeholder="-"
                                                                                 onChange={(e) => handleInbodyFieldChange(reportSlides[reportSlideIndex].key, field, e.target.value)}
+                                                                                className={isMissing ? 'missing-input' : ''}
                                                                             />
                                                                         </div>
                                                                         <div className="row-unit">{reportSlides[reportSlideIndex].units[field] || ''}</div>
                                                                     </div>
-                                                                ))}
+                                                                        )})}
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -1051,7 +1081,7 @@ const Signup = () => {
                         )}
                         {step < 4 ? (
                             <button type="button" className="login-button" onClick={handleNext}>
-                                {step === 2 && !formData.inbodyData ? '분석을 완료해주세요' : '다음'}
+                                {step === 2 && !formData.inbodyData ? '다음에 분석하기' : '다음'}
                                 <ArrowRight size={20} />
                             </button>
                         ) : (

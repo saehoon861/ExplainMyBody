@@ -12,9 +12,9 @@ const MainLayout = ({ children }) => {
 
     const navItems = [
         { path: '/dashboard', icon: Home, label: '홈' },
+        { path: '/inbody', icon: ClipboardList, label: '신체기록' },
         { path: '/chatbot', icon: MessageCircle, label: '챗봇' },
         { path: '/exercise-guide', icon: Dumbbell, label: '운동법' },
-        { path: '/inbody', icon: ClipboardList, label: '신체기록' },
         { path: '/profile', icon: User, label: '프로필' },
     ];
 
@@ -45,4 +45,3 @@ const MainLayout = ({ children }) => {
 };
 
 export default MainLayout;
-
