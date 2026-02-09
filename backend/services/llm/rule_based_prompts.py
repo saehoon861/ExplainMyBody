@@ -8,9 +8,9 @@ Rule-Based Prompt Generator
 """
 
 from typing import Tuple, Dict, Any, List, Optional
-from schemas_inbody import InBodyData as InBodyMeasurements
-from schemas import GoalPlanInput
-from rules import (
+from schemas.inbody import InBodyData as InBodyMeasurements
+from schemas.llm import GoalPlanInput
+from .rules import (
     BODY_TYPE1_RULES, BODY_TYPE2_RULES, HEALTH_RULES,
     GOAL_RULES, PREFERENCE_RULES, REHAB_RULES,
     EXERCISE_TYPE_LIST, EXERCISE_TYPE_RULES,

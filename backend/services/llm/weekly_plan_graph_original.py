@@ -1,4 +1,3 @@
-import asyncio
 from typing import TypedDict, Annotated, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -10,12 +9,7 @@ load_dotenv()
 from services.llm.llm_clients import create_llm_client
 from schemas.llm import GoalPlanInput
 from schemas.inbody import InBodyData as InBodyMeasurements
-from services.llm.rule_based_prompts import (
-    create_summary_prompt,
-    create_workout_prompt,
-    create_diet_prompt,
-    create_lifestyle_prompt,
-)
+from services.llm.prompt_generator import create_weekly_plan_prompt
 
 
 # --- 1. 상태 정의 ---
@@ -28,77 +22,26 @@ class PlanState(TypedDict):
     feedback_text: Optional[str]
 
 
-# --- 2. 병렬 비동기 초기 계획 생성 함수 ---
-async def generate_initial_plan_concurrently(state: PlanState, llm_client) -> dict:
-    """
-    Node: 주간 계획 초안 병렬 생성
-    4개의 LLM Call(요약, 운동, 식단, 라이프스타일)을 동시에 실행하여 결과를 취합합니다.
-    """
-    plan_input = state["plan_input"]
-
-    # InBody 데이터 모델 변환
-    measurements = InBodyMeasurements(**plan_input.measurements)
-    # GoalPlanInput에 user_profile이 포함되어 있다고 가정합니다.
-    user_profile = plan_input.user_profile if hasattr(plan_input, 'user_profile') else {}
-
-    # --- 4가지 프롬프트 생성 ---
-    prompts = {
-        "summary": create_summary_prompt(
-            goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "workout": create_workout_prompt(
-            goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "diet": create_diet_prompt(
-            goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-        "lifestyle": create_lifestyle_prompt(
-            goal_input=plan_input, measurements=measurements, rag_context="", user_profile=user_profile
-        ),
-    }
-
-    # --- LLM 비동기 호출 태스크 생성 ---
-    tasks = []
-    for key, (system_prompt, user_prompt) in prompts.items():
-        task = llm_client.agenerate_chat(system_prompt, user_prompt, key)
-        tasks.append(task)
-
-    # --- 모든 LLM 호출을 병렬로 실행 ---
-    results = await asyncio.gather(*tasks)
-
-    # 결과를 딕셔너리로 재구성
-    plan_results = {res['key']: res['content'] for res in results}
-    summary_result = plan_results.get("summary", "주간 목표 요약 생성에 실패했습니다.")
-    workout_result = plan_results.get("workout", "운동 계획 생성에 실패했습니다.")
-    diet_result = plan_results.get("diet", "식단 계획 생성에 실패했습니다.")
-    lifestyle_result = plan_results.get("lifestyle", "생활 습관 및 동기부여 메시지 생성에 실패했습니다.")
-
-    # --- 최종 결과 포맷팅 ---
-    combined_response = f"""### 📝 주간 목표 핵심 전략
-{summary_result}
-
-### 🏋️‍♀️ 요일별 운동 계획
-{workout_result}
-
-### 🍽️ 일일 식단 계획
-{diet_result}
-
-### 💡 생활 습관 및 동기부여
-{lifestyle_result}
-
----
-위 계획에 대해 궁금한 점이 있거나 수정을 원하시면 언제든지 말씀해주세요!
-"""
-
-    # 초기 사용자 질문을 "human" 메시지로 추가
-    initial_user_message = state["messages"][-1].content if state["messages"] and state["messages"][-1].type == "human" else "주간 계획을 만들어주세요."
-
-    return {"messages": [("human", initial_user_message), ("ai", combined_response)]}
-
-
 # --- 3. 그래프 생성 ---
 def create_weekly_plan_agent(llm_client):
     """주간 계획 생성 및 수정을 위한 에이전트 그래프 생성"""
+    
+    # --- 2. 노드 정의 ---
+    def generate_initial_plan(state: PlanState) -> dict:
+        """Node 1: 주간 계획 초안 생성"""
+        print("--- LLM2: 주간 계획 생성 ---")
+        plan_input = state["plan_input"]
+        
+        measurements = InBodyMeasurements(**plan_input.measurements)
+
+        system_prompt, user_prompt = create_weekly_plan_prompt(
+            goal_input=plan_input,
+            measurements=measurements
+        )
+
+        response = llm_client.generate_chat(system_prompt, user_prompt)
+        
+        return {"messages": [("human", user_prompt), ("ai", response)]}
 
     def _generate_feedback_response(state: PlanState, category_name: str, system_prompt: str) -> dict:
         """공통 피드백 기반 답변 생성 로직"""
@@ -110,22 +53,22 @@ def create_weekly_plan_agent(llm_client):
             # OpenAI API는 content가 None인 것을 허용하지 않으므로, None일 경우 빈 문자열로 변환합니다.
             content = msg.content if msg.content is not None else ""
             history.append((role, content))
-
+        
         feedback_text = state.get("feedback_text")
         if feedback_text:
             history.append(("user", feedback_text))
-
+        
         response = llm_client.generate_chat_with_history(
             system_prompt=system_prompt,
             messages=history
         )
-
+        
         # 피드백 처리 후 상태 초기화
         return {"messages": [("ai", response)], "feedback_category": None, "feedback_text": None}
 
     def adjust_exercise_plan(state: PlanState) -> dict:
         """Node 2-1: 운동 플랜 조정"""
-        system_prompt = """당신은 전문 트레이너입니다.
+        system_prompt = """당신은 전문 트레이너입니다. 
         사용자가 운동 플랜(일정, 종목, 분할 방식 등)의 조정을 요청했습니다.
         기존 계획과 사용자의 피드백을 바탕으로 수정된 **구체적인 전체 주간 운동 계획표**를 다시 제시해주세요.
         수정된 이유도 함께 설명하면 좋습니다."""
@@ -133,7 +76,7 @@ def create_weekly_plan_agent(llm_client):
 
     def adjust_diet_plan(state: PlanState) -> dict:
         """Node 2-2: 식단 조정"""
-        system_prompt = """당신은 영양 전문가입니다.
+        system_prompt = """당신은 영양 전문가입니다. 
         사용자가 식단 계획의 조정을 요청했습니다.
         기존 계획과 사용자의 피드백(기호, 알레르기, 상황 등)을 바탕으로 수정된 **구체적인 전체 주간 식단 계획표**를 다시 제시해주세요.
         칼로리와 영양 밸런스를 고려하여 조언해주세요."""
@@ -141,7 +84,7 @@ def create_weekly_plan_agent(llm_client):
 
     def adjust_intensity(state: PlanState) -> dict:
         """Node 2-3: 강도 조정"""
-        system_prompt = """당신은 전문 트레이너입니다.
+        system_prompt = """당신은 전문 트레이너입니다. 
         사용자가 운동 강도(무게, 횟수, 세트, 휴식 시간 등)의 조정을 요청했습니다.
         기존 계획과 사용자의 피드백을 바탕으로 강도를 높이거나 낮춘 **구체적인 전체 주간 운동 계획표**를 다시 제시해주세요.
         부상 방지를 위한 조언도 포함해주세요."""
@@ -153,7 +96,7 @@ def create_weekly_plan_agent(llm_client):
         사용자가 생성된 계획에 대해 질문하면, 전문적이고 친절하게 답변해주세요.
         이전 대화 맥락(사용자의 신체 정보, 목표, 생성된 계획)을 모두 고려해야 합니다."""
         return _generate_feedback_response(state, "일반 Q&A", system_prompt)
-
+    
     def router(state: PlanState) -> dict:
         """라우팅을 위한 빈 노드. 상태 변경 없음."""
         print("--- 라우터 진입 ---")
@@ -197,7 +140,7 @@ def create_weekly_plan_agent(llm_client):
 
     workflow = StateGraph(PlanState)
 
-    workflow.add_node("initial_plan", lambda state: generate_initial_plan_concurrently(state, llm_client))
+    workflow.add_node("initial_plan", generate_initial_plan)
     workflow.add_node("router", router)
     workflow.add_node("adjust_exercise_plan", adjust_exercise_plan)
     workflow.add_node("adjust_diet_plan", adjust_diet_plan)
@@ -209,12 +152,12 @@ def create_weekly_plan_agent(llm_client):
         """진입점 결정 로직: 첫 실행(메시지 없음)이면 initial_plan, 아니면 router"""
         messages = state.get("messages", [])
         category = state.get("feedback_category")
-
+        
         # 메시지가 있거나 피드백 카테고리가 있으면 이미 진행 중인 대화 -> 라우터
         if (messages and len(messages) > 0) or category:
             print(f"--- [DEBUG] 진입점 결정: Router (msgs={len(messages)}, cat={category}) ---")
             return "router"
-
+            
         # 아무 기록도 없으면 초기 계획 생성
         print("--- [DEBUG] 진입점 결정: Initial Plan (첫 실행) ---")
         return "initial_plan"
@@ -226,10 +169,10 @@ def create_weekly_plan_agent(llm_client):
             "initial_plan": "initial_plan"
         }
     )
-
+    
     # 초기 계획 생성 후 종료 (사용자 피드백 대기)
     workflow.add_edge("initial_plan", END)
-
+    
     # 각 피드백 조정 후 종료 (Request/Response 모델이므로 턴 종료)
     workflow.add_edge("adjust_exercise_plan", END)
     workflow.add_edge("adjust_diet_plan", END)
@@ -249,8 +192,8 @@ def create_weekly_plan_agent(llm_client):
 
     # 최종 노드에서 그래프 종료
     workflow.add_edge("finalize_plan", END)
-
+    
     memory = MemorySaver()
-
+    
     # interrupt_before 제거 (라우터 진입 시 멈추지 않고 즉시 실행)
     return workflow.compile(checkpointer=memory)
