@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft, Bot } from 'lucide-react';
+import { LogOut, Edit2, X, Scale, CalendarDays, Dumbbell, ChevronRight } from 'lucide-react';
 import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
+import Tutorial from '../../components/common/Tutorial';
 import '../../styles/LoginLight.css'; // 스타일 재사용
 
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
@@ -795,6 +795,9 @@ const Dashboard = () => {
 
     return (
         <div className="main-content">
+            {/* 튜토리얼 컴포넌트 */}
+            <Tutorial />
+
             <header className="dashboard-header">
                 <div className="header-top">
                     <h1>ExplainMyBody</h1>
@@ -807,7 +810,7 @@ const Dashboard = () => {
 
             {userData ? (
                 <div className="dashboard-hero-section fade-in">
-                    <div className="goal-overview-card">
+                    <div className="goal-overview-card tutorial-spotlight" data-tutorial-step="0" data-tutorial-anchor="1">
                         <div className="goal-header">
                             <span className="user-greeting">안녕하세요, {userData.email.split('@')[0]}님!</span>
                             <div className="header-actions">
@@ -848,49 +851,26 @@ const Dashboard = () => {
                         )}
                     </div>
 
-                    {/* 원형 프로그레스 목표 달성률 카드 */}
+                    {/* 동기부여 메시지 카드 */}
                     <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '24px' }}>
-                        <h3>🎯 목표 달성률</h3>
-                        {(() => {
-                            const currentWeight = userData.inbody_data?.weight || userData.start_weight || 0;
-                            const targetWeight = userData.target_weight || 0;
-                            const startWeight = userData.start_weight || 0;
-
-                            if (currentWeight && targetWeight && startWeight) {
-                                const totalChange = Math.abs(targetWeight - startWeight);
-                                const currentChange = Math.abs(currentWeight - startWeight);
-                                const progress = totalChange > 0 ? Math.min(Math.round((currentChange / totalChange) * 100), 100) : 0;
-
-                                // 응원 메시지
-                                let message = '';
-                                if (progress >= 100) message = '🎉 목표 달성! 정말 대단해요!';
-                                else if (progress >= 75) message = '🔥 거의 다 왔어요! 조금만 더!';
-                                else if (progress >= 50) message = '💪 절반 이상 달성! 잘하고 계세요!';
-                                else if (progress >= 25) message = '✨ 좋은 시작이에요! 꾸준히!';
-                                else message = '🌟 첫 걸음을 내딛었어요!';
-
-                                return (
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                        padding: '12px 16px',
-                                        borderRadius: '12px',
-                                        color: 'white',
-                                        textAlign: 'center',
-                                        fontWeight: 600,
-                                        fontSize: '0.95rem',
-                                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
-                                    }}>
-                                        {motivationMessage || message}
-                                    </div>
-                                );
-                            }
-                            return <p style={{ color: '#94a3b8', textAlign: 'center' }}>체중 데이터를 입력해주세요</p>;
-                        })()}
+                        <h3>🌿 오늘의 동기부여</h3>
+                        <div style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            color: 'white',
+                            textAlign: 'center',
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                        }}>
+                            {motivationMessage || '오늘도 한 걸음, 내일은 두 걸음!'}
+                        </div>
                     </div>
 
                     {/* 체중 변화 차트 카드 */}
-                    <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '16px' }}>
-                        <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="dashboard-card chart-card fade-in delay-2 tutorial-spotlight" style={{ marginTop: '16px' }}>
+                        <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }} data-tutorial-step="1">
                             <Scale size={18} /> 체중 변화 추이
                         </h4>
                         <div style={{ width: '100%', height: 220 }}>
@@ -938,7 +918,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* 2. 근육/체지방 분석 (Bar Chart) */}
-                        <div style={{ marginTop: '24px' }}>
+                        <div style={{ marginTop: '24px' }} data-tutorial-step="1-2">
                             <h4 style={{ fontSize: '1rem', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Dumbbell size={18} /> 근육 & 체지방 분석
                             </h4>
@@ -1224,7 +1204,7 @@ const Dashboard = () => {
                 </div>
             )}
 
-            <div className="quick-actions-grid fade-in delay-1">
+            <div className="quick-actions-grid fade-in delay-1 tutorial-spotlight" data-tutorial-anchor="2">
                 <div onClick={() => {
                     const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || 'null');
                     if (savedSettings && savedSettings.goal && savedSettings.preferences?.length > 0) {
@@ -1232,7 +1212,7 @@ const Dashboard = () => {
                     } else {
                         setIsExercisePopupOpen(true);
                     }
-                }} className="action-card primary" style={{ cursor: 'pointer' }}>
+                }} className="action-card primary" style={{ cursor: 'pointer' }} data-tutorial-step="3">
                     <div className="icon-box">
                         <CalendarDays size={24} />
                     </div>
@@ -1242,7 +1222,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }}>
+                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }} data-tutorial-step="4">
                     <div className="icon-box">
                         <Dumbbell size={24} />
                     </div>
@@ -1257,7 +1237,7 @@ const Dashboard = () => {
 
             {/* 건강 정보 카드뉴스 섹션 */}
             <div
-                className="section-title fade-in delay-3"
+                className="section-title fade-in delay-3 tutorial-spotlight"
                 onClick={() => setIsHealthTipsOpen(prev => !prev)}
                 style={{
                     marginTop: '32px',
@@ -1268,7 +1248,7 @@ const Dashboard = () => {
                     justifyContent: 'space-between'
                 }}
             >
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💡 건강 정보 & 팁</h3>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }} data-tutorial-step="5">💡 건강 정보 & 팁</h3>
                 <ChevronRight
                     size={20}
                     style={{

@@ -62,10 +62,10 @@ const Chatbot = () => {
     // - 운동 플래너: 주간계획/부위별/유산소/기타
     // ============================================
     const INBODY_CATEGORIES = [
-        { id: 'muscle', label: '💪 근육 분석', value: '💪 근육 상세 분석' },
-        { id: 'fat', label: '💧 체지방 분석', value: '💧 체지방 상세 분석' },
-        { id: 'balance', label: '⚖️ 균형/불균형', value: '⚖️ 균형/불균형 설명' },
-        { id: 'general', label: '❓ 기타 질문', value: '❓ 기타 질문' }
+        { id: 'summary', label: '🧾 인바디 종합의견 Q&A', value: '🧾 인바디 종합의견 Q&A' },
+        { id: 'compare', label: '📈 이전 인바디와 비교 Q&A', value: '📈 이전 인바디와 비교 Q&A' },
+        { id: 'improve', label: '🛠️ 개선 사항 Q&A', value: '🛠️ 개선 사항 Q&A' },
+        { id: 'general', label: '❓ 일반 Q&A', value: '❓ 일반 Q&A' }
     ];
 
     // 운동 플래너 카테고리
