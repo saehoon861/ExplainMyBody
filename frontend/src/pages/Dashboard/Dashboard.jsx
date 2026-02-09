@@ -67,13 +67,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
     const isLoss = targetWeight < startWeight;
     const actionText = isLoss ? '감량' : (targetWeight > startWeight ? '증량' : '유지');
 
-    // 마일스톤 정의
-    const milestones = [
-        { percent: 25, label: '시작', emoji: '🌱' },
-        { percent: 50, label: '절반', emoji: '⭐' },
-        { percent: 75, label: '거의', emoji: '🔥' },
-        { percent: 100, label: '완료', emoji: '🏆' }
-    ];
+
 
     // 다음 마일스톤 찾기
     const nextMilestone = milestones.find(m => m.percent > progress) || milestones[milestones.length - 1];
@@ -88,7 +82,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
         if (p >= 50) return '#6366f1'; // 파랑 - 절반 이상
         return '#818cf8'; // 연보라 - 시작
     };
-
+    //ㅇㅁㄴㅇ
     const progressColor = getProgressColor(progress);
 
     return (
@@ -869,8 +863,8 @@ const Dashboard = () => {
                     </div>
 
                     {/* 체중 변화 차트 카드 */}
-                    <div className="dashboard-card chart-card fade-in delay-2 tutorial-spotlight" style={{ marginTop: '16px' }}>
-                        <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }} data-tutorial-step="1">
+                    <div className="dashboard-card chart-card fade-in delay-2 tutorial-spotlight" data-tutorial-step="1" style={{ marginTop: '16px' }}>
+                        <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Scale size={18} /> 체중 변화 추이
                         </h4>
                         <div style={{ width: '100%', height: 220 }}>
@@ -1204,7 +1198,7 @@ const Dashboard = () => {
                 </div>
             )}
 
-            <div className="quick-actions-grid fade-in delay-1 tutorial-spotlight" data-tutorial-anchor="2">
+            <div className="quick-actions-grid fade-in delay-1 tutorial-spotlight" data-tutorial-step="2" data-tutorial-anchor="2">
                 <div onClick={() => {
                     const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || 'null');
                     if (savedSettings && savedSettings.goal && savedSettings.preferences?.length > 0) {
@@ -1212,7 +1206,7 @@ const Dashboard = () => {
                     } else {
                         setIsExercisePopupOpen(true);
                     }
-                }} className="action-card primary" style={{ cursor: 'pointer' }} data-tutorial-step="3">
+                }} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
                         <CalendarDays size={24} />
                     </div>
@@ -1222,7 +1216,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }} data-tutorial-step="4">
+                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
                         <Dumbbell size={24} />
                     </div>
@@ -1238,6 +1232,7 @@ const Dashboard = () => {
             {/* 건강 정보 카드뉴스 섹션 */}
             <div
                 className="section-title fade-in delay-3 tutorial-spotlight"
+                data-tutorial-step="2"
                 onClick={() => setIsHealthTipsOpen(prev => !prev)}
                 style={{
                     marginTop: '32px',
@@ -1248,7 +1243,7 @@ const Dashboard = () => {
                     justifyContent: 'space-between'
                 }}
             >
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }} data-tutorial-step="5">💡 건강 정보 & 팁</h3>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💡 건강 정보 & 팁</h3>
                 <ChevronRight
                     size={20}
                     style={{
