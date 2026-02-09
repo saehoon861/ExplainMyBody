@@ -79,7 +79,7 @@ class UserGoalUpdateRequest(BaseModel):
     """목표 수정 요청 스키마 (UserDetail의 goal_description 팩킹용)"""
     start_weight: Optional[float] = None
     target_weight: Optional[float] = None
-    goal_type: Optional[list[str]] = None
+    goal_type: Optional[str] = None
     goal_description: Optional[str] = None
 
 
@@ -129,7 +129,9 @@ class StatusAnalysisInput(BaseModel):
     measurements: Dict[str, Any]
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
-    previous_analysis_result: Optional[str] = None
+    prev_inbody_data: Optional[Dict[str, Any]] = None  # 이전 InBody 측정 데이터
+    prev_inbody_date: Optional[datetime] = None  # 이전 InBody 측정 일시 (하위 호환성)
+    interval_days: Optional[str] = None  # 이전 InBody와의 간격 (일 단위, 문자열)
 
 
 class GoalPlanInput(BaseModel):
@@ -146,6 +148,9 @@ class GoalPlanInput(BaseModel):
     status_analysis_id: Optional[int] = None
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    user_profile: Optional[Dict[str, Any]] = None  # rule_based_prompts용 프로필 정보
+    available_days_per_week: Optional[int] = 5  # 주당 운동 가능 일수
+    available_time_per_session: Optional[int] = 60  # 회당 운동 시간 (분)
 
 
 class GoalPlanRequest(BaseModel):
@@ -240,7 +245,7 @@ class WeeklyPlanResponse(BaseModel):
 
 class AnalysisChatRequest(BaseModel):
     """분석/계획에 대한 대화 요청 (Human Feedback)"""
-    report_id: Optional[int] = None  # path param으로 받아서 body에서는 불필요
+    report_id: Optional[int] = None  # URL path에 이미 있으므로 Optional
     message: str
     thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
 
