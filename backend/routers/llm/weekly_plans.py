@@ -24,6 +24,8 @@ from repositories.llm.weekly_plan_repository import WeeklyPlanRepository
 from services.llm.weekly_plan_service import WeeklyPlanService
 from typing import List, Union
 from datetime import date
+from fastapi.responses import StreamingResponse
+
 # Note: 현재는 Service가 ValueError/Exception을 발생시킴
 # 향후 Service 레이어 개선 시 아래 예외들을 사용할 수 있음
 # from exceptions import WeeklyPlanNotFoundError, WeeklyPlanGenerationError
@@ -204,3 +206,62 @@ def delete_weekly_plan(plan_id: int, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="주간 계획을 찾을 수 없습니다.")
     return {"message": "주간 계획이 삭제되었습니다."}
+
+
+# ============================================================================
+#추가: 스트리밍 엔드포인트
+# ============================================================================  
+# NOTE:
+# 현재 프론트에서는 초기 생성 스트리밍을 사용하지 않음
+# (휴먼 피드백 전용 스트리밍 엔드포인트)
+
+@router.post("/stream", status_code=200)
+async def stream_weekly_plan(
+    user_id: int,
+    request: GenerateWeeklyPlanRequest,
+):
+    """
+    주간 계획 생성 (스트리밍 버전)
+    """
+    # ⚠️ DB, Repository, WeeklyPlanService 사용 안 함
+    # 👉 오늘 목표는 "스트림이 흐르는 것"뿐
+
+    async def event_generator():
+        async for chunk in weekly_plan_service.llm_service.stream_goal_plan_llm(
+            request.to_goal_plan_input(user_id=user_id)
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/plain; charset=utf-8"
+    )
+
+
+
+@router.post("/chat/stream")
+async def stream_chat_with_plan(
+    user_id: int,
+    request: ChatWeeklyPlanRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    주간 계획 휴먼 피드백 (스트리밍)
+    """
+    # 1. 플랜 존재 확인
+    plan = WeeklyPlanRepository.get_by_id(db, request.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="주간 계획을 찾을 수 없습니다.")
+
+    async def event_generator():
+        async for chunk in weekly_plan_service.llm_service.stream_chat_with_plan(
+            thread_id=request.thread_id,
+            user_message=request.message,
+            existing_plan=plan.plan_data.get("content") if plan.plan_data else None
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/plain"
+    )
