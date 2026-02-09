@@ -70,9 +70,9 @@ const Chatbot = () => {
 
     // 운동 플래너 카테고리
     const WORKOUT_CATEGORIES = [
-        { id: 'weekly', label: '📅 주간 계획', value: '주간 운동 계획 보여줘' },
-        { id: 'bodypart', label: '🏋️ 부위별 운동', value: '부위별 운동 추천해줘' },
-        { id: 'cardio', label: '🏃 유산소 운동', value: '유산소 운동 알려줘' },
+        { id: 'weekly', label: '📅 운동 플랜 조정', value: '운동 플랜 조정해줘' },
+        { id: 'bodypart', label: '🏋️ 식단 조정', value: '식단 조정해줘' },
+        { id: 'cardio', label: '🏃 운동 강도 조정', value: '운동 강도 조정해줘' },
         { id: 'general', label: '❓ 기타 질문', value: '❓ 기타 질문' }
     ];
 
@@ -375,6 +375,9 @@ const Chatbot = () => {
         // 빠른 응답 버튼 숨기기 (원한다면 유지할 수도 있음) -> 유저 요청으로 유지
         // setQuickReplies([]);
 
+        // [Debug] 요청 시작 로그
+        console.log("🚀 [Frontend Debug] sendMessage 시작:", { text, botType, currentUserId, planId, threadId });
+
         try {
             if (USE_MOCK_DATA) {
                 // 1. 카테고리 감지 및 상태 업데이트
@@ -512,35 +515,9 @@ const Chatbot = () => {
             // 실제 API 호출 (후속 대화)
             let endpoint = '';
             let bodyPayload = {};
-
-            if (botType === 'inbody-analyst') {
-                if (!reportId) throw new Error("분석 리포트 ID가 없습니다.");
-                endpoint = `/api/analysis/${reportId}/chat`;
-
-                // 기존 APIPayload Structure
-                bodyPayload = {
-                    message: text, // finalMessage construction logic below might need adjustment if we move it here, but let's keep it simple
-                    thread_id: threadId
-                };
-            } else if (botType === 'workout-planner') {
-                if (!planId) throw new Error("운동 플랜 ID가 없습니다.");
-                endpoint = `/api/weekly-plans/session?user_id=${currentUserId}`;
-
-                console.log("--- [DEBUG Frontend] sendMessage check ---");
-                console.log("Current chatCategory State:", chatCategory);
-
-                // Unified API Payload Structure
-                bodyPayload = {
-                    action: "chat",
-                    plan_id: planId,
-                    thread_id: threadId,
-                    message: text,
-                    feedback_category: chatCategory
-                };
-            }
+            let isStreaming = false; // 스트리밍 여부
 
             // 카테고리 정보가 있다면 메시지에 포함 (UI엔 표시 안 함, 백엔드 전송용)
-            // 주의: chatCategory는 ID값임 ('muscle', 'fat' 등). 라벨을 찾아서 보내주자.
             let finalMessage = text;
             const currentCategories = getCurrentCategories();
             const categoryObj = currentCategories.find(c => c.id === chatCategory);
@@ -548,13 +525,29 @@ const Chatbot = () => {
             if (categoryObj) {
                 // 사용자 요청대로 [Category: Label] 형식 추가
                 finalMessage = `[Category: ${categoryObj.label}] ${text}`;
+            }
 
-                // Payload update
-                if (botType === 'inbody-analyst') {
-                    bodyPayload.message = finalMessage;
-                } else {
-                    bodyPayload.message = finalMessage;
-                }
+            if (botType === 'inbody-analyst') {
+                if (!reportId) throw new Error("분석 리포트 ID가 없습니다.");
+                endpoint = `/api/analysis/${reportId}/chat`;
+
+                bodyPayload = {
+                    message: finalMessage,
+                    thread_id: threadId
+                };
+            } else if (botType === 'workout-planner') {
+                if (!planId) throw new Error("운동 플랜 ID가 없습니다.");
+                
+                // 스트리밍 엔드포인트 사용
+                endpoint = `/api/weekly-plans/chat/stream?user_id=${currentUserId}`;
+                isStreaming = true;
+
+                bodyPayload = {
+                    action: 'chat',
+                    plan_id: planId,
+                    thread_id: threadId,
+                    message: finalMessage
+                };
             }
 
             const res = await fetch(endpoint, {
@@ -564,17 +557,45 @@ const Chatbot = () => {
             });
 
             if (!res.ok) throw new Error("메시지 전송 실패");
-            const data = await res.json();
 
-            // data = { response: "...", thread_id: "..." }
+            if (isStreaming) {
+                setIsTyping(false); // 스트리밍 시작 시 타이핑 인디케이터 제거
+                
+                const botMessageId = Date.now() + 1;
+                setMessages(prev => [...prev, {
+                    id: botMessageId,
+                    text: '',
+                    sender: 'bot'
+                }]);
 
-            const botMessage = {
-                id: Date.now() + 1,
-                text: data.reply || data.response, // reply(요약) 또는 response(전체)
-                details: data.details, // 상세 내용
-                sender: 'bot'
-            };
-            setMessages(prev => [...prev, botMessage]);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    accumulatedText += chunk;
+
+                    setMessages(prev => prev.map(msg => 
+                        msg.id === botMessageId 
+                            ? { ...msg, text: accumulatedText }
+                            : msg
+                    ));
+                }
+            } else {
+                const data = await res.json();
+
+                const botMessage = {
+                    id: Date.now() + 1,
+                    text: data.reply || data.response, // reply(요약) 또는 response(전체)
+                    details: data.details, // 상세 내용
+                    sender: 'bot'
+                };
+                setMessages(prev => [...prev, botMessage]);
+            }
 
         } catch (error) {
             console.error('챗봇 응답 오류:', error);
