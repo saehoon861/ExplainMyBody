@@ -120,7 +120,7 @@ class WeeklyPlanService :
             end_date=next_monday + timedelta(days=6),
             plan_data={
                 "content": llm_response["plan_text"],
-                "raw_response": llm_response["plan_text,
+                "raw_response": llm_response["plan_text"],
                 "thread_id": thread_id # thread_id를 plan_data에 추가"]
             },
             model_version=self.llm_service.model_version
