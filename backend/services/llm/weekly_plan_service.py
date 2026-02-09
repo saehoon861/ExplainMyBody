@@ -91,7 +91,9 @@ class WeeklyPlanService :
             user_id=user_id,
             record_id=request_data.record_id,
             user_goal_type=request_data.user_goal_type,
-            user_goal_description=request_data.user_goal_description
+            user_goal_description=request_data.user_goal_description,
+            preferences=request_data.preferences,
+            health_specifics=request_data.health_specifics
         )
         
         if not prepared_response:

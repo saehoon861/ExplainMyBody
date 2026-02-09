@@ -239,7 +239,7 @@ def create_weekly_plan_prompt(
         (system_prompt, user_prompt)
     """
     system_prompt = """당신은 사용자의 건강 데이터와 목표를 분석하여 맞춤형 주간 운동 및 식단 계획을 수립하는 전문 퍼스널 트레이너입니다.
-사용자의 신체 상태(인바디), 목표, 그리고 이전 건강 분석 결과를 종합적으로 고려하여 실천 가능하고 효과적인 1주차 계획을 작성해주세요.
+사용자의 신체 상태(인바디), 목표, 선호도, 건강 관련 특이사항, 그리고 이전 건강 분석 결과를 종합적으로 고려하여 실천 가능하고 효과적인 주간 계획을 작성해주세요.
 
 ## 작성 지침
 1. **개인화**: 사용자의 체중, 근육량, 체지방률과 구체적인 목표를 반영하세요.
@@ -259,6 +259,10 @@ def create_weekly_plan_prompt(
     user_prompt_parts.append(f"# 사용자 목표")
     user_prompt_parts.append(f"- 목표 유형: {goal_input.user_goal_type}")
     user_prompt_parts.append(f"- 상세 내용: {goal_input.user_goal_description}")
+
+    user_prompt_parts.append(f"\n# 사용자 선호도")
+    user_prompt_parts.append(f"- 선호 운동: {goal_input.preferences}")
+    user_prompt_parts.append(f"- 건강 관련 특이사항: {goal_input.health_specifics}")
     
     user_prompt_parts.append(f"\n# 신체 정보")
     user_prompt_parts.append(f"- 성별: {measurements.기본정보.성별}")

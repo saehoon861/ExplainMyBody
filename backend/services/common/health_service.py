@@ -113,7 +113,9 @@ class HealthService:
         user_id: int,
         record_id: int,
         user_goal_type: Optional[str] = None,
-        user_goal_description: Optional[str] = None
+        user_goal_description: Optional[str] = None,
+        preferences: Optional[dict] = None,
+        health_specifics: Optional[dict] = None
     ) -> Optional[GoalPlanPrepareResponse]:
         """
         LLM2: 주간 계획서 생성용 input 데이터 준비 (goal_plan)
@@ -127,6 +129,8 @@ class HealthService:
             record_id: 선택된 건강 기록 ID
             user_goal_type: 사용자 목표 타입
             user_goal_description: 사용자 목표 상세
+            preferences: 사용자 선호도
+            health_specifics: 건강 관련 특이사항
 
         Returns:
             GoalPlanPrepareResponse: LLM input 데이터
@@ -151,6 +155,8 @@ class HealthService:
         input_data = self.llm_service.prepare_goal_plan_input(
             user_goal_type=user_goal_type,
             user_goal_description=user_goal_description,
+            preferences=preferences,
+            health_specifics=health_specifics,
             record_id=health_record.id,
             user_id=health_record.user_id,
             measured_at=health_record.measured_at,

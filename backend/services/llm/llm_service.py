@@ -175,6 +175,8 @@ class LLMService:
         # 사용자 요구사항
         user_goal_type: Optional[str],
         user_goal_description: Optional[str],
+        preferences: Optional[dict],
+        health_specifics: Optional[dict],
         # 선택된 건강 기록
         record_id: int,
         user_id: int,
@@ -190,6 +192,8 @@ class LLMService:
         Args:
             user_goal_type: 사용자 목표 타입
             user_goal_description: 사용자 목표 상세
+            preferences: 사용자 선호도
+            health_specifics: 건강 관련 특이사항
             record_id: 선택된 건강 기록 ID
             user_id: 사용자 ID
             measured_at: 측정 일시
@@ -203,6 +207,8 @@ class LLMService:
         return {
             "user_goal_type": user_goal_type,
             "user_goal_description": user_goal_description,
+            "preferences": preferences,
+            "health_specifics": health_specifics,
             "record_id": record_id,
             "user_id": user_id,
             "measured_at": measured_at,
