@@ -5,7 +5,7 @@ rule_based_bodytype 로직 통합
 
 from typing import Dict, Any, Optional
 from schemas.body_type import BodyTypeAnalysisInput, BodyTypeAnalysisOutput
-from core.rule_based_bodytype.body_analysis.pipeline import BodyCompositionAnalyzer
+from services.rule_based_body_type.body_analysis.pipeline import BodyCompositionAnalyzer
 
 
 class BodyTypeService:
