@@ -12,7 +12,6 @@ ENV/
 
 # uv specific
 .uv/
-uv.lock
 
 # Python
 __pycache__/
