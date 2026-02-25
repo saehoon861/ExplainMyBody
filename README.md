@@ -5,8 +5,19 @@
 
 > **베타 버전**: 알파 버전에서 추가적으로 LangGraph를 활용한 피드백 루프 및 실시간 스트리밍이 적용되었음. 추가적인 기능 개선 준비 중.
 
+## 📺 서비스 시연 영상
+
+[![ExplainMyBody Demo Video](https://img.youtube.com/vi/KeJQ5dqiVMU/0.jpg)](https://www.youtube.com/watch?v=KeJQ5dqiVMU)
+
+*이미지를 클릭하면 시연 영상(유튜브)으로 이동합니다.*
+
+
 
 ## 주요 기능 (Beta 기준)
+
+![Project Architecture](docs/Readme_achitecture2.png)
+
+*서비스 아키텍쳐 구성도: 프론트엔드, 백엔드, DB와 핵심 서비스(OCR, LLM)의 구성을 나타냅니다.*
 
 ### 🔹 핵심기능
 
