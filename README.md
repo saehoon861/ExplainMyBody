@@ -34,7 +34,7 @@
 
 ## 📺 서비스 시연 영상
 
-[![ExplainMyBody Demo Video](https://img.youtube.com/vi/KeJQ5dqiVMU/0.jpg)](https://www.youtube.com/watch?v=KeJQ5dqiVMU)
+[![ExplainMyBody Demo Video](https://img.youtube.com/vi/bC3fKYiN2L0/0.jpg)](https://www.youtube.com/watch?v=bC3fKYiN2L0)
 
 *이미지를 클릭하면 시연 영상(유튜브)으로 이동합니다.*
 
