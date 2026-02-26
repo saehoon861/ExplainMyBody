@@ -11,15 +11,16 @@ class BasicInfo(BaseModel):
     """기본정보"""
     신장: float = Field(..., gt=50, lt=300, description="신장 (cm)")
     연령: int = Field(..., gt=0, lt=150, description="연령 (세)")
-    성별: str = Field(..., pattern="^(남성|여성|남|여)$", description="성별")
+    성별: str = Field(..., pattern="^(남성|여성|남|여|male|female|Male|Female)$", description="성별")
     
     @field_validator('성별')
     @classmethod
     def normalize_gender(cls, v: str) -> str:
-        """성별 정규화: 남/여 → 남성/여성"""
-        if v == "남":
+        """성별 정규화: 남/여/male/female → 남성/여성"""
+        v_low = v.lower()
+        if v == "남" or v_low == "male":
             return "남성"
-        elif v == "여":
+        elif v == "여" or v_low == "female":
             return "여성"
         return v
 

@@ -29,11 +29,27 @@ class OCRProcessingError(OCRServiceError):
     pass
 
 
+class OCRInvalidFileFormatError(OCRServiceError):
+    """지원하지 않는 파일 형식"""
+    pass
+
+
 class OCRValidationError(OCRServiceError):
     """OCR 데이터 검증 실패 (빈 필드 존재)"""
     def __init__(self, null_fields: dict):
         self.null_fields = null_fields
         super().__init__(f"OCR 데이터에 빈 필드가 존재합니다: {null_fields}")
+
+
+class OCRInsufficientDataError(OCRServiceError):
+    """OCR 데이터 추출 불충분 (절반 이상 누락)"""
+    def __init__(self, detected_count: int, total_count: int):
+        self.detected_count = detected_count
+        self.total_count = total_count
+        super().__init__(
+            f"추출된 데이터가 불충분합니다 ({detected_count}/{total_count}). "
+            "이미지가 흐릿하거나 일부만 촬영되었는지 확인해주세요."
+        )
 
 
 

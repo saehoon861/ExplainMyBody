@@ -83,6 +83,10 @@ backend/
     - 사용자는 여러 목표/상세 정보를 가질 수 있습니다 (현재 활성화된 목표는 하나).
 - **User (1) : (N) WeeklyPlan**
     - 한 명의 사용자는 여러 개의 주간 계획표를 생성할 수 있습니다.
+- **User (1) : (N) LLMInteraction**
+    - 한 명의 사용자는 여러 개의 LLM 상호작용 기록을 가집니다.
+- **LLMInteraction (1) : (N) HumanFeedback**
+    - 하나의 LLM 출력 결과에 대해 여러 개의 사용자 피드백이 존재할 수 있습니다.
 
 ---
 
@@ -146,128 +150,107 @@ backend/
 
 ## 📊 데이터 흐름 예시
 
-### 시나리오 1: OCR을 통한 인바디 등록 및 분석
+### 시나리오 1: OCR 인바디 등록 → 인바디 신체 분석
 ```
-1. 사용자가 인바디 이미지 업로드
-   POST /api/health-records/ocr
-   
-2. OCR 서비스가 데이터 추출
-   InBodyMatcher.extract_and_match()
-   
-3. 체형 분류 자동 실행
-   BodyCompositionAnalyzer.analyze_full_pipeline()
-   
-4. 건강 기록 저장 (체형 정보 포함)
-   HealthRecord 생성
-   
-5. 사용자가 분석 요청
-   POST /api/analysis/{record_id}
-   
-6. LLM이 상태 분석
-   LLMService.analyze_health_status()
-   
-7. 분석 리포트 저장 및 반환
-   InbodyAnalysisReport 생성
+1. 인바디 이미지 업로드 (프론트: InBodyAnalysis.jsx)
+   POST /api/health-records/ocr/extract
+   → PaddleOCR로 39개 신체 지표 추출, DB 저장 없이 JSON 반환
+
+2. 사용자가 OCR 결과 확인·수정 후 저장
+   POST /api/health-records/ocr/validate?user_id={id}
+   → Rule-based 체형 분석 자동 실행 후 health_records 저장
+
+3. 인바디 분석가 챗봇 진입 시 LLM1 분석 실행
+   POST /api/analysis/{record_id}?user_id={id}
+   → LangGraph로 상태 분석, inbody_analysis_reports 저장, thread_id 발급
+
+4. 인바디 분석가와 후속 대화
+   POST /api/analysis/{report_id}/chat
+   → thread_id 기반 멀티턴 맥락 유지
 ```
 
-### 시나리오 2: 목표 설정 및 주간 계획 생성
+### 시나리오 2: 주간 운동 계획 생성 및 조정
 ```
-1. 사용자가 목표/상세정보 생성 (UserDetail)
-   POST /api/goals/
-   body: { "goal_type": "다이어트", "goal_description": "3개월 내 5kg 감량" }
-   
-2. 주간 계획 생성 요청
-   POST /api/goals/plan/prepare
-   
-3. 최신 인바디 데이터 + 분석 결과 + 사용자 목표 조회
-   HealthRecordRepository.get_latest()
-   AnalysisReportRepository.get_by_record_id()
-   UserDetailRepository.create() (또는 조회)
-   
-4. LLM이 주간 계획 생성 (WeeklyPlan)
-   LLMService.generate_weekly_plan()
-   
-5. 주간 계획 저장
-   WeeklyPlan 생성
+1. 운동 플래너 진입 조건 확인 (LLM1 분석 완료 여부)
+   GET /api/analysis/record/{record_id}
+   → 분석 리포트 없으면 null 반환, 플래너 잠금
+
+2. 사용자가 목표·운동 선호도·특이사항 입력 후 계획 생성
+   POST /api/weekly-plans/session?user_id={id}
+   → LangGraph로 주간 운동·식단 계획 생성, weekly_plans 저장, plan_id + thread_id 발급
+
+3. 운동 플래너와 후속 대화 (실시간 스트리밍)
+   POST /api/weekly-plans/chat/stream?user_id={id}
+   → SSE 스트리밍으로 토큰 단위 응답, 계획 조정(강도·식단·플랜 수정 등)
 ```
 
 ---
 
 ## 주요 API 엔드포인트
 
-### 1. 🔐 인증 (`routers/common/auth.py`)
-- **담당**: 공통 (Common)
-- **Service**: `AuthService` (`services/common/auth_service.py`)
+> **⚠️ 주의**: 이 섹션은 **프론트엔드(`frontend/src/pages`, `frontend/src/services`)가 실제로 호출하는 URL**만 기재합니다.
+> 백엔드에 구현되어 있지만 프론트와 연결되지 않은 엔드포인트는 하단 [미사용 API](#-미사용-api-백엔드-구현-완료-프론트-미연결) 섹션을 참고하세요.
 
-| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/register` | 회원가입 | `AuthService.register`<br>→ `UserRepository` | **DB 생성**: `users` 테이블에 새 사용자 추가 |
-| **POST** | `/api/auth/login` | 로그인 | `AuthService.login`<br>→ `UserRepository` | **조회**: 이메일로 사용자 찾고 정보 반환 |
-| **GET** | `/api/auth/me` | 현재 유저 조회 | `AuthService.get_current_user`<br>→ `UserRepository` | **조회**: `user_id`로 사용자 정보 반환 |
-| **POST** | `/api/auth/logout` | 로그아웃 | `AuthService.logout` | **없음**: 클라이언트 측 로그아웃 처리용 |
+### 1. 🔐 인증 (`/api/auth`)
 
-### 2. 👤 사용자 (`routers/common/users.py`)
-- **담당**: 공통 (Common)
-- **Repo**: `UserRepository` (`repositories/common/user_repository.py`)
+| Method | URL | 설명 | 호출 위치 |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/register` | 새 사용자 계정 생성. 이메일·비밀번호·신체 정보·목표를 받아 `users` 테이블에 저장하고 생성된 사용자 정보를 반환 | `authService.js` → `Signup.jsx` |
+| **POST** | `/api/auth/login` | 이메일·비밀번호로 로그인. 매칭 성공 시 사용자 전체 정보(인바디 데이터 포함)를 반환하며, 클라이언트는 `localStorage`에 저장 | `authService.js` → `Login.jsx` |
 
-| Method | URL | 설명 | Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/users/{user_id}` | 특정 유저 조회 | `UserRepository.get_by_id` | **조회**: 해당 ID의 사용자 정보 반환 |
-| **GET** | `/api/users/` | 전체 유저 목록 | `UserRepository.get_all` | **조회**: 모든 사용자 목록 반환 (관리자용) |
-| **GET** | `/api/users/{user_id}/statistics` | 유저 통계 | `UserRepository`<br>`HealthRecordRepository`<br>`AnalysisReportRepository` | **조회**: 총 건강 기록 수, 총 리포트 수 집계하여 반환 |
-| **PUT** | `/api/users/{user_id}/goal` | 목표/체중 수정 | `UserDetailRepository.update` | **수정**: 목표 상세 내용 및 시작/목표 체중 업데이트 |
+### 2. 👤 사용자 (`/api/users`)
 
-### 3. 📝 건강 기록 (`routers/ocr/health_records.py`)
-- **담당**: OCR 팀
-- **Service**: `HealthService`, `OCRService`, `BodyTypeService`
+| Method | URL | 설명 | 호출 위치 |
+| :--- | :--- | :--- | :--- |
+| **PUT** | `/api/users/{user_id}/goal` | 사용자의 운동 목표(시작 체중, 목표 체중, 목표 타입, 세부 설명)를 수정하고 최신 사용자 정보를 반환 | `authService.js`, `Dashboard.jsx` |
 
-| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/health-records/ocr/extract` | **Step 1: OCR 추출** | `OCRService.extract_inbody_data` | **처리**: 이미지에서 텍스트 추출<br>**DB 변화 없음**: 원시 데이터 반환 (프론트 검증용) |
-| **POST** | `/api/health-records/ocr/validate` | **Step 2: 검증 및 저장** | `BodyTypeService.get_full_analysis`<br>`HealthService`<br>→ `HealthRecordRepository` | **처리**: 체형 분석 실행<br>**DB 생성**: `health_records`에 인바디+체형결과 저장 |
-| **POST** | `/api/health-records/` | 수동 입력 | `HealthService`<br>→ `HealthRecordRepository` | **DB 생성**: 직접 입력한 데이터 저장 |
-| **GET** | `/api/health-records/{record_id}` | 기록 상세 조회 | `HealthRecordRepository.get_by_id` | **조회**: 특정 건강 기록 반환 |
-| **GET** | `/api/health-records/user/{user_id}` | 유저 기록 목록 | `HealthRecordRepository.get_by_user` | **조회**: 해당 유저의 모든 기록 반환 |
-| **GET** | `/api/health-records/user/{user_id}/latest` | 최신 기록 조회 | `HealthRecordRepository.get_latest` | **조회**: 사용자의 가장 최신 건강 기록 반환 |
-| **GET** | `/api/health-records/{record_id}/analysis/prepare` | **LLM1 입력 준비** | `HealthService.prepare_status_analysis` | **처리**: LLM 분석에 필요한 포맷으로 데이터 가공하여 반환 |
+### 3. 📝 인바디 OCR (`/api/health-records`)
 
-### 4. 🧠 분석 (`routers/llm/analysis.py`)
-- **담당**: LLM 팀
-- **Service**: `HealthService`, `LLMService`
-- **Repo**: `AnalysisReportRepository` (Target: `InbodyAnalysisReport` Table)
+| Method | URL | 설명 | 호출 위치 |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/health-records/ocr/extract` | **[OCR Step 1]** 업로드된 인바디 이미지를 PaddleOCR로 분석해 39개 신체 지표를 JSON으로 추출. DB 저장 없이 원시 데이터만 반환 (프론트에서 사용자가 수정 가능) | `inbodyService.js`, `InBodyAnalysis.jsx` |
+| **POST** | `/api/health-records/ocr/validate?user_id=` | **[OCR Step 2]** 사용자가 검토·수정한 인바디 데이터를 최종 저장. 저장 전에 Rule-based 체형 분석(`body_type1`, `body_type2`)을 자동 실행하고 결과를 `health_records` 테이블에 함께 저장 | `inbodyService.js`, `InBodyAnalysis.jsx` |
+| **GET** | `/api/health-records/user/{user_id}?limit=` | 사용자의 인바디 기록 목록을 최신순으로 조회. `limit` 파라미터로 개수 제한 가능 (기본 20개) | `inbodyService.js`, `Dashboard.jsx`, `ChatbotSelector.jsx` |
 
-| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/analysis/{record_id}` | **상태 분석 실행** | `HealthService.analyze_health_record`<br>→ `LLMService`<br>→ `AnalysisReportRepository` | **처리**: LLM 호출하여 건강 상태 분석<br>**DB 생성**: `inbody_analysis_reports`에 분석 결과 저장 |
-| **GET** | `/api/analysis/{report_id}` | 리포트 조회 | `AnalysisReportRepository.get_by_id` | **조회**: 특정 리포트 내용 반환 |
-| **GET** | `/api/analysis/record/{record_id}` | 기록별 리포트 | `AnalysisReportRepository` | **조회**: 특정 건강 기록에 연결된 리포트 반환 |
-| **GET** | `/api/analysis/user/{user_id}` | 유저 리포트 목록 | `AnalysisReportRepository` | **조회**: 유저의 모든 리포트 반환 |
+### 4. 🤖 인바디 분석 챗봇(`/api/analysis`)
 
-### 5. 🎯 목표 (`routers/llm/goals.py`)
-- **담당**: LLM 팀
-- **Repo**: `UserDetailRepository` (Target: `UserDetail` Table), `AnalysisReportRepository`
+> **인바디 분석 전문가** 챗봇이 사용하는 엔드포인트입니다.
+> LangGraph 기반 상태 분석 워크플로우(`agent_graph.py`)로 동작하며, `inbody-analyst` 챗봇과 연결됩니다.
 
-> **Note**: 엔드포인트는 `/api/goals`를 유지하지만, 내부적으로 `UserDetail` 테이블을 사용하여 사용자의 목표 및 상세 정보를 관리합니다.
+| Method | URL | 설명 | 호출 위치 |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/analysis/{record_id}?user_id=` | **[LLM1 최초 분석]** 지정한 건강 기록 ID를 기반으로 LLM이 인바디 상태 분석을 수행. 이전 인바디 기록과 비교 분석 포함. 결과를 `inbody_analysis_reports` 테이블에 저장하고 요약(`summary`) + 전체 분석(`content`) + `thread_id` 반환 | `ChatbotSelector.jsx` (분석 버튼), `Chatbot.jsx` (inbody-analyst 초기화) |
+| **GET** | `/api/analysis/record/{record_id}` | 특정 건강 기록에 연결된 분석 리포트가 이미 존재하는지 확인. 운동 플래너 잠금 해제 조건 검사에 사용 (분석 미완료 시 null 반환) | `inbodyService.js`, `ChatbotSelector.jsx` |
+| **POST** | `/api/analysis/{report_id}/chat` | **[LLM1 후속 대화]** 분석 리포트 ID와 `thread_id`를 기반으로 인바디 관련 후속 질문에 답변. LangGraph 멀티턴 맥락 유지 | `Chatbot.jsx` (inbody-analyst 대화) |
 
-| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/goals/` | 목표/상세 생성 | `UserDetailRepository.create` | **DB 생성**: 새로운 `UserDetail` 저장 |
-| **POST** | `/api/goals/plan/prepare` | **LLM2 입력 준비** | `HealthService.prepare_goal_plan` | **처리**: 주간 계획 생성을 위한 LLM 입력 데이터 가공 반환<br>(HealthRecord + AnalysisReport + UserDetail 조합) |
-| **GET** | `/api/goals/user/{user_id}/active` | 활성 목표 조회 | `UserDetailRepository.get_active_details` | **조회**: 현재 진행 중인 목표 반환 |
-| **GET** | `/api/goals/user/{user_id}` | 전체 목표 조회 | `UserDetailRepository.get_all_details` | **조회**: 사용자의 모든 목표 히스토리 반환 |
-| **PATCH** | `/api/goals/{goal_id}` | 목표 수정 | `UserDetailRepository.update` | **DB 수정**: 목표 내용 업데이트 |
-| **DELETE** | `/api/goals/{goal_id}` | 목표 삭제 | `UserDetailRepository.delete` | **DB 삭제**: 목표 삭제 |
-| **POST** | `/api/goals/{goal_id}/complete` | 목표 완료 | `UserDetailRepository.update` | **DB 수정**: `ended_at`을 현재 시간으로 설정 |
+### 5. 🤖 주간 계획 작성 챗봇 (`/api/weekly-plans`)
 
-### 6. 📅 주간 계획 (`routers/llm/weekly_plans.py`)
-- **담당**: LLM 팀
-- **Repo**: `WeeklyPlanRepository` (Target: `WeeklyPlan` Table)
+> **운동 플래너 전문가** 챗봇이 사용하는 엔드포인트입니다.
+> LangGraph 기반 주간 계획 생성 워크플로우(`weekly_plan_graph.py`)로 동작하며, `workout-planner` 챗봇과 연결됩니다.
 
-| Method | URL | 설명 | Service / Repository | 결과 / DB 작업 |
-| :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/weekly-plans/` | 주간 계획 생성 | `WeeklyPlanRepository.create` | **DB 생성**: 새로운 주간 계획 저장 |
-| **GET** | `/api/weekly-plans/{plan_id}` | 특정 계획 조회 | `WeeklyPlanRepository.get_by_id` | **조회**: 특정 주간 계획 반환 |
-| **GET** | `/api/weekly-plans/user/{user_id}` | 사용자별 목록 조회 | `WeeklyPlanRepository.get_by_user` | **조회**: 사용자의 모든 주간 계획 반환 |
-| **GET** | `/api/weekly-plans/user/{user_id}/week/{week_number}` | 특정 주차 조회 | `WeeklyPlanRepository.get_by_week` | **조회**: 특정 주차의 계획 반환 |
-| **PATCH** | `/api/weekly-plans/{plan_id}` | 계획 수정 | `WeeklyPlanRepository.update` | **DB 수정**: 계획 내용 업데이트 |
-| **DELETE** | `/api/weekly-plans/{plan_id}` | 계획 삭제 | `WeeklyPlanRepository.delete` | **DB 삭제**: 계획 삭제 |
+| Method | URL | 설명 | 호출 위치 |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/weekly-plans/session?user_id=` | **[LLM2 최초 계획 생성]** 사용자 목표(`goal`), 운동 선호도(`preferences`), 건강 특이사항(`health_specifics`), 인바디 기록 ID를 받아 맞춤 주간 운동·식단 계획을 생성. 결과를 `weekly_plans` 테이블에 저장하고 `plan_id` + `thread_id` + 계획 내용 반환 | `ChatbotSelector.jsx` (플랜 생성 버튼), `Chatbot.jsx` (workout-planner 초기화) |
+| **POST** | `/api/weekly-plans/chat/stream?user_id=` | **[LLM2 후속 대화 - 스트리밍]** 운동 플랜 ID와 `thread_id`를 기반으로 계획 조정 요청(운동 강도, 식단, 플랜 수정 등)에 대해 **SSE(Server-Sent Events) 스트리밍**으로 토큰 단위 실시간 응답 | `Chatbot.jsx` (workout-planner 대화) |
+
+---
+
+## ⚠️ 미사용 API (백엔드 구현 완료, 프론트 미연결)
+
+아래 엔드포인트는 백엔드에 구현되어 있으나 현재 프론트엔드에서 호출하지 않습니다.
+
+| Method | URL | 비고 |
+| :--- | :--- | :--- |
+| **GET** | `/api/auth/me` | 현재 로그인 유저 조회 |
+| **POST** | `/api/auth/logout` | 로그아웃 (현재는 클라이언트 측에서 localStorage 삭제로 처리) |
+| **GET** | `/api/users/{user_id}` | 특정 유저 정보 조회 |
+| **GET** | `/api/users/` | 전체 유저 목록 (관리자용) |
+| **GET** | `/api/users/{user_id}/statistics` | 유저 통계 |
+| **POST** | `/api/health-records/` | 인바디 수동 입력 (OCR 없이 직접 저장) |
+| **GET** | `/api/health-records/{record_id}` | 건강 기록 단건 조회 |
+| **GET** | `/api/health-records/user/{user_id}/latest` | 최신 기록 1개 조회 |
+| **GET** | `/api/health-records/{record_id}/analysis/prepare` | LLM1 입력 데이터 가공 (내부 유틸) |
+| **GET** | `/api/analysis/{report_id}` | 분석 리포트 단건 조회 |
+| **GET** | `/api/analysis/user/{user_id}` | 유저별 리포트 목록 |
+| **POST/GET/PATCH/DELETE** | `/api/goals/*` | 목표 생성·조회·수정·삭제 전체 |
+| **GET/PATCH/DELETE** | `/api/weekly-plans/{plan_id}` 등 | 주간 계획 단건 CRUD |

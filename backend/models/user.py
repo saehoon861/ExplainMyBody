@@ -13,7 +13,7 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(255), unique=True, nullable=False)
+    username = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=True)  # 비밀번호 해시 (추후 인증 구현 시)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -23,6 +23,8 @@ class User(Base):
     inbody_analysis_reports = relationship("InbodyAnalysisReport", back_populates="user", cascade="all, delete-orphan")
     user_details = relationship("UserDetail", back_populates="user", cascade="all, delete-orphan")
     weekly_plans = relationship("WeeklyPlan", back_populates="user", cascade="all, delete-orphan")
+    llm_interactions = relationship("LLMInteraction", back_populates="user", cascade="all, delete-orphan")
+    human_feedback_received = relationship("HumanFeedback", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

@@ -161,3 +161,41 @@ export const uploadInbodyImage = async (userId, imageFile) => {
 
     return savedRecord;
 };
+
+/**
+ * 건강 기록에 대한 분석 보고서 조회
+ *
+ * 📍 사용 위치: pages/Chatbot/ChatbotSelector.jsx (플래너 사용 전 분석 여부 확인)
+ *
+ * 기능:
+ * - 특정 건강 기록에 대한 LLM 분석 보고서가 존재하는지 확인
+ * - 플래너 사용 전에 인바디 분석이 완료되었는지 검증하는 데 사용
+ *
+ * @param {number} recordId - 건강 기록 ID
+ *
+ * @returns {Promise<Object|null>} 분석 보고서 또는 null (없을 경우)
+ * @returns {number} return.id - 분석 보고서 ID
+ * @returns {string} return.content - 분석 내용
+ * @returns {string} return.created_at - 생성 일시
+ *
+ * @throws {Error} API 호출 실패 (404는 null 반환)
+ *
+ * @example
+ * // 플래너 사용 전 분석 여부 확인
+ * const analysisReport = await getAnalysisByRecord(latestInbodyData.id);
+ * if (!analysisReport) {
+ *   alert("인바디 분석을 먼저 완료해주세요");
+ *   return;
+ * }
+ */
+export const getAnalysisByRecord = async (recordId) => {
+    try {
+        return await apiRequest(`/analysis/record/${recordId}`);
+    } catch (error) {
+        // 404 에러인 경우 null 반환 (분석 보고서 없음)
+        if (error.message && error.message.includes('404')) {
+            return null;
+        }
+        throw error;
+    }
+};

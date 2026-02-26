@@ -15,6 +15,8 @@ class WeeklyPlan(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    thread_id = Column(String, nullable=False, unique=True, index=True) # LangGraph 스레드 ID
+    initial_llm_interaction_id = Column(Integer, ForeignKey("llm_interactions.id"), nullable=False) # 첫 LLM 상호작용 ID
     week_number = Column(Integer, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
@@ -24,6 +26,7 @@ class WeeklyPlan(Base):
 
     # Relationships
     user = relationship("User", back_populates="weekly_plans")
+    initial_llm_interaction = relationship("LLMInteraction")
 
     def __repr__(self):
         return f"<WeeklyPlan(id={self.id}, user_id={self.user_id}, week={self.week_number})>"

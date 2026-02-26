@@ -62,17 +62,17 @@ const Chatbot = () => {
     // - 운동 플래너: 주간계획/부위별/유산소/기타
     // ============================================
     const INBODY_CATEGORIES = [
-        { id: 'muscle', label: '💪 근육 분석', value: '💪 근육 상세 분석' },
-        { id: 'fat', label: '💧 체지방 분석', value: '💧 체지방 상세 분석' },
-        { id: 'balance', label: '⚖️ 균형/불균형', value: '⚖️ 균형/불균형 설명' },
-        { id: 'general', label: '❓ 기타 질문', value: '❓ 기타 질문' }
+        { id: 'summary', label: '🧾 인바디 종합의견 Q&A', value: '🧾 인바디 종합의견 Q&A' },
+        { id: 'compare', label: '📈 이전 인바디와 비교 Q&A', value: '📈 이전 인바디와 비교 Q&A' },
+        { id: 'improve', label: '🛠️ 개선 사항 Q&A', value: '🛠️ 개선 사항 Q&A' },
+        { id: 'general', label: '❓ 일반 Q&A', value: '❓ 일반 Q&A' }
     ];
 
     // 운동 플래너 카테고리
     const WORKOUT_CATEGORIES = [
-        { id: 'weekly', label: '📅 주간 계획', value: '주간 운동 계획 보여줘' },
-        { id: 'bodypart', label: '🏋️ 부위별 운동', value: '부위별 운동 추천해줘' },
-        { id: 'cardio', label: '🏃 유산소', value: '유산소 운동 알려줘' },
+        { id: 'weekly', label: '📅 운동 플랜 조정', value: '운동 플랜 조정해줘' },
+        { id: 'bodypart', label: '🏋️ 식단 조정', value: '식단 조정해줘' },
+        { id: 'cardio', label: '🏃 운동 강도 조정', value: '운동 강도 조정해줘' },
         { id: 'general', label: '❓ 기타 질문', value: '❓ 기타 질문' }
     ];
 
@@ -87,8 +87,16 @@ const Chatbot = () => {
     const messagesEndRef = useRef(null);
     const hasInitialized = useRef(false); // 초기화 중복 실행 방지
 
+    // 현재 선택된 카테고리 라벨 가져오기 (UI 표시용)
+    const getCategoryLabel = () => {
+        if (!chatCategory) return null;
+        const cats = getCurrentCategories();
+        const cat = cats.find(c => c.id === chatCategory);
+        return cat ? cat.label : null;
+    };
+
     // 이전 페이지에서 전달받은 데이터
-    const { inbodyData, userId } = location.state || {};
+    const { inbodyData, userId, planRequest } = location.state || {};
 
     // 사용자 ID 결정: location.state > localStorage > 기본값 1
     const getUserId = () => {
@@ -128,6 +136,41 @@ const Chatbot = () => {
     useEffect(() => {
         const initChat = async () => {
             if (USE_MOCK_DATA) {
+                if (botType === 'workout-planner' && planRequest) {
+                    setTimeout(() => {
+                        const mockPlanResponse = `🏋️ **맞춤형 주간 운동 플랜**이 완성되었습니다!\n\n**목표**: ${planRequest.goal}\n**선호 운동**: ${planRequest.preferences.join(', ')}\n**특이사항**: ${planRequest.diseases || '없음'}`;
+                        const mockPlanDetails = `
+### 📅 주간 루틴 가이드
+
+**월요일 (하체/코어)**
+- 스쿼트 4세트 x 12회
+- 런지 3세트 x 15회
+- 플랭크 3세트 x 40초
+
+**수요일 (상체/등)**
+- 푸쉬업 4세트 x 10회
+- 덤벨 로우 3세트 x 12회
+- 숄더 프레스 3세트 x 12회
+
+**금요일 (전신 유산소)**
+- 버피 테스트 10분
+- 인터벌 러닝 20분
+
+💡 **질병 주의사항**: ${planRequest.diseases ? planRequest.diseases + '에 무리가 가지 않도록 중량을 낮춰서 진행하세요.' : '컨디션에 따라 강도를 조절하세요.'}`;
+
+                        setMessages(prev => [
+                            ...prev,
+                            {
+                                id: Date.now(),
+                                text: mockPlanResponse,
+                                details: mockPlanDetails,
+                                sender: 'bot'
+                            }
+                        ]);
+                    }, 1500);
+                    return;
+                }
+
                 // 목업 모드: 1.5초 후 분석 결과 시뮬레이션
                 setTimeout(() => {
                     const mockSummary = `[인바디 분석 요약]
@@ -189,6 +232,7 @@ const Chatbot = () => {
                 return;
             }
 
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////
             // 실제 API 모드
             setIsTyping(true);
             try {
@@ -196,20 +240,31 @@ const Chatbot = () => {
                 let responseData = null;  // API 응답 데이터 저장용
 
                 if (botType === 'inbody-analyst') {
-                    // 1. 인바디 분석 전문가: 분석 결과 조회
-                    // record_id가 필요함. inbodyData가 없으면 에러 처리
-                    const recordId = inbodyData?.id;
-                    if (!recordId) {
-                        throw new Error("분석할 인바디 기록이 없습니다.");
+                    // pre-fetched 데이터 확인
+                    const preFetchedData = location.state?.analysisResult;
+
+                    if (preFetchedData && !preFetchedData.mockData) {
+                        // ✅ 이전에 가져온 데이터 활용
+                        console.log("✅ Using Pre-fetched Analysis Data");
+                        responseData = preFetchedData;
+                    } else {
+                        // 기존 로직: API 호출
+                        // 1. 인바디 분석 전문가: 분석 결과 조회
+                        // record_id가 필요함. inbodyData가 없으면 에러 처리
+                        const recordId = inbodyData?.id;
+                        if (!recordId) {
+                            throw new Error("분석할 인바디 기록이 없습니다.");
+                        }
+
+                        // POST /api/analysis/{record_id}?user_id={user_id}
+                        const res = await fetch(`/api/analysis/${recordId}?user_id=${currentUserId}`, {
+                            method: 'POST'
+                        });
+                        if (!res.ok) throw new Error("분석 리포트 생성 실패");
+
+                        responseData = await res.json();
                     }
 
-                    // POST /api/analysis/{record_id}?user_id={user_id}
-                    const res = await fetch(`/api/analysis/${recordId}?user_id=${currentUserId}`, {
-                        method: 'POST'
-                    });
-                    if (!res.ok) throw new Error("분석 리포트 생성 실패");
-
-                    responseData = await res.json();
                     // responseData = AnalysisReportResponse: { id, summary, content, thread_id, ... }
 
                     setReportId(responseData.id);  // ✅ 'id' 필드 사용
@@ -220,25 +275,48 @@ const Chatbot = () => {
 
                 } else if (botType === 'workout-planner') {
                     // 2. 운동 플래너 전문가: 주간 계획 생성
+                    // planRequest가 있으면 그것을 사용, 없으면 기존 로직
 
-                    // POST /api/weekly-plans/generate?user_id={user_id}
-                    const res = await fetch(`/api/weekly-plans/generate?user_id=${currentUserId}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            record_id: inbodyData?.id || null, // 인바디 기록 ID (선택)
-                            user_goal_type: "다이어트", // TODO: 사용자 목표 연동
-                            user_goal_description: "체중 감량 및 근육 증가" // TODO: 사용자 설명 연동
-                        })
-                    });
-                    if (!res.ok) throw new Error("운동 계획 생성 실패");
+                    const preFetchedData = location.state?.planResult;
 
-                    responseData = await res.json();
-                    // responseData = WeeklyPlanResponse: { id, plan_data: { content, thread_id }, ... }
+                    if (preFetchedData && !preFetchedData.mockData) {
+                        console.log("✅ Using Pre-fetched Workout Plan Data");
+                        responseData = preFetchedData;
 
-                    response = responseData.plan_data?.content;
-                    setPlanId(responseData.id);  // ✅ 'id' 필드 사용
-                    setThreadId(responseData.plan_data?.thread_id);
+                        // GoalPlanResponse structure handling
+                        response = responseData.weekly_plan?.plan_data?.content;
+                        setPlanId(responseData.plan_id);
+                        setThreadId(responseData.thread_id);
+
+                    } else {
+                        // 기존 로직: API 호출
+                        // POST /api/weekly-plans/session?user_id={user_id}
+                        const payload = {
+                            action: "generate", // Unified API Action
+                            record_id: inbodyData?.id, // 인바디 기록 ID
+                            user_goal_type: planRequest?.goal || "다이어트", // 사용자 목표 연동
+                            user_goal_description: planRequest ?
+                                `${planRequest.goal}를 원하며, 선호하는 운동은 ${planRequest.preferences?.join(', ') || ''}입니다. 주의사항: ${planRequest.diseases || '없음'}`
+                                : "체중 감량 및 근육 증가",
+                            // API 스키마에 맞춰 필드명과 타입 수정 (Array -> String)
+                            preferences: planRequest?.preferences?.join(', ') || "",
+                            health_specifics: planRequest?.diseases || ""
+                        };
+
+                        const res = await fetch(`/api/weekly-plans/session?user_id=${currentUserId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error("운동 계획 생성 실패");
+
+                        responseData = await res.json();
+
+                        // GoalPlanResponse 처리를 위한 구조 수정
+                        response = responseData.weekly_plan?.plan_data?.content;
+                        setPlanId(responseData.plan_id);
+                        setThreadId(responseData.thread_id);
+                    }
                 }
 
                 // 성공 메시지 추가
@@ -296,6 +374,9 @@ const Chatbot = () => {
         setIsTyping(true);
         // 빠른 응답 버튼 숨기기 (원한다면 유지할 수도 있음) -> 유저 요청으로 유지
         // setQuickReplies([]);
+
+        // [Debug] 요청 시작 로그
+        console.log("🚀 [Frontend Debug] sendMessage 시작:", { text, botType, currentUserId, planId, threadId });
 
         try {
             if (USE_MOCK_DATA) {
@@ -433,36 +514,88 @@ const Chatbot = () => {
 
             // 실제 API 호출 (후속 대화)
             let endpoint = '';
+            let bodyPayload = {};
+            let isStreaming = false; // 스트리밍 여부
+
+            // 카테고리 정보가 있다면 메시지에 포함 (UI엔 표시 안 함, 백엔드 전송용)
+            let finalMessage = text;
+            const currentCategories = getCurrentCategories();
+            const categoryObj = currentCategories.find(c => c.id === chatCategory);
+
+            if (categoryObj) {
+                // 사용자 요청대로 [Category: Label] 형식 추가
+                finalMessage = `[Category: ${categoryObj.label}] ${text}`;
+            }
 
             if (botType === 'inbody-analyst') {
                 if (!reportId) throw new Error("분석 리포트 ID가 없습니다.");
                 endpoint = `/api/analysis/${reportId}/chat`;
+
+                bodyPayload = {
+                    message: finalMessage,
+                    thread_id: threadId
+                };
             } else if (botType === 'workout-planner') {
                 if (!planId) throw new Error("운동 플랜 ID가 없습니다.");
-                endpoint = `/api/weekly-plans/${planId}/chat`;
+                
+                // 스트리밍 엔드포인트 사용
+                endpoint = `/api/weekly-plans/chat/stream?user_id=${currentUserId}`;
+                isStreaming = true;
+
+                bodyPayload = {
+                    action: 'chat',
+                    plan_id: planId,
+                    thread_id: threadId,
+                    message: finalMessage
+                };
             }
 
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: text,
-                    thread_id: threadId // 스레드 ID 유지
-                })
+                body: JSON.stringify(bodyPayload)
             });
 
             if (!res.ok) throw new Error("메시지 전송 실패");
-            const data = await res.json();
 
-            // data = { response: "...", thread_id: "..." }
+            if (isStreaming) {
+                setIsTyping(false); // 스트리밍 시작 시 타이핑 인디케이터 제거
+                
+                const botMessageId = Date.now() + 1;
+                setMessages(prev => [...prev, {
+                    id: botMessageId,
+                    text: '',
+                    sender: 'bot'
+                }]);
 
-            const botMessage = {
-                id: Date.now() + 1,
-                text: data.reply || data.response, // reply(요약) 또는 response(전체)
-                details: data.details, // 상세 내용
-                sender: 'bot'
-            };
-            setMessages(prev => [...prev, botMessage]);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    accumulatedText += chunk;
+
+                    setMessages(prev => prev.map(msg => 
+                        msg.id === botMessageId 
+                            ? { ...msg, text: accumulatedText }
+                            : msg
+                    ));
+                }
+            } else {
+                const data = await res.json();
+
+                const botMessage = {
+                    id: Date.now() + 1,
+                    text: data.reply || data.response, // reply(요약) 또는 response(전체)
+                    details: data.details, // 상세 내용
+                    sender: 'bot'
+                };
+                setMessages(prev => [...prev, botMessage]);
+            }
 
         } catch (error) {
             console.error('챗봇 응답 오류:', error);
@@ -486,13 +619,23 @@ const Chatbot = () => {
     };
 
     const handleQuickReply = (text) => {
-        // 카테고리 선택 시 chatCategory 업데이트
+        // 카테고리 선택 시 chatCategory 업데이트만 수행 (바로 전송 X)
         const currentCategories = getCurrentCategories();
+
+        // text가 value로 들어오므로, value로 매칭되는 카테고리 찾기
         const category = currentCategories.find(cat => cat.value === text);
+
         if (category) {
-            setChatCategory(category.id);
+            // 이미 선택된 카테고리를 다시 누르면 해제 기능도 추가하면 좋음 (선택사항)
+            if (chatCategory === category.id) {
+                setChatCategory(null); // 해제
+            } else {
+                setChatCategory(category.id); // 선택
+            }
+        } else {
+            // 카테고리가 아닌 일반 텍스트 퀵버튼일 경우 그냥 전송
+            sendMessage(text);
         }
-        sendMessage(text);
     };
 
     // ==============================================
@@ -584,7 +727,13 @@ const Chatbot = () => {
     };
 
     return (
-        <div className="chatbot-container fade-in">
+        <div className="chatbot-container fade-in" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            overflow: 'hidden',
+            backgroundColor: '#f8fafc' // 배경색 명시
+        }}>
             <header className="chatbot-header" style={{ borderBottomColor: config.color }}>
                 <div className="bot-info">
                     <div className="bot-avatar" style={{
@@ -673,7 +822,13 @@ const Chatbot = () => {
                 </div>
             </header >
 
-            <div className="chat-messages">
+            <div className="chat-messages" style={{
+                flex: 1,
+                overflowY: 'auto',
+                paddingBottom: '20px',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
                 {messages.map((msg) => (
                     <React.Fragment key={msg.id}>
                         <div className={`message-bubble-wrapper ${msg.sender}`}>
@@ -825,18 +980,24 @@ const Chatbot = () => {
                 </div>
             )} */}
 
-            {/* 고정 카테고리 버튼 영역 */}
-            {
+
+            {/* =======================================================
+               [하단 고정 영역: 카테고리 + 선택 표시 + 입력창]
+               Flex Layout의 하단에 정적으로 배치됨 (Fixed Position 제거)
+               ======================================================= */}
+            <div className="chatbot-footer" style={{
+                flexShrink: 0,
+                background: 'white',
+                borderTop: '1px solid #e2e8f0',
+                zIndex: 50,
+                paddingBottom: 'env(safe-area-inset-bottom)' // 아이폰 대응
+            }}>
+
+                {/* 1. 카테고리 버튼 영역 */}
                 <div style={{
-                    position: 'fixed',
-                    bottom: '90px',
-                    left: 0,
-                    right: 0,
-                    background: 'linear-gradient(to top, #ffffff 90%, rgba(255,255,255,0))',
-                    paddingTop: '20px',
-                    paddingBottom: '10px',
-                    borderTop: '1px solid #f1f5f9',
-                    zIndex: 900
+                    paddingTop: '16px',
+                    paddingBottom: '12px',
+                    background: 'white'
                 }}>
                     <div style={{
                         textAlign: 'center',
@@ -860,30 +1021,18 @@ const Chatbot = () => {
                                 key={cat.id}
                                 onClick={() => handleQuickReply(cat.value)}
                                 style={{
-                                    background: chatCategory === cat.id ? '#8b5cf6' : 'white',
-                                    color: chatCategory === cat.id ? 'white' : '#475569',
-                                    border: chatCategory === cat.id ? '2px solid #8b5cf6' : '2px solid #e2e8f0',
+                                    background: chatCategory === cat.id ? '#ede9fe' : 'white',
+                                    color: chatCategory === cat.id ? '#6d28d9' : '#475569',
+                                    border: chatCategory === cat.id ? '2px solid #c4b5fd' : '1px solid #e2e8f0',
                                     borderRadius: '20px',
-                                    padding: '10px 16px',
+                                    padding: '8px 16px',
                                     fontSize: '0.85rem',
                                     fontWeight: '600',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s',
                                     whiteSpace: 'nowrap',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                                     flexShrink: 0
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (chatCategory !== cat.id) {
-                                        e.target.style.borderColor = '#cbd5e1';
-                                        e.target.style.background = '#f8fafc';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (chatCategory !== cat.id) {
-                                        e.target.style.borderColor = '#e2e8f0';
-                                        e.target.style.background = 'white';
-                                    }
                                 }}
                             >
                                 {cat.label}
@@ -891,160 +1040,63 @@ const Chatbot = () => {
                         ))}
                     </div>
                 </div>
-            }
-
-            {/* 청팅 히스토리 사이드바 */}
-            {showHistorySidebar && (
-                <>
-                    {/* Overlay */}
-                    <div
-                        onClick={() => setShowHistorySidebar(false)}
-                        style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'rgba(0,0,0,0.4)',
-                            zIndex: 1000,
-                            animation: 'fadeIn 0.3s'
-                        }}
-                    />
 
 
-                    {/* Sidebar - 모바일/데스크탑 모두 오른싪에서 슬라이드 */}
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        left: 'auto',
-                        width: typeof window !== 'undefined' && window.innerWidth > 768 ? '400px' : '85vw',
-                        maxWidth: '400px',
-                        background: 'white',
-                        boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
-                        zIndex: 1001,
-                        display: 'flex',
-                        flexDirection: 'column'
-                    }}>
-                        {/* Header */}
-                        <div style={{
-                            padding: '20px',
-                            borderBottom: '1px solid #e2e8f0',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>
-                                📋 이전 대화
-                            </h3>
-                            <button
-                                onClick={() => setShowHistorySidebar(false)}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    fontSize: '1.5rem',
-                                    cursor: 'pointer',
-                                    color: '#64748b'
-                                }}
-                            >
-                                ×
-                            </button>
-                        </div>
 
-                        {/* Chat List */}
-                        <div style={{
-                            flex: 1,
-                            overflowY: 'auto',
-                            padding: '16px'
-                        }}>
-                            {chatHistories.length === 0 ? (
-                                <div style={{
-                                    textAlign: 'center',
-                                    padding: '40px 20px',
-                                    color: '#94a3b8'
-                                }}>
-                                    아직 저장된 대화가 없습니다.
-                                </div>
-                            ) : (
-                                chatHistories
-                                    .sort((a, b) => b.timestamp - a.timestamp)
-                                    .map((chat) => (
-                                        <div
-                                            key={chat.id}
-                                            onClick={() => loadChatHistory(chat.id)}
-                                            style={{
-                                                padding: '14px',
-                                                marginBottom: '8px',
-                                                borderRadius: '12px',
-                                                border: currentChatId === chat.id ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
-                                                background: currentChatId === chat.id ? '#f5f3ff' : 'white',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                if (currentChatId !== chat.id) {
-                                                    e.currentTarget.style.background = '#f8fafc';
-                                                }
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                if (currentChatId !== chat.id) {
-                                                    e.currentTarget.style.background = 'white';
-                                                }
-                                            }}
-                                        >
-                                            <div style={{
-                                                fontSize: '0.9rem',
-                                                fontWeight: '600',
-                                                color: '#1e293b',
-                                                marginBottom: '6px',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {chat.title}
-                                            </div>
-                                            <div style={{
-                                                fontSize: '0.75rem',
-                                                color: '#94a3b8',
-                                                marginBottom: '4px'
-                                            }}>
-                                                {new Date(chat.timestamp).toLocaleString('ko-KR', {
-                                                    month: 'short',
-                                                    day: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: '#64748b',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {chat.lastMessage}
-                                            </div>
-                                        </div>
-                                    ))
-                            )}
-                        </div>
+                {/* 3. 입력창 */}
+                <form className="chat-input-area-static" onSubmit={handleSend} style={{
+                    padding: '0 16px 20px 16px',
+                    position: 'relative',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                }}>
+                    <div style={{ position: 'relative', display: 'flex', width: '100%' }}>
+                        <input
+                            type="text"
+                            placeholder={chatCategory ? "메시지를 입력하세요..." : "위에서 카테고리를 먼저 선택해주세요"}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            disabled={isTyping || !chatCategory}
+                            style={{
+                                width: '100%',
+                                padding: '14px 48px 14px 20px',
+                                borderRadius: '24px',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '1rem',
+                                outline: 'none',
+                                transition: 'all 0.2s',
+                                background: '#f8fafc',
+                                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)',
+                                color: '#1e293b'
+                            }}
+                        />
+                        <button
+                            type="submit"
+                            className="send-btn"
+                            disabled={!inputValue.trim() || isTyping || !chatCategory}
+                            style={{
+                                position: 'absolute',
+                                right: '8px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: (!inputValue.trim() || isTyping || !chatCategory) ? '#e2e8f0' : '#8b5cf6',
+                                color: 'white',
+                                border: 'none',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: (!inputValue.trim() || isTyping || !chatCategory) ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <Send size={18} />
+                        </button>
                     </div>
-                </>
-            )}
-
-            <form className="chat-input-area" onSubmit={handleSend} style={{ bottom: '20px' }}>
-                <input
-                    type="text"
-                    placeholder={chatCategory ? "메시지를 입력하세요..." : "위에서 카테고리를 먼저 선택해주세요"}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    disabled={isTyping || !chatCategory}
-                />
-                <button type="submit" className="send-btn" disabled={!inputValue.trim() || isTyping || !chatCategory}>
-                    <Send size={20} />
-                </button>
-            </form>
+                </form>
+            </div>
 
             <style>{`
                 .quick-replies-container {
@@ -1084,10 +1136,9 @@ const Chatbot = () => {
                     transform: translateY(0);
                 }
                 /* App.css 오버라이드 */
-                .chat-input-area {
-                    bottom: 20px !important; 
-                    transition: all 0.3s ease;
-                }
+                /* App.css 오버라이드 제거 또는 수정 */
+                /* .chat-input-area 삭제됨, .chat-input-area-static 사용 */
+
                 
                 /* =======================================================
                    [마크다운 스타일링] 
@@ -1138,38 +1189,108 @@ const Chatbot = () => {
                 }
 
                 /* 모바일 대응 */
+
                 @media (max-width: 768px) {
-                   .chat-input-area {
-                        bottom: 10px !important;
-                   }
-                   .quick-replies-container {
-                        bottom: 90px;
-                        left: 0; /* 전체 너비 사용 */
-                        right: 0;
-                        gap: 12px; 
-                        flex-wrap: nowrap; /* 줄바꿈 방지 */
-                        overflow-x: auto; /* 가로 스크롤 허용 */
-                        justify-content: flex-start; /* 왼쪽부터 시작 */
-                        padding: 0 16px; /* 좌우 여백 */
-                        -webkit-overflow-scrolling: touch; /* 부드러운 스크롤 */
-                        /* 스크롤바 숨기기 */
-                        scrollbar-width: none; 
-                        -ms-overflow-style: none;
-                   }
-                   .quick-replies-container::-webkit-scrollbar {
-                        display: none;
-                   }
-                   
-                   .quick-reply-chip {
-                        padding: 10px 18px;
-                        font-size: 0.95rem;
-                        flex-shrink: 0; /* 찌그러짐 방지 */
-                   }
                    .chatbot-container {
                         height: 100vh !important; 
+                        /* 모바일 브라우저 주소창 고려 */
+                        height: 100dvh !important; 
                    }
                 }
             `}</style>
+
+            {/* Sidebar (Restored) */}
+            {showHistorySidebar && (
+                <>
+                    <div
+                        onClick={() => setShowHistorySidebar(false)}
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0,0,0,0.4)',
+                            zIndex: 1000,
+                            animation: 'fadeIn 0.3s'
+                        }}
+                    />
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: typeof window !== 'undefined' && window.innerWidth > 768 ? '400px' : '85vw',
+                        background: 'white',
+                        boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
+                        zIndex: 1001,
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <div style={{
+                            padding: '20px',
+                            borderBottom: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>
+                                📋 이전 대화
+                            </h3>
+                            <button
+                                onClick={() => setShowHistorySidebar(false)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    fontSize: '1.5rem',
+                                    cursor: 'pointer',
+                                    color: '#64748b'
+                                }}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div style={{
+                            flex: 1,
+                            overflowY: 'auto',
+                            padding: '16px'
+                        }}>
+                            {chatHistories.length === 0 ? (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: '40px 20px',
+                                    color: '#94a3b8'
+                                }}>
+                                    아직 저장된 대화가 없습니다.
+                                </div>
+                            ) : (
+                                chatHistories
+                                    .sort((a, b) => b.timestamp - a.timestamp)
+                                    .map((chat) => (
+                                        <div
+                                            key={chat.id}
+                                            onClick={() => loadChatHistory(chat.id)}
+                                            style={{
+                                                padding: '14px',
+                                                marginBottom: '8px',
+                                                borderRadius: '12px',
+                                                border: currentChatId === chat.id ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
+                                                background: currentChatId === chat.id ? '#f5f3ff' : 'white',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: '600', marginBottom: '6px' }}>{chat.title}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                                {new Date(chat.timestamp).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    ))
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
         </div >
     );
 };

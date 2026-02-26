@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, User, Clock, Ruler, Camera } from 'lucide-react';
+import { Mail, Lock, Upload, Image as ImageIcon, Check, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, Target, Activity, User, Clock, Ruler, Camera, Info } from 'lucide-react';
 import '../../styles/LoginLight.css';
 
 const Signup = () => {
@@ -22,11 +22,11 @@ const Signup = () => {
         medicalConditions: [],
         medicalConditionsDetail: '',
         preferredExercises: [],
-        gender: 'male',
-        age: '31',
-        height: '170',
-        startWeight: '30',
-        targetWeight: '58',
+        gender: '남성',
+        age: '',
+        height: '',
+        startWeight: '',
+        targetWeight: '',
         goalType: '감량',
         activityLevel: '보통',
         goal: ''
@@ -178,7 +178,27 @@ const Signup = () => {
             if (value.length > 7) return; // 길이 제한
         }
 
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const newState = { ...prev, [field]: value };
+
+            // Sync with inbodyData if it exists
+            if (newState.inbodyData) {
+                if (field === 'startWeight') {
+                    if (!newState.inbodyData['체중관리']) newState.inbodyData['체중관리'] = {};
+                    newState.inbodyData['체중관리']['체중'] = value;
+                } else if (field === 'height') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['신장'] = value;
+                } else if (field === 'age') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['연령'] = value;
+                } else if (field === 'gender') {
+                    if (!newState.inbodyData['기본정보']) newState.inbodyData['기본정보'] = {};
+                    newState.inbodyData['기본정보']['성별'] = value;
+                }
+            }
+            return newState;
+        });
         setErrors(prev => ({ ...prev, [field]: '' }));
 
         if (field === 'password') {
@@ -212,9 +232,9 @@ const Signup = () => {
             // 성별은 텍스트 허용 (최대 10자)
             if (value.length > 10) isValid = false;
         } else {
-            // 그 외 수치 데이터는 숫자와 소수점만 허용
-            // 정규식: 숫자만 혹은 소수점 포함 숫자
-            if (!/^\d*\.?\d*$/.test(value)) {
+            // 그 외 수치 데이터는 숫자와 소수점만 허용 (음수 허용)
+            // 정규식: 숫자만 혹은 소수점 포함 숫자, 음수 가능
+            if (!/^-?\d*\.?\d*$/.test(value)) {
                 isValid = false;
             } else {
                 // 범위 제한 (터무니 없는 값 방지)
@@ -230,16 +250,26 @@ const Signup = () => {
         }
 
         if (isValid) {
-            setFormData(prev => ({
-                ...prev,
-                inbodyData: {
-                    ...prev.inbodyData,
-                    [category]: {
-                        ...prev.inbodyData[category],
-                        [field]: value
+            setFormData(prev => {
+                const newState = {
+                    ...prev,
+                    inbodyData: {
+                        ...prev.inbodyData,
+                        [category]: {
+                            ...prev.inbodyData[category],
+                            [field]: value
+                        }
                     }
-                }
-            }));
+                };
+
+                // Sync with root fields if OCR data is updated
+                if (category === '체중관리' && field === '체중') newState.startWeight = value;
+                if (category === '기본정보' && field === '신장') newState.height = value;
+                if (category === '기본정보' && field === '연령') newState.age = value;
+                if (category === '기본정보' && field === '성별') newState.gender = value;
+
+                return newState;
+            });
         }
     };
 
@@ -306,7 +336,7 @@ const Signup = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'OCR 처리 중 오류가 발생했습니다.');
+                throw new Error(errorData.detail || 'OCR 처리 중 오류가 발생했습니다.');
             }
 
             const result = await response.json();
@@ -323,9 +353,13 @@ const Signup = () => {
                     // 성별 자동 입력
                     if (basicInfo['성별']) {
                         if (basicInfo['성별'].includes('남') || basicInfo['성별'].toLowerCase().includes('m')) {
-                            autoFill.gender = 'male';
+                            autoFill.gender = '남성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '남성';
                         } else if (basicInfo['성별'].includes('여') || basicInfo['성별'].toLowerCase().includes('f')) {
-                            autoFill.gender = 'female';
+                            autoFill.gender = '여성';
+                            // inbodyData의 성별도 정규화된 값으로 업데이트 (백엔드 일관성 유지)
+                            extracted['기본정보']['성별'] = '여성';
                         }
                     }
 
@@ -347,14 +381,14 @@ const Signup = () => {
         } catch (err) {
             clearTimeout(timeoutId);
             console.error('OCR Error:', err);
+            setIsProcessingOCR(false);  // 에러 발생 시 즉시 로딩 종료
+            setOcrProgress(0);  // 진행률 초기화
+
             if (err.name === 'AbortError') {
                 setErrors({ ocr: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
             } else {
                 setErrors({ ocr: err.message || 'OCR 처리 중 오류가 발생했습니다.' });
             }
-        } finally {
-            // setIsProcessingOCR(false)는 결과 데이터를 보여줄 때 지연 호출됨
-            if (errors.ocr) setIsProcessingOCR(false);
         }
     };
 
@@ -467,11 +501,11 @@ const Signup = () => {
                     body: JSON.stringify({
                         ...formData,
                         username: formData.email.split('@')[0], // Backend requires username, use email prefix
-                        // Convert string numbers to actual numbers for backend validation
-                        age: parseInt(formData.age),
-                        height: parseFloat(formData.height),
-                        startWeight: parseFloat(formData.startWeight),
-                        targetWeight: parseFloat(formData.targetWeight)
+                        // Convert string numbers to actual numbers or null for backend validation
+                        age: formData.age ? parseInt(formData.age) : null,
+                        height: formData.height ? parseFloat(formData.height) : null,
+                        startWeight: formData.startWeight ? parseFloat(formData.startWeight) : null,
+                        targetWeight: formData.targetWeight ? parseFloat(formData.targetWeight) : null
                     }),
                 });
 
@@ -515,6 +549,16 @@ const Signup = () => {
                 // 성공 시 대시보드에 사용자 정보 전달 및 로컬 스토리지 저장
                 localStorage.setItem('user', JSON.stringify(result));
 
+                // 운동 설정 정보를 별도 저장 (운동 플래너에서 사용)
+                localStorage.setItem('exerciseSettings', JSON.stringify({
+                    goal: formData.goalType || '',
+                    preferences: formData.preferredExercises || [],
+                    diseases: [
+                        ...(formData.medicalConditions || []),
+                        formData.medicalConditionsDetail || ''
+                    ].filter(Boolean).join(', ')
+                }));
+
                 // alert('회원가입이 완료되었습니다!');
                 navigate('/signup-success');
             } catch (err) {
@@ -535,6 +579,9 @@ const Signup = () => {
         const categoryData = formData.inbodyData?.[categoryKey];
         if (!categoryData) return null;
         const isSegmental = segmentalCategories.includes(categoryKey);
+        const missingCount = Object.values(categoryData).filter(
+            (value) => value === null || value === undefined || value === ''
+        ).length;
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -542,21 +589,29 @@ const Signup = () => {
                     <span className="section-bullet"></span>
                     <h4>{title}</h4>
                 </div>
+                {missingCount > 0 && (
+                    <div className="report-notice" style={{ marginTop: '10px' }}>
+                        <Info size={16} />
+                        <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                    </div>
+                )}
                 <div className="report-table">
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
                         <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
-                    {Object.entries(categoryData).map(([field, value]) => (
-                        <div className="table-row" key={field}>
+                    {Object.entries(categoryData).map(([field, value]) => {
+                        const isMissing = value === null || value === undefined || value === '';
+                        return (
+                        <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
                             <div className="row-label">{field}</div>
-                            <div className="row-value">
+                            <div className={`row-value ${isMissing ? 'missing' : ''}`}>
                                 {isSegmental ? (
                                     <select
                                         value={value || ''}
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                        className="segmental-select"
+                                        className={`segmental-select ${isMissing ? 'missing-input' : ''}`}
                                     >
                                         <option value="">선택</option>
                                         {segmentalOptions.map(option => (
@@ -569,12 +624,13 @@ const Signup = () => {
                                         value={value || ''}
                                         placeholder="-"
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className={isMissing ? 'missing-input' : ''}
                                     />
                                 )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         );
@@ -747,7 +803,7 @@ const Signup = () => {
                                                             style={{ marginTop: 0 }}
                                                             disabled={isProcessingOCR}
                                                         >
-                                                            분석 시작
+                                                            인바디 정보 인식
                                                         </button>
                                                     </div>
                                                 </div>
@@ -883,22 +939,40 @@ const Signup = () => {
                                                                 <div className="header-cell">결과값</div>
                                                                 <div className="header-cell">단위</div>
                                                             </div>
-                                                            {formData.inbodyData?.[reportSlides[reportSlideIndex].key] && Object.entries(formData.inbodyData[reportSlides[reportSlideIndex].key])
-                                                                .filter(([key]) => key !== "인바디점수")
-                                                                .map(([field, value]) => (
-                                                                    <div className="table-row" key={field}>
+                                                            {(() => {
+                                                                const categoryKey = reportSlides[reportSlideIndex].key;
+                                                                const data = formData.inbodyData?.[categoryKey];
+                                                                if (!data) return null;
+                                                                const entries = Object.entries(data).filter(([key]) => key !== "인바디점수");
+                                                                const missingCount = entries.filter(([, value]) => value === null || value === undefined || value === '').length;
+                                                                return (
+                                                                    <>
+                                                                        {missingCount > 0 && (
+                                                                            <div className="report-notice" style={{ marginTop: '10px' }}>
+                                                                                <Info size={16} />
+                                                                                <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                                                                            </div>
+                                                                        )}
+                                                                        {entries.map(([field, value]) => {
+                                                                            const isMissing = value === null || value === undefined || value === '';
+                                                                            return (
+                                                                            <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
                                                                         <div className="row-label">{field}</div>
-                                                                        <div className="row-value">
+                                                                        <div className={`row-value ${isMissing ? 'missing' : ''}`}>
                                                                             <input
                                                                                 type="text"
                                                                                 value={value || ''}
                                                                                 placeholder="-"
                                                                                 onChange={(e) => handleInbodyFieldChange(reportSlides[reportSlideIndex].key, field, e.target.value)}
+                                                                                className={isMissing ? 'missing-input' : ''}
                                                                             />
                                                                         </div>
                                                                         <div className="row-unit">{reportSlides[reportSlideIndex].units[field] || ''}</div>
                                                                     </div>
-                                                                ))}
+                                                                        )})}
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -947,14 +1021,15 @@ const Signup = () => {
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">목표체중</span>
-                                            <span className="stat-value">{formData.targetWeight} kg</span>
+                                            <span className="stat-value">{formData.targetWeight || '-'} kg</span>
                                         </div>
                                         <div className="stat-item">
                                             <span className="stat-label">변화</span>
                                             <span className="stat-value">
                                                 {(() => {
-                                                    const start = parseFloat(formData.startWeight || 0);
-                                                    const target = parseFloat(formData.targetWeight || 0);
+                                                    const start = parseFloat(formData.startWeight);
+                                                    const target = parseFloat(formData.targetWeight);
+                                                    if (isNaN(start) || isNaN(target)) return '-';
                                                     const diff = (target - start).toFixed(1);
                                                     const sign = diff > 0 ? '+' : '';
                                                     return `${sign}${diff}`;
@@ -1037,7 +1112,7 @@ const Signup = () => {
                         )}
                         {step < 4 ? (
                             <button type="button" className="login-button" onClick={handleNext}>
-                                {step === 2 && !formData.inbodyData ? '분석을 완료해주세요' : '다음'}
+                                {step === 2 && !formData.inbodyData ? '다음에 분석하기' : '다음'}
                                 <ArrowRight size={20} />
                             </button>
                         ) : (
@@ -1234,10 +1309,21 @@ const Signup = () => {
                                 <span className="field-label">시작 체중 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '400' }}>(인바디 기준)</span></span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={formData.startWeight}
-                                        disabled
-                                        style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center', background: '#f8fafc', color: '#64748b', cursor: 'not-allowed' }}
+                                        onChange={(e) => handleInputChange('startWeight', e.target.value)}
+                                        disabled={!!formData.inbodyData?.["체중관리"]?.["체중"]}
+                                        style={{
+                                            width: '80px',
+                                            padding: '10px 12px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #e2e8f0',
+                                            fontSize: '1rem',
+                                            textAlign: 'center',
+                                            backgroundColor: !!formData.inbodyData?.["체중관리"]?.["체중"] ? '#f1f5f9' : 'white',
+                                            color: !!formData.inbodyData?.["체중관리"]?.["체중"] ? '#64748b' : 'inherit',
+                                            cursor: !!formData.inbodyData?.["체중관리"]?.["체중"] ? 'not-allowed' : 'text'
+                                        }}
                                     />
                                     <span style={{ color: '#64748b', fontWeight: '500' }}>kg</span>
                                 </div>
@@ -1246,7 +1332,7 @@ const Signup = () => {
                                 <span className="field-label">목표 체중</span>
                                 <div className="field-value-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
-                                        type="number"
+                                        type="text"
                                         value={formData.targetWeight}
                                         onChange={(e) => handleInputChange('targetWeight', e.target.value)}
                                         style={{ width: '80px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '1rem', textAlign: 'center' }}

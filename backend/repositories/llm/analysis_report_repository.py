@@ -21,6 +21,7 @@ class AnalysisReportRepository:
             llm_output=report_data.llm_output,
             model_version=report_data.model_version,
             analysis_type=report_data.analysis_type,
+            thread_id=report_data.thread_id,
             embedding_1536=report_data.embedding_1536,
             embedding_1024=report_data.embedding_1024
         )

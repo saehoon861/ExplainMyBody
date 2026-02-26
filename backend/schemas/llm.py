@@ -3,9 +3,9 @@ LLM Schemas - LLM 팀원 전담
 InbodyAnalysisReport, UserDetail, WeeklyPlan, LLM 입출력 (상태 분석 + 주간 계획) 관련 모든 스키마
 """
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, RootModel
 from datetime import datetime, date
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, Literal
 
 
 # ============================================================================
@@ -54,7 +54,7 @@ class UserDetailBase(BaseModel):
     goal_type: Optional[str] = None
     # target_weight: Optional[float] = None # DB 컬럼 아님, Response에만 존재
     # start_weight: Optional[float] = None # DB 컬럼 아님
-    goal_description: Optional[str] = None
+    goal_description: Optional[str] = None  # JSON 형식으로 저장(재활, 시작체중, 목표체중)
     preferences: Optional[str] = None
     health_specifics: Optional[str] = None
     is_active: Optional[int] = 1
@@ -129,12 +129,17 @@ class StatusAnalysisInput(BaseModel):
     measurements: Dict[str, Any]
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    prev_inbody_data: Optional[Dict[str, Any]] = None  # 이전 InBody 측정 데이터
+    prev_inbody_date: Optional[datetime] = None  # 이전 InBody 측정 일시 (하위 호환성)
+    interval_days: Optional[str] = None  # 이전 InBody와의 간격 (일 단위, 문자열)
 
 
 class GoalPlanInput(BaseModel):
     """LLM2: 주간 계획 생성 입력 스키마"""
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
     record_id: int
     user_id: int
     measured_at: datetime
@@ -143,6 +148,9 @@ class GoalPlanInput(BaseModel):
     status_analysis_id: Optional[int] = None
     body_type1: Optional[str] = None
     body_type2: Optional[str] = None
+    user_profile: Optional[Dict[str, Any]] = None  # rule_based_prompts용 프로필 정보
+    available_days_per_week: Optional[int] = 5  # 주당 운동 가능 일수
+    available_time_per_session: Optional[int] = 60  # 회당 운동 시간 (분)
 
 
 class GoalPlanRequest(BaseModel):
@@ -150,6 +158,8 @@ class GoalPlanRequest(BaseModel):
     record_id: int
     user_goal_type: Optional[str] = None
     user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
 
 
 class GoalPlanPrepareResponse(BaseModel):
@@ -171,6 +181,8 @@ class GoalPlanResponse(BaseModel):
     plan_id: int
     report_id: int
     weekly_plan: Dict[str, Any]
+    thread_id: str  # LangGraph 스레드 ID
+    initial_llm_interaction_id: int  # 첫 LLM 상호작용 ID
     message: Optional[str] = None
 
 
@@ -181,6 +193,8 @@ class GoalPlanResponse(BaseModel):
 
 class WeeklyPlanBase(BaseModel):
     """주간 계획 기본 스키마"""
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int = 1
     start_date: date
     # end_date: date    daily_plans: Dict[str, Any]  # 요일별 운동/식단 JSON
@@ -191,6 +205,8 @@ class WeeklyPlanBase(BaseModel):
 
 class WeeklyPlanCreate(BaseModel):
     """주간 계획 생성 요청"""
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int = 1
     start_date: date
     end_date: date
@@ -210,6 +226,8 @@ class WeeklyPlanResponse(BaseModel):
     """주간 계획 응답"""
     id: int
     user_id: int
+    thread_id: str
+    initial_llm_interaction_id: int
     week_number: int
     start_date: date
     end_date: date
@@ -227,7 +245,7 @@ class WeeklyPlanResponse(BaseModel):
 
 class AnalysisChatRequest(BaseModel):
     """분석/계획에 대한 대화 요청 (Human Feedback)"""
-    report_id: int
+    report_id: Optional[int] = None  # URL path에 이미 있으므로 Optional
     message: str
     thread_id: Optional[str] = None  # LangGraph 스레드 ID (대화 맥락 유지)
 
@@ -249,6 +267,99 @@ class WeeklyPlanChatRequest(BaseModel):
     message: str
 
 
+class GenerateWeeklyPlanRequest(BaseModel):
+    """초기 계획 생성 요청"""
+    action: Literal["generate"]
+    record_id: int  # 필수
+    user_goal_type: Optional[str] = None
+    user_goal_description: Optional[str] = None
+    preferences: Optional[str] = None
+    health_specifics: Optional[str] = None
+
+
+class ChatWeeklyPlanRequest(BaseModel):
+    """계획 채팅 요청"""
+    action: Literal["chat"]
+    plan_id: int  # 필수
+    thread_id: str  # 필수
+    message: str  # 필수
+    feedback_category: Optional[str] = None
+
+
+class WeeklyPlanUnifiedRequest(RootModel):
+    """통합 요청 래퍼 (FastAPI 본문 파싱용)"""
+    # Pydantic Union 직접 사용 시 FastAPI가 파싱에 어려움을 겪을 수 있어 RootModel 사용 권장되나
+    # 여기서는 간단히 Union을 사용하여 라우터에서 처리
+    root: Union[GenerateWeeklyPlanRequest, ChatWeeklyPlanRequest]
+
+
+class WeeklyPlanUnifiedResponse(BaseModel):
+    """통합 응답 스키마"""
+    plan_id: int
+    weekly_plan: Optional[Dict[str, Any]] = None # 생성 시 포함
+    response: Optional[str] = None # 채팅 시 포함
+    thread_id: str
+    initial_llm_interaction_id: Optional[int] = None # 생성 시 포함
+    report_id: Optional[int] = None # 호환성 유지용
+
+    class Config:
+        from_attributes = True
+
 class WeeklyPlanChatResponse(BaseModel):
     """주간 계획 채팅 응답 스키마"""
     response: str
+
+
+class WeeklyPlanFeedbackRequest(BaseModel):
+    """주간 계획 피드백 요청 스키마"""
+    thread_id: str
+    parent_interaction_id: int
+    feedback_category: str
+    feedback_text: str
+
+# ============================================================================
+# LLM Interaction Schemas
+# ============================================================================
+
+class LLMInteractionBase(BaseModel):
+    llm_stage: str
+    source_type: Optional[str] = None
+    source_id: Optional[int] = None
+    category_type: Optional[str] = None
+    output_text: str
+    model_version: Optional[str] = None
+    
+    # 수정 이력 추적을 위한 필드 추가
+    parent_interaction_id: Optional[int] = None
+    triggering_feedback_id: Optional[int] = None
+
+class LLMInteractionCreate(LLMInteractionBase):
+    pass
+
+class LLMInteractionResponse(LLMInteractionBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# ============================================================================
+# Human Feedback Schemas
+# ============================================================================
+
+class HumanFeedbackBase(BaseModel):
+    llm_interaction_id: int
+    feedback_category: Optional[str] = None
+    feedback_text: str
+
+class HumanFeedbackCreate(HumanFeedbackBase):
+    pass
+
+class HumanFeedbackResponse(HumanFeedbackBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -21,7 +21,9 @@ from pydantic import ValidationError
 from exceptions import (
     OCREngineNotInitializedError,
     OCRExtractionFailedError,
-    OCRProcessingError
+    OCRProcessingError,
+    OCRInsufficientDataError,
+    OCRInvalidFileFormatError
 )
 
 router = APIRouter()
@@ -88,6 +90,18 @@ async def extract_inbody_from_image(
     
     except OCRExtractionFailedError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+    except OCRInsufficientDataError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"정확한 인바디 결과지를 업로드해주세요. {str(e)}"
+        )
+    
+    except OCRInvalidFileFormatError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     
     except OCRProcessingError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -163,7 +177,11 @@ async def validate_and_save_inbody(
     
     try:
         # InBodyData에서 체형 분석에 필요한 필드만 추출하여 입력 생성
-        body_type_input = BodyTypeAnalysisInput.from_inbody_data(validated_inbody_data)
+        body_type_input = BodyTypeAnalysisInput.from_inbody_data(
+            inbody=validated_inbody_data,
+            muscle_seg=validated_inbody_data.부위별근육분석.model_dump(),
+            fat_seg=validated_inbody_data.부위별체지방분석.model_dump()
+        )
         
         # 체형 분석 실행 (stage2, stage3 결과 반환)
         body_type_result = body_type_service.get_full_analysis(body_type_input)
@@ -197,14 +215,8 @@ async def validate_and_save_inbody(
     )
     health_record = health_service.create_health_record(db, user_id, record_data)
     
-    # Step 5: body_type 별도 컬럼에도 저장 (조회 편의용)
-    if body_type1 is not None or body_type2 is not None:
-        health_record.body_type1 = body_type1
-        health_record.body_type2 = body_type2
-        db.commit()
-        db.refresh(health_record)
-    
     return health_record
+
 
 
 

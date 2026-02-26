@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Activity, User, Home, Edit2, X, Check, Scale, CalendarDays, Dumbbell, Youtube, ChevronRight, Zap, Shield, Heart, Coffee, Droplets, Moon, Apple, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, Edit2, X, Scale, CalendarDays, Dumbbell, ChevronRight } from 'lucide-react';
+import ExercisePlanPopup from '../../components/common/ExercisePlanPopup';
+import Tutorial from '../../components/common/Tutorial';
 import '../../styles/LoginLight.css'; // 스타일 재사용
 
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
@@ -66,13 +67,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
     const isLoss = targetWeight < startWeight;
     const actionText = isLoss ? '감량' : (targetWeight > startWeight ? '증량' : '유지');
 
-    // 마일스톤 정의
-    const milestones = [
-        { percent: 25, label: '시작', emoji: '🌱' },
-        { percent: 50, label: '절반', emoji: '⭐' },
-        { percent: 75, label: '거의', emoji: '🔥' },
-        { percent: 100, label: '완료', emoji: '🏆' }
-    ];
+
 
     // 다음 마일스톤 찾기
     const nextMilestone = milestones.find(m => m.percent > progress) || milestones[milestones.length - 1];
@@ -87,7 +82,7 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
         if (p >= 50) return '#6366f1'; // 파랑 - 절반 이상
         return '#818cf8'; // 연보라 - 시작
     };
-
+    //ㅇㅁㄴㅇ
     const progressColor = getProgressColor(progress);
 
     return (
@@ -283,11 +278,83 @@ const CircularProgress = ({ progress, currentWeight, targetWeight, startWeight, 
 const HealthTipsSection = () => {
     const [selectedTip, setSelectedTip] = useState(null);
 
+    const Illustration = ({ type }) => {
+        switch (type) {
+            case 'diet':
+                return (
+                    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="8" width="60" height="56" rx="18" fill="#F0F7FF" />
+                        <circle cx="28" cy="38" r="10" fill="#34D399" />
+                        <circle cx="44" cy="34" r="8" fill="#FBBF24" />
+                        <circle cx="42" cy="48" r="7" fill="#F472B6" />
+                        <rect x="20" y="50" width="32" height="6" rx="3" fill="#60A5FA" />
+                    </svg>
+                );
+            case 'sleep':
+                return (
+                    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="8" width="60" height="56" rx="18" fill="#FDF2FF" />
+                        <path d="M38 24C29.7157 24 23 30.7157 23 39C23 47.2843 29.7157 54 38 54C45.1797 54 51.1686 49.1782 52.7 42.5C50.7 44.2 48.1 45.2 45.3 45.2C38.6 45.2 33.2 39.8 33.2 33.1C33.2 30.3 34.2 27.7 35.9 25.7C36.6 24.9 37.3 24.4 38 24Z" fill="#A78BFA" />
+                        <circle cx="50" cy="24" r="3" fill="#FBBF24" />
+                    </svg>
+                );
+            case 'water':
+                return (
+                    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="8" width="60" height="56" rx="18" fill="#EEF6FF" />
+                        <path d="M36 18C36 18 20 38 20 46C20 54.8366 27.1634 62 36 62C44.8366 62 52 54.8366 52 46C52 38 36 18 36 18Z" fill="#60A5FA" />
+                        <path d="M28 50C29.5 53.5 33 56 36.8 56" stroke="#E0F2FE" strokeWidth="4" strokeLinecap="round" />
+                    </svg>
+                );
+            case 'recovery':
+            default:
+                return (
+                    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="6" y="8" width="60" height="56" rx="18" fill="#FFF1F2" />
+                        <path d="M22 46C22 39.3726 27.3726 34 34 34H50C52.2091 34 54 35.7909 54 38V40C54 42.2091 52.2091 44 50 44H36C33.7909 44 32 45.7909 32 48V50C32 52.2091 30.2091 54 28 54H26C23.7909 54 22 52.2091 22 50V46Z" fill="#FB7185" />
+                        <circle cx="26" cy="32" r="6" fill="#F59E0B" />
+                    </svg>
+                );
+        }
+    };
+
     const healthTips = [
-        { id: 1, title: '균형 잡힌 식단', emoji: '🥗', color: '#a78bfa', bg: '#faf5ff', summary: '영양소 섭취 가이드', content: '매끼 채소 2가지 이상 섭취하고, 단백질 15-20%, 탄수화물 50-60%를 유지하세요. 가공식품 대신 자연식품을 선택하고 천천히 씹어먹으세요.' },
-        { id: 2, title: '수면의 질 높이기', emoji: '😴', color: '#e879f9', bg: '#fdf4ff', summary: '회복력 극대화', content: '성인 권장 수면 시간은 7-9시간입니다. 매일 같은 시간에 취침하고, 자기 전 1시간은 스마트폰을 피하세요.' },
-        { id: 3, title: '수분 섭취 가이드', emoji: '💧', color: '#60a5fa', bg: '#eff6ff', summary: '신진대사 활성화', content: '하루 권장 물 섭취량은 체중 × 30ml입니다. 기상 후 물 한 잔을 마시고, 운동 전후 500ml씩 섭취하세요.' },
-        { id: 4, title: '운동 후 회복', emoji: '💪', color: '#f472b6', bg: '#fdf2f8', summary: '근육 성장 팁', content: '운동 후 30분 이내 단백질 20-30g을 섭취하세요. 스트레칭 5-10분, 같은 부위는 48시간 휴식하세요.' }
+        {
+            id: 1,
+            title: '균형 잡힌 식단',
+            type: 'diet',
+            color: '#a78bfa',
+            bg: '#faf5ff',
+            summary: '탄·단·지 비율과 식사 타이밍',
+            content: '한 끼 기준으로 접시의 절반은 채소, 1/4은 단백질, 1/4은 탄수화물로 구성하세요. 가공식품과 당 음료는 줄이고, 하루 단백질은 체중(kg)×1.2~1.6g을 목표로 하세요.'
+        },
+        {
+            id: 2,
+            title: '수면의 질 높이기',
+            type: 'sleep',
+            color: '#e879f9',
+            bg: '#fdf4ff',
+            summary: '회복을 좌우하는 수면 습관',
+            content: '취침·기상 시간을 매일 일정하게 유지하세요. 카페인은 오후 2시 이후 피하고, 취침 60분 전에는 밝은 화면을 줄이면 수면 깊이가 좋아집니다.'
+        },
+        {
+            id: 3,
+            title: '수분 섭취 가이드',
+            type: 'water',
+            color: '#60a5fa',
+            bg: '#eff6ff',
+            summary: '체중 기반 수분 루틴',
+            content: '하루 기본 물 섭취량은 체중(kg)×30ml를 기준으로 하고, 운동 전후에는 각각 300~500ml를 추가하세요. 소변 색이 연한 노란색이면 적정 수분 상태입니다.'
+        },
+        {
+            id: 4,
+            title: '운동 후 회복',
+            type: 'recovery',
+            color: '#f472b6',
+            bg: '#fdf2f8',
+            summary: '근육 회복과 부상 예방',
+            content: '운동 후 30~60분 내 단백질 20~30g과 탄수화물을 함께 섭취하세요. 같은 근육군은 48시간 휴식하고, 스트레칭과 가벼운 폼롤링으로 회복을 돕습니다.'
+        }
     ];
 
     return (
@@ -326,7 +393,7 @@ const HealthTipsSection = () => {
                             marginBottom: '10px',
                             fontSize: '48px'
                         }}>
-                            {tip.emoji}
+                            <Illustration type={tip.type} />
                         </div>
                         <h4 style={{
                             fontSize: '0.85rem',
@@ -397,7 +464,9 @@ const HealthTipsSection = () => {
                                     color: '#475569'
                                 }}
                             >✕</button>
-                            <div style={{ fontSize: '64px', marginBottom: '16px' }}>{selectedTip.emoji}</div>
+                            <div style={{ marginBottom: '12px' }}>
+                                <Illustration type={selectedTip.type} />
+                            </div>
                             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>{selectedTip.title}</h1>
                             <p style={{ fontSize: '0.95rem', color: '#475569', margin: 0 }}>{selectedTip.summary}</p>
                         </div>
@@ -418,6 +487,7 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [userData, setUserData] = useState(null);
     const [healthRecords, setHealthRecords] = useState([]);
+    const [motivationMessage, setMotivationMessage] = useState('');
 
     // Edge Native: Resource Prefetching
     usePrefetch([
@@ -439,6 +509,24 @@ const Dashboard = () => {
         goal_description: ''
     });
 
+    // Exercise Plan Popup State
+    const [isExercisePopupOpen, setIsExercisePopupOpen] = useState(false);
+
+    // 건강 정보 섹션 토글 상태 (기본: 접힘)
+    const [isHealthTipsOpen, setIsHealthTipsOpen] = useState(true);
+    const [showInbodyPrompt, setShowInbodyPrompt] = useState(false);
+
+    const handleExercisePlanSubmit = (data) => {
+        setIsExercisePopupOpen(false);
+        // FIX: 챗봇 페이지(/chatbot/...)가 아닌 주간 운동 계획표 페이지(/workout-plan)로 이동하도록 수정
+        navigate('/workout-plan', {
+            state: {
+                planRequest: data,
+                userId: userData?.id
+            }
+        });
+    };
+
     const openVideo = (type) => {
         let videoId = 'gMaB-fG4u4g';
         if (type === '상체') videoId = 'tzN69l791VU';
@@ -452,6 +540,20 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
+        const messages = [
+            '오늘도 한 걸음, 내일은 두 걸음!',
+            '작은 습관이 큰 변화를 만듭니다.',
+            '지금의 선택이 미래의 몸을 만듭니다.',
+            '천천히 해도 괜찮아요, 멈추지만 않으면 됩니다.',
+            '어제의 나보다 1%만 더!',
+            '꾸준함이 가장 강력한 전략입니다.',
+            '포기하지 않는 순간 변화가 시작됩니다.',
+            '오늘의 노력은 내일의 자신감!',
+            '몸은 정직합니다. 꾸준히 해볼까요?',
+            '지금의 루틴이 목표를 가까이 데려다줘요.'
+        ];
+        setMotivationMessage(messages[Math.floor(Math.random() * messages.length)]);
+        //
         const loadDashboardData = async () => {
             // 1. 사용자 정보 로드
             const storedUser = localStorage.getItem('user');
@@ -461,6 +563,7 @@ const Dashboard = () => {
                 currentUser = { ...MOCK_USER, ...currentUser }; // 로컬 스토리지 값 우선하되 목업으로 보완
                 setUserData(currentUser);
                 setHealthRecords(MOCK_RECORDS);
+                setShowInbodyPrompt(false);
             } else if (currentUser) {
                 setUserData(currentUser);
                 try {
@@ -468,8 +571,17 @@ const Dashboard = () => {
                     const records = await getUserHealthRecords(currentUser.id, 2);
                     // API는 최신순(내림차순)으로 오므로, 그래프용으로는 오름차순(과거->현재) 정렬 필요
                     setHealthRecords([...records].reverse());
+                    const hasInbody =
+                        (records && records.length > 0) ||
+                        !!currentUser.inbody_data?.weight ||
+                        !!currentUser.inbody_data?.measurements;
+                    setShowInbodyPrompt(!hasInbody);
                 } catch (error) {
                     console.error("Failed to fetch records:", error);
+                    const hasInbody =
+                        !!currentUser.inbody_data?.weight ||
+                        !!currentUser.inbody_data?.measurements;
+                    setShowInbodyPrompt(!hasInbody);
                 }
             }
 
@@ -552,6 +664,12 @@ const Dashboard = () => {
                 const updatedUser = await response.json();
                 setUserData(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
+
+                // exerciseSettings의 goal도 함께 업데이트
+                const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || '{}');
+                savedSettings.goal = editForm.goal_type;
+                localStorage.setItem('exerciseSettings', JSON.stringify(savedSettings));
+
                 setIsEditing(false);
                 alert('목표가 수정되었습니다.');
             } else {
@@ -671,6 +789,9 @@ const Dashboard = () => {
 
     return (
         <div className="main-content">
+            {/* 튜토리얼 컴포넌트 */}
+            <Tutorial />
+
             <header className="dashboard-header">
                 <div className="header-top">
                     <h1>ExplainMyBody</h1>
@@ -683,14 +804,10 @@ const Dashboard = () => {
 
             {userData ? (
                 <div className="dashboard-hero-section fade-in">
-                    <div className="goal-overview-card">
+                    <div className="goal-overview-card tutorial-spotlight" data-tutorial-step="0" data-tutorial-anchor="1">
                         <div className="goal-header">
                             <span className="user-greeting">안녕하세요, {userData.email.split('@')[0]}님!</span>
                             <div className="header-actions">
-                                <button className="edit-goal-button" onClick={() => openVideo('기본')} title="가이드 영상">
-                                    <Youtube size={18} color="#ef4444" />
-                                    <span>사용 팁</span>
-                                </button>
                                 <button className="edit-goal-button" onClick={handleEditClick} title="목표 수정">
                                     <Edit2 size={14} />
                                     <span>목표 수정</span>
@@ -728,57 +845,25 @@ const Dashboard = () => {
                         )}
                     </div>
 
-                    {/* 원형 프로그레스 목표 달성률 카드 */}
+                    {/* 동기부여 메시지 카드 */}
                     <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '24px' }}>
-                        <h3>🎯 목표 달성률</h3>
-                        {(() => {
-                            const currentWeight = userData.inbody_data?.weight || userData.start_weight || 0;
-                            const targetWeight = userData.target_weight || 0;
-                            const startWeight = userData.start_weight || 0;
-
-                            if (currentWeight && targetWeight && startWeight) {
-                                const totalChange = Math.abs(targetWeight - startWeight);
-                                const currentChange = Math.abs(currentWeight - startWeight);
-                                const progress = totalChange > 0 ? Math.min(Math.round((currentChange / totalChange) * 100), 100) : 0;
-
-                                // 응원 메시지
-                                let message = '';
-                                if (progress >= 100) message = '🎉 목표 달성! 정말 대단해요!';
-                                else if (progress >= 75) message = '🔥 거의 다 왔어요! 조금만 더!';
-                                else if (progress >= 50) message = '💪 절반 이상 달성! 잘하고 계세요!';
-                                else if (progress >= 25) message = '✨ 좋은 시작이에요! 꾸준히!';
-                                else message = '🌟 첫 걸음을 내딛었어요!';
-
-                                return (
-                                    <>
-                                        <CircularProgress
-                                            progress={progress}
-                                            currentWeight={currentWeight}
-                                            targetWeight={targetWeight}
-                                            startWeight={startWeight}
-                                            goalType={userData.goal_type}
-                                        />
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                            padding: '12px 16px',
-                                            borderRadius: '12px',
-                                            color: 'white',
-                                            textAlign: 'center',
-                                            fontWeight: 600,
-                                            fontSize: '0.95rem',
-                                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
-                                        }}>
-                                            {message}
-                                        </div>
-                                    </>
-                                );
-                            }
-                            return <p style={{ color: '#94a3b8', textAlign: 'center' }}>체중 데이터를 입력해주세요</p>;
-                        })()}
+                        <h3>🌿 오늘의 동기부여</h3>
+                        <div style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            color: 'white',
+                            textAlign: 'center',
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                        }}>
+                            {motivationMessage || '오늘도 한 걸음, 내일은 두 걸음!'}
+                        </div>
                     </div>
 
                     {/* 체중 변화 차트 카드 */}
-                    <div className="dashboard-card chart-card fade-in delay-2" style={{ marginTop: '16px' }}>
+                    <div className="dashboard-card chart-card fade-in delay-2 tutorial-spotlight" data-tutorial-step="1" style={{ marginTop: '16px' }}>
                         <h4 style={{ fontSize: '1rem', color: '#475569', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Scale size={18} /> 체중 변화 추이
                         </h4>
@@ -827,7 +912,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* 2. 근육/체지방 분석 (Bar Chart) */}
-                        <div style={{ marginTop: '24px' }}>
+                        <div style={{ marginTop: '24px' }} data-tutorial-step="1-2">
                             <h4 style={{ fontSize: '1rem', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Dumbbell size={18} /> 근육 & 체지방 분석
                             </h4>
@@ -1071,6 +1156,8 @@ const Dashboard = () => {
                                     />
                                 </div>
                             </div>
+
+
                         </div>
                         <div className="dashboard-modal-footer">
                             <button className="secondary-button" onClick={() => setIsEditing(false)}>취소</button>
@@ -1080,8 +1167,46 @@ const Dashboard = () => {
                 </div>
             )}
 
-            <div className="quick-actions-grid fade-in delay-1">
-                <Link to="/workout-plan" className="action-card primary">
+            {showInbodyPrompt && (
+                <div className="dashboard-modal-overlay fade-in" onClick={() => setShowInbodyPrompt(false)}>
+                    <div className="dashboard-modal-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="dashboard-modal-header">
+                            <h3>인바디 수치 분석이 필요해요</h3>
+                        </div>
+                        <div className="dashboard-modal-body">
+                            <p style={{ marginTop: 0 }}>
+                                회원가입 후 인바디 정보를 등록하지 않으셨습니다. 정확한 분석을 위해 인바디 수치를 먼저 입력해주세요.
+                            </p>
+                        </div>
+                        <div className="dashboard-modal-footer">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() => setShowInbodyPrompt(false)}
+                            >
+                                나중에
+                            </button>
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() => navigate('/inbody')}
+                            >
+                                인바디 등록하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="quick-actions-grid fade-in delay-1 tutorial-spotlight" data-tutorial-step="2" data-tutorial-anchor="2">
+                <div onClick={() => {
+                    const savedSettings = JSON.parse(localStorage.getItem('exerciseSettings') || 'null');
+                    if (savedSettings && savedSettings.goal && savedSettings.preferences?.length > 0) {
+                        handleExercisePlanSubmit(savedSettings);
+                    } else {
+                        setIsExercisePopupOpen(true);
+                    }
+                }} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
                         <CalendarDays size={24} />
                     </div>
@@ -1089,61 +1214,54 @@ const Dashboard = () => {
                         <h3>주간 운동 계획표</h3>
                         <p>이번 주 운동 스케줄 확인하기</p>
                     </div>
-                </Link>
+                </div>
 
-                <Link to="/chatbot" className="action-card primary">
+                <div onClick={() => navigate('/exercise-guide')} className="action-card primary" style={{ cursor: 'pointer' }}>
                     <div className="icon-box">
-                        <User size={24} />
+                        <Dumbbell size={24} />
                     </div>
                     <div className="text-box">
-                        <h3>AI 상담소</h3>
-                        <p>궁금한 점 물어보기</p>
+                        <h3>부위별 운동 가이드</h3>
+                        <p>상체, 복근, 하체 운동법 확인하기</p>
                     </div>
-                </Link>
-            </div>
-
-            <div className="section-title fade-in delay-2" style={{ marginTop: '32px', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>부위별 운동법 가이드</h3>
-            </div>
-
-            <div className="quick-actions-grid fade-in delay-2 exercise-category-grid">
-                <div onClick={() => openVideo('상체')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#eef2ff', color: '#6366f1' }}>
-                        <Zap size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>상체</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </div>
-
-                <div onClick={() => openVideo('복근')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#fff1f2', color: '#f43f5e' }}>
-                        <Shield size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>복근</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
-                </div>
-
-                <div onClick={() => openVideo('하체')} className="action-card" style={{ cursor: 'pointer' }}>
-                    <div className="icon-box" style={{ background: '#f0fdf4', color: '#22c55e' }}>
-                        <Activity size={24} />
-                    </div>
-                    <div className="text-box">
-                        <h3>하체</h3>
-                    </div>
-                    <ChevronRight size={16} color="#cbd5e1" style={{ alignSelf: 'flex-end' }} />
                 </div>
             </div>
+
+
 
             {/* 건강 정보 카드뉴스 섹션 */}
-            <div className="section-title fade-in delay-3" style={{ marginTop: '32px', marginBottom: '16px' }}>
+            <div
+                className="section-title fade-in delay-3 tutorial-spotlight"
+                data-tutorial-step="2"
+                onClick={() => setIsHealthTipsOpen(prev => !prev)}
+                style={{
+                    marginTop: '32px',
+                    marginBottom: '16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}
+            >
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>💡 건강 정보 & 팁</h3>
+                <ChevronRight
+                    size={20}
+                    style={{
+                        color: '#64748b',
+                        transition: 'transform 0.3s ease',
+                        transform: isHealthTipsOpen ? 'rotate(90deg)' : 'rotate(0deg)'
+                    }}
+                />
             </div>
 
-            <HealthTipsSection />
+            {isHealthTipsOpen && <HealthTipsSection />}
+
+            {/* Exercise Plan Popup */}
+            <ExercisePlanPopup
+                isOpen={isExercisePopupOpen}
+                onClose={() => setIsExercisePopupOpen(false)}
+                onSubmit={handleExercisePlanSubmit}
+            />
 
             <div style={{ height: '100px' }}></div>
 

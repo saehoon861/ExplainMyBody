@@ -12,7 +12,6 @@ ENV/
 
 # uv specific
 .uv/
-uv.lock
 
 # Python
 __pycache__/
@@ -47,3 +46,18 @@ htmlcov/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Deployment & Cloud SQL Proxy
+backend/cloud-sql-proxy
+backend/*.json
+backend/Dockerfile
+backend/.dockerignore
+.firebase/
+.firebaserc
+firebase.json
+
+# explainmybody_llm
+src/explainmybody_llm.egg-info/
+
+# Backend Test Results
+backend/tests/integration/llm2_test_results/

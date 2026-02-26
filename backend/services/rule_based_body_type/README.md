@@ -13,7 +13,7 @@
 모든 분석은 `body_analysis.pipeline` 모듈의 `BodyCompositionAnalyzer`를 통해 이루어집니다.
 
 ```python
-from body_analysis.pipeline import BodyCompositionAnalyzer
+from services.rule_based_body_type.body_analysis.pipeline import BodyCompositionAnalyzer
 
 # 분석기 인스턴스 생성 (margin은 오차 허용 범위, 기본값 0.1)
 analyzer = BodyCompositionAnalyzer(margin=0.10)
@@ -22,8 +22,8 @@ analyzer = BodyCompositionAnalyzer(margin=0.10)
 ### 2. 데이터 임포트 및 활용
 분석 결과나 상수를 코드 내에서 직접 다루어야 할 경우 아래 모듈들을 참조하세요.
 
-- **상수 (Constants)**: `from body_analysis import constants`
-- **데이터 모델 (DTO)**: `from body_analysis.models import BodyCompositionData`
+- **상수 (Constants)**: `from services.rule_based_body_type.body_analysis import constants`
+- **데이터 모델 (DTO)**: `from services.rule_based_body_type.body_analysis.models import BodyCompositionData`
 
 ---
 
@@ -42,7 +42,7 @@ python main_test.py
 
 ### 기본 사용 예제
 ```python
-from body_analysis.pipeline import BodyCompositionAnalyzer
+from services.rule_based_body_type.body_analysis.pipeline import BodyCompositionAnalyzer
 
 analyzer = BodyCompositionAnalyzer()
 

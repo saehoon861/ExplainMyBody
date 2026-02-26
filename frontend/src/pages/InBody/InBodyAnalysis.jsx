@@ -152,7 +152,7 @@ const InBodyAnalysis = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'OCR 처리 중 오류가 발생했습니다.');
+                throw new Error(errorData.detail || 'OCR 처리 중 오류가 발생했습니다.');
             }
 
             const result = await response.json();
@@ -168,24 +168,32 @@ const InBodyAnalysis = () => {
         } catch (err) {
             clearTimeout(timeoutId);
             console.error('OCR Error:', err);
+            setIsProcessingOCR(false);  // 에러 발생 시 즉시 로딩 종료
+            setOcrProgress(0);  // 진행률 초기화
+
             if (err.name === 'AbortError') {
                 setErrors({ ocr: '요청 시간이 초과되었습니다. 다시 시도해주세요.' });
             } else {
                 setErrors({ ocr: err.message || 'OCR 처리 중 오류가 발생했습니다.' });
             }
-        } finally {
-            if (errors.ocr) setIsProcessingOCR(false);
         }
     };
 
     const handleInbodyFieldChange = (category, field, value) => {
-        setInbodyData(prev => ({
-            ...prev,
-            [category]: {
-                ...prev[category],
-                [field]: value
-            }
-        }));
+        // 빈 문자열은 null로 변환 (백엔드 Optional 필드 호환)
+        const parsed = value === '' ? null : value;
+        console.log(`[수정] ${category}.${field}: "${value}" → ${JSON.stringify(parsed)}`);
+        setInbodyData(prev => {
+            const next = {
+                ...prev,
+                [category]: {
+                    ...prev[category],
+                    [field]: parsed
+                }
+            };
+            console.log(`[상태] ${category}.${field} =`, next[category][field]);
+            return next;
+        });
     };
 
     /**
@@ -198,6 +206,46 @@ const InBodyAnalysis = () => {
 
         setIsSaving(true);
         setErrors({});
+
+        // 문자열로 저장된 숫자 값을 숫자 타입으로 변환
+        const numericCategories = ['체성분', '체중관리', '비만분석', '연구항목'];
+        const intFields = ['연령', '내장지방레벨', '비만도', '기초대사량', '권장섭취열량'];
+        const cleanedData = JSON.parse(JSON.stringify(inbodyData)); // deep copy
+        // 기본정보 처리 (연령은 int, 신장은 float, 성별은 string)
+        if (cleanedData['기본정보']) {
+            if (cleanedData['기본정보']['신장'] != null) cleanedData['기본정보']['신장'] = parseFloat(cleanedData['기본정보']['신장']);
+            if (cleanedData['기본정보']['연령'] != null) cleanedData['기본정보']['연령'] = parseInt(cleanedData['기본정보']['연령'], 10);
+        }
+        numericCategories.forEach(cat => {
+            if (cleanedData[cat]) {
+                Object.keys(cleanedData[cat]).forEach(key => {
+                    const v = cleanedData[cat][key];
+                    if (v === null || v === undefined) return;
+                    if (typeof v === 'string') {
+                        const num = intFields.includes(key) ? parseInt(v, 10) : parseFloat(v);
+                        cleanedData[cat][key] = isNaN(num) ? null : num;
+                    }
+                });
+            }
+        });
+
+        // 저장 전 미입력 필드 검사
+        const nullFields = [];
+        const sections = ['기본정보', '체성분', '체중관리', '비만분석', '연구항목', '부위별근육분석', '부위별체지방분석'];
+        sections.forEach(section => {
+            if (cleanedData[section]) {
+                Object.entries(cleanedData[section]).forEach(([field, value]) => {
+                    if (value === null || value === undefined) {
+                        nullFields.push(`${section} → ${field}`);
+                    }
+                });
+            }
+        });
+        if (nullFields.length > 0) {
+            setIsSaving(false);
+            alert(`다음 항목을 입력해주세요:\n\n${nullFields.map(f => `• ${f}`).join('\n')}`);
+            return;
+        }
 
         try {
             if (USE_MOCK_DATA) {
@@ -213,17 +261,33 @@ const InBodyAnalysis = () => {
                     return;
                 }
 
+                console.log('[저장] 전송 데이터:', cleanedData);
+
                 const response = await fetch(`/api/health-records/ocr/validate?user_id=${userData.id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(inbodyData),
+                    body: JSON.stringify(cleanedData),
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.detail?.message || '저장 중 오류가 발생했습니다.');
+                    console.error('[저장 실패] 서버 응답:', JSON.stringify(errorData, null, 2));
+                    const detail = errorData.detail || errorData;
+                    let msg = (typeof detail === 'string') ? detail : (detail.message || '저장 중 오류가 발생했습니다.');
+                    if (detail.errors && Array.isArray(detail.errors)) {
+                        const fields = detail.errors.map(e => {
+                            const loc = Array.isArray(e.loc) ? e.loc.join(' → ') : '';
+                            return `[${loc}] ${e.msg}`;
+                        }).join('\n');
+                        msg += '\n\n검증 실패 필드:\n' + fields;
+                    }
+                    if (detail.null_fields) {
+                        const nullInfo = Object.entries(detail.null_fields).map(([k, v]) => `${k}: ${v.join(', ')}`).join('\n');
+                        msg += '\n\n미입력 필드:\n' + nullInfo;
+                    }
+                    throw new Error(msg);
                 }
 
                 await response.json();
@@ -315,6 +379,9 @@ const InBodyAnalysis = () => {
         if (!categoryData) return null;
         const isReadOnly = !!selectedRecord; // 이전 기록 조회 시 읽기 전용
         const isSegmental = segmentalCategories.includes(categoryKey);
+        const missingCount = Object.values(categoryData).filter(
+            (value) => value === null || value === undefined || value === ''
+        ).length;
 
         return (
             <div className="report-section" key={categoryKey}>
@@ -322,23 +389,31 @@ const InBodyAnalysis = () => {
                     <span className="section-bullet"></span>
                     <h4>{title}</h4>
                 </div>
+                {missingCount > 0 && (
+                    <div className="report-notice" style={{ marginTop: '10px' }}>
+                        <Info size={16} />
+                        <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                    </div>
+                )}
                 <div className="report-table">
                     <div className="table-header">
                         <div className="header-cell">항목</div>
                         <div className="header-cell">결과값</div>
                         <div className="header-cell">{isSegmental ? '평가' : '단위'}</div>
                     </div>
-                    {Object.entries(categoryData).map(([field, value]) => (
-                        <div className="table-row" key={field}>
+                    {Object.entries(categoryData).map(([field, value]) => {
+                        const isMissing = value === null || value === undefined || value === '';
+                        return (
+                        <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
                             <div className="row-label">{field}</div>
-                            <div className="row-value">
+                            <div className={`row-value ${isMissing ? 'missing' : ''}`}>
                                 {isSegmental ? (
                                     <select
-                                        value={value || ''}
+                                        value={value ?? ''}
                                         disabled={isReadOnly}
                                         style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
-                                        className="segmental-select"
+                                        className={`segmental-select ${isMissing ? 'missing-input' : ''}`}
                                     >
                                         <option value="">선택</option>
                                         {segmentalOptions.map(option => (
@@ -348,17 +423,18 @@ const InBodyAnalysis = () => {
                                 ) : (
                                     <input
                                         type="text"
-                                        value={value || ''}
+                                        value={value ?? ''}
                                         placeholder="-"
                                         disabled={isReadOnly}
                                         style={isReadOnly ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
                                         onChange={(e) => handleInbodyFieldChange(categoryKey, field, e.target.value)}
+                                        className={isMissing ? 'missing-input' : ''}
                                     />
                                 )}
                             </div>
                             <div className="row-unit">{unitMap[field] || ''}</div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         );
@@ -374,15 +450,15 @@ const InBodyAnalysis = () => {
                     </div>
                     <div className="inbody-buttons-section">
                         <button
-                            className={`secondary-button compact ${viewMode === 'history' ? '' : 'active'}`}
-                            onClick={() => setViewMode('new')}
+                            className={`secondary-button compact ${viewMode === 'history' || selectedRecord ? '' : 'active'}`}
+                            onClick={() => { setViewMode('new'); setSelectedRecord(null); setInbodyData(null); }}
                             style={{ width: 'auto', padding: '8px 16px' }}
                         >
                             <Camera size={18} />
                             새 분석
                         </button>
                         <button
-                            className={`secondary-button compact ${viewMode === 'history' ? 'active' : ''}`}
+                            className={`secondary-button compact ${viewMode === 'history' || selectedRecord ? 'active' : ''}`}
                             onClick={() => setViewMode('history')}
                             style={{ width: 'auto', padding: '8px 16px' }}
                         >
@@ -479,7 +555,7 @@ const InBodyAnalysis = () => {
                                                     style={{ marginTop: 0 }}
                                                     disabled={isProcessingOCR}
                                                 >
-                                                    분석 시작
+                                                    인바디 정보 인식
                                                 </button>
                                             </div>
                                         </div>
@@ -716,24 +792,42 @@ const InBodyAnalysis = () => {
                                                         <div className="header-cell">결과값</div>
                                                         <div className="header-cell">단위</div>
                                                     </div>
-                                                    {inbodyData?.[reportSlides[reportSlideIndex].key] && Object.entries(inbodyData[reportSlides[reportSlideIndex].key])
-                                                        .filter(([key]) => key !== "인바디점수")
-                                                        .map(([field, value]) => (
-                                                            <div className="table-row" key={field}>
-                                                                <div className="row-label">{field}</div>
-                                                                <div className="row-value">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={value || ''}
-                                                                        placeholder="-"
-                                                                        disabled={!!selectedRecord}
-                                                                        style={selectedRecord ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
-                                                                        onChange={(e) => handleInbodyFieldChange(reportSlides[reportSlideIndex].key, field, e.target.value)}
-                                                                    />
-                                                                </div>
-                                                                <div className="row-unit">{reportSlides[reportSlideIndex].units[field] || ''}</div>
-                                                            </div>
-                                                        ))}
+                                                    {(() => {
+                                                        const categoryKey = reportSlides[reportSlideIndex].key;
+                                                        const data = inbodyData?.[categoryKey];
+                                                        if (!data) return null;
+                                                        const entries = Object.entries(data).filter(([key]) => key !== "인바디점수");
+                                                        const missingCount = entries.filter(([, value]) => value === null || value === undefined || value === '').length;
+                                                        return (
+                                                            <>
+                                                                {missingCount > 0 && (
+                                                                    <div className="report-notice" style={{ marginTop: '10px' }}>
+                                                                        <Info size={16} />
+                                                                        <p>미입력 항목이 {missingCount}개 있습니다. 값을 입력해 주세요.</p>
+                                                                    </div>
+                                                                )}
+                                                                {entries.map(([field, value]) => {
+                                                                    const isMissing = value === null || value === undefined || value === '';
+                                                                    return (
+                                                                    <div className={`table-row ${isMissing ? 'missing' : ''}`} key={field}>
+                                                                        <div className="row-label">{field}</div>
+                                                                        <div className={`row-value ${isMissing ? 'missing' : ''}`}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={value ?? ''}
+                                                                                placeholder="-"
+                                                                                disabled={!!selectedRecord}
+                                                                                style={selectedRecord ? { background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' } : {}}
+                                                                                onChange={(e) => handleInbodyFieldChange(reportSlides[reportSlideIndex].key, field, e.target.value)}
+                                                                                className={isMissing ? 'missing-input' : ''}
+                                                                            />
+                                                                        </div>
+                                                                        <div className="row-unit">{reportSlides[reportSlideIndex].units[field] || ''}</div>
+                                                                    </div>
+                                                                )})}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         ) : (

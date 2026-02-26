@@ -3,7 +3,7 @@
 InBody 데이터에서 체형 분석에 필요한 필드만 추출
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Literal, Annotated
 from .inbody import InBodyData
 
@@ -25,7 +25,18 @@ class BodyTypeAnalysisInput(BaseModel):
     InBodyData에서 필요한 필드만 추출하여 생성
     모든 필수 필드가 없으면 Pydantic ValidationError 발생
     """
-    성별: str = Field(..., pattern="^(남성|여성)$", description="성별")
+    성별: str = Field(..., pattern="^(남성|여성|남|여|male|female|Male|Female)$", description="성별")
+    
+    @field_validator('성별')
+    @classmethod
+    def normalize_gender(cls, v: str) -> str:
+        """성별 정규화: 남/여/male/female → 남성/여성"""
+        v_low = v.lower()
+        if v == "남" or v_low == "male":
+            return "남성"
+        elif v == "여" or v_low == "female":
+            return "여성"
+        return v
     연령: int = Field(..., gt=0, lt=150, description="연령 (세)")
     신장: float = Field(..., gt=0, lt=300, description="신장 (cm)")
     체중: float = Field(..., gt=0, lt=500, description="체중 (kg)")
@@ -55,6 +66,17 @@ class BodyTypeAnalysisInput(BaseModel):
         Returns:
             BodyTypeAnalysisInput: 체형 분석 입력 모델
         """
+        # 키 매핑 함수
+        def map_seg_keys(seg_data: Dict) -> Dict:
+            mapping = {
+                "왼쪽팔": "왼팔",
+                "오른쪽팔": "오른팔",
+                "복부": "몸통",
+                "왼쪽하체": "왼다리",
+                "오른쪽하체": "오른다리"
+            }
+            return {mapping.get(k, k): v for k, v in seg_data.items()}
+
         return cls(
             성별=inbody.기본정보.성별,
             연령=inbody.기본정보.연령,
@@ -63,8 +85,8 @@ class BodyTypeAnalysisInput(BaseModel):
             BMI=inbody.비만분석.BMI,
             체지방률=inbody.비만분석.체지방률,
             골격근량=inbody.체중관리.골격근량,
-            muscle_seg=MuscleFatSegment(**muscle_seg),
-            fat_seg=MuscleFatSegment(**fat_seg)
+            muscle_seg=MuscleFatSegment(**map_seg_keys(muscle_seg)),
+            fat_seg=MuscleFatSegment(**map_seg_keys(fat_seg))
         )
     
     class Config:
