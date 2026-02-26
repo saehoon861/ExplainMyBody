@@ -5,6 +5,33 @@
 
 > **베타 버전**: 알파 버전에서 추가적으로 LangGraph를 활용한 피드백 루프 및 실시간 스트리밍이 적용되었음. 추가적인 기능 개선 준비 중.
 
+## 📸 스크린샷
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <img src="docs/images/Screenshot_start_page.png" alt="시작 페이지" style="height:320px; object-fit:contain;" /><br/>
+      <sub><b>시작 페이지</b></sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="docs/images/Screenshot_dashboard.png" alt="대시보드" style="height:320px; object-fit:contain;" /><br/>
+      <sub><b>대시보드</b></sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="docs/images/Screenshot_inbody_input.png" alt="신체정보 사용자 검증" style="height:320px; object-fit:contain;" /><br/>
+      <sub><b>신체정보 사용자 검증</b></sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="docs/images/Screenshot_chatbot_body.png" alt="챗봇 - 신체 분석" style="height:320px; object-fit:contain;" /><br/>
+      <sub><b>챗봇 · 신체 분석</b></sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="docs/images/Screenshot_chatbot_planner.png" alt="챗봇 - 주간 계획" style="height:320px; object-fit:contain;" /><br/>
+      <sub><b>챗봇 · 주간 계획</b></sub>
+    </td>
+  </tr>
+</table>
+
 ## 📺 서비스 시연 영상
 
 [![ExplainMyBody Demo Video](https://img.youtube.com/vi/KeJQ5dqiVMU/0.jpg)](https://www.youtube.com/watch?v=KeJQ5dqiVMU)
@@ -15,7 +42,7 @@
 
 ## 주요 기능 (Beta 기준)
 
-![Project Architecture](docs/Readme_achitecture2.png)
+<img src="docs/images/Readme_achitecture2.png" alt="Project Architecture" width="50%" />
 
 *서비스 아키텍쳐 구성도: 프론트엔드, 백엔드, DB와 핵심 서비스(OCR, LLM)의 구성을 나타냅니다.*
 
